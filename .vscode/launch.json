@@ -1,0 +1,20 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"type": "cppvsdbg",
+			"request": "launch",
+			"preLaunchTask": "Build",
+			"name": "Debug",
+			"program": "${workspaceFolder}/build/debug.exe",
+			"args": [],
+			"cwd": "${workspaceFolder}"
+		},
+		{
+			"type": "f5anything",
+			"request": "launch",
+			"name": "Run",
+			"command": "odin run . -out:build/build.exe -vet -strict-style",
+		}
+	]
+}
