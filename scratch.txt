@@ -1,0 +1,58 @@
+scratch work document
+
+environment
+- explosive barrels
+- water
+- fire (and flammable grass/trees)
+- boulders
+- lightning
+- crates
+- elevation
+- rafts on water
+- enemy projectiles
+- enemies themselves
+- fog and darkness
+
+items
+- weapons
+	- kunai
+	- katana
+	- dagger
+	- nunchucks
+	- flail
+	- khopesh
+	- axe
+	- spear
+	- boomerang
+	- bow
+- healing
+- temporary powerups
+- other items
+	- smoke bombs
+	- firecrackers
+	-
+
+enemy
+- follow player
+- attack
+- drop items/weapons
+- react to physics
+- hurtable
+
+player
+- movement abilities
+	- surf
+	- fire blast dash
+	- charge jump and ground slam
+	- air blast jump and glide
+	- electric teleport
+- pickup weapons and use them
+- inventory for other items
+- attack: punch or use weapon
+- react to physics
+- hurtable
+
+combat
+- player starts with nothing but movement ability and punch attack
+- items and weapons on ground
+- take advantage of environment
