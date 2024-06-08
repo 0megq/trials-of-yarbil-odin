@@ -1,6 +1,6 @@
 package game
 
-// import "core:fmt"
+import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -64,6 +64,9 @@ main :: proc() {
 	append(&enemies, Enemy{pos = {20, 80}, size = {10, 10}, detection_range = 200})
 	append(&enemies, Enemy{pos = {120, 200}, size = {30, 20}, detection_range = 100})
 
+	p1: []Vec2 = {{0, 0}, {100, 50}, {150, -20}}
+	p2: []Vec2 = {{0, 0}, {-100, 50}, {-150, -20}}
+
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
 
@@ -100,8 +103,12 @@ main :: proc() {
 			}
 			if punching {
 				punch_timer -= delta
+				// for enemy in enemies {
+
+				// }
 			}
 		}
+
 
 		// rl.TraceLog(
 		// 	.INFO,
@@ -116,6 +123,24 @@ main :: proc() {
 			rl.DrawRectangleV(enemy.pos - enemy.size / 2, enemy.size.y, rl.GREEN)
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 		}
+
+		rl.DrawText(
+			fmt.ctprintf(
+				"Colliding: %v",
+				check_collision_polygons(
+					offset_polygon(p1, {200, 200}),
+					offset_polygon(p2, rl.GetMousePosition()),
+				),
+			),
+			200,
+			20,
+			24,
+			rl.BLACK,
+		)
+
+
+		draw_polygon_lines(offset_polygon(p1, {200, 200}), rl.ORANGE)
+		draw_polygon_lines(offset_polygon(p2, rl.GetMousePosition()), rl.RED)
 
 		punch_area_color := rl.Color{255, 255, 255, 120}
 		if punching {
@@ -135,6 +160,24 @@ main :: proc() {
 	free_all(context.allocator)
 
 	rl.CloseWindow()
+}
+
+draw_polygon_lines :: proc(polygon: []Vec2, color: rl.Color) {
+	for i in 0 ..< len(polygon) {
+		if i == 0 {
+			rl.DrawLineV(polygon[i], polygon[len(polygon) - 1], color)
+		} else {
+			rl.DrawLineV(polygon[i], polygon[i - 1], color)
+		}
+	}
+}
+
+offset_polygon :: proc(polygon: []Vec2, offset: Vec2) -> []Vec2 {
+	result := make([]Vec2, len(polygon), context.temp_allocator)
+	for i in 0 ..< len(polygon) {
+		result[i] = polygon[i] + offset
+	}
+	return result
 }
 
 get_directional_input :: proc() -> Vec2 {
