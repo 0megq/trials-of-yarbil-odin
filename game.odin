@@ -102,10 +102,22 @@ main :: proc() {
 				punching = false
 			}
 			if punching {
+				fmt.println("yo")
 				punch_timer -= delta
-				// for enemy in enemies {
-
-				// }
+				for enemy, i in enemies {
+					if rl.CheckCollisionRecs(
+						{enemy.pos.x, enemy.pos.y, enemy.size.x, enemy.size.y},
+						{
+							player.pos.x + player.size.x * 0.5,
+							player.pos.y + PLAYER_PUNCH_SIZE.y * -0.5,
+							PLAYER_PUNCH_SIZE.x,
+							PLAYER_PUNCH_SIZE.y,
+						},
+					) {
+						fmt.println("kill")
+						unordered_remove(&enemies, i)
+					}
+				}
 			}
 		}
 
@@ -146,10 +158,19 @@ main :: proc() {
 		if punching {
 			punch_area_color = rl.Color{255, 0, 0, 120}
 		}
-		rl.DrawRectanglePro(
-			{player.pos.x, player.pos.y, PLAYER_PUNCH_SIZE.x, PLAYER_PUNCH_SIZE.y},
-			{-16, PLAYER_PUNCH_SIZE.y * 0.5},
-			get_angle(rl.GetMousePosition() - player.pos),
+		// rl.DrawRectanglePro(
+		// 	{player.pos.x, player.pos.y, PLAYER_PUNCH_SIZE.x, PLAYER_PUNCH_SIZE.y},
+		// 	{-player.size.x, PLAYER_PUNCH_SIZE.y * 0.5},
+		// 	get_angle(rl.GetMousePosition() - player.pos),
+		// 	punch_area_color,
+		// )
+		rl.DrawRectangleRec(
+			{
+				player.pos.x + player.size.x * 0.5,
+				player.pos.y + PLAYER_PUNCH_SIZE.y * -0.5,
+				PLAYER_PUNCH_SIZE.x,
+				PLAYER_PUNCH_SIZE.y,
+			},
 			punch_area_color,
 		)
 
