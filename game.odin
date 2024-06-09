@@ -9,6 +9,7 @@ PLAYER_BASE_MAX_SPEED :: 150
 PLAYER_BASE_ACCELERATION :: 1200
 PLAYER_PUNCH_SIZE :: Vec2{20, 32}
 PUNCH_TIME :: 0.2
+TIME_BETWEEN_PUNCH :: 0.4
 
 Entity :: struct {
 	pos: Vec2,
@@ -33,6 +34,8 @@ player: PhysicsEntity = {
 
 punching: bool
 punch_timer: f32
+can_punch: bool
+punch_rate_timer: f32
 
 move :: proc(e: ^PhysicsEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
 	e.vel += normalize(input) * acceleration * delta
@@ -112,14 +115,16 @@ main :: proc() {
 			punch_poly,
 			get_angle(rl.GetMousePosition() - player.pos),
 		)
-		if rl.IsMouseButtonPressed(.LEFT) {
+
+		if rl.IsMouseButtonPressed(.LEFT) && can_punch {
 			punching = true
 			punch_timer = PUNCH_TIME
-		} else {
+			can_punch = false
+		} else if punching {
 			if punch_timer <= 0 {
 				punching = false
-			}
-			if punching {
+				punch_rate_timer = TIME_BETWEEN_PUNCH
+			} else {
 				punch_timer -= delta
 				for enemy, i in enemies {
 					if check_collision_polygons(
@@ -130,6 +135,11 @@ main :: proc() {
 					}
 				}
 			}
+		} else if !can_punch { 	// If right after punch finished then tick punch rate timer until done
+			if punch_rate_timer <= 0 {
+				can_punch = true
+			}
+			punch_rate_timer -= delta
 		}
 
 
