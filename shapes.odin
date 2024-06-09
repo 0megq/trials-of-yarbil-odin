@@ -42,6 +42,7 @@ check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
 	return true
 }
 
+// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
 polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
 	result := make([]Vec2, len(polygon.points), context.temp_allocator)
 	for i in 0 ..< len(polygon.points) {
@@ -50,6 +51,7 @@ polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
 	return result
 }
 
+// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
 rotate_points :: proc(points: []Vec2, deg: f32) -> []Vec2 {
 	new_points := make([]Vec2, len(points), context.temp_allocator)
 	for i in 0 ..< len(points) {
@@ -58,9 +60,40 @@ rotate_points :: proc(points: []Vec2, deg: f32) -> []Vec2 {
 	return new_points
 }
 
+// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
+rotate_polygon :: proc(p: Polygon, deg: f32) -> Polygon {
+	points := rotate_points(p.points, deg)
+	return {p.pos, points}
+}
+
 draw_polygon_lines :: proc(polygon: Polygon, color: rl.Color) {
 	points := polygon_to_points(polygon)
 	for i in 0 ..< len(points) {
 		rl.DrawLineV(points[i], points[(i + 1) % len(points)], color)
 	}
+}
+
+get_centered_rect :: proc(center: Vec2, size: Vec2) -> rl.Rectangle {
+	return {center.x - size.x * 0.5, center.y - size.y * 0.5, size.x, size.y}
+}
+
+get_center :: proc(rect: rl.Rectangle) -> Vec2 {
+	return {rect.x, rect.y} + {rect.width, rect.height} * 0.5
+}
+
+rect_to_points :: proc(rect: rl.Rectangle) -> [4]Vec2 {
+	tl := Vec2{rect.x, rect.y}
+	tr := tl + {rect.width, 0}
+	br := tl + {rect.width, rect.height}
+	bl := tl + {0, rect.height}
+	return {tl, tr, br, bl}
+}
+
+rect_to_polygon :: proc(rect: rl.Rectangle) -> Polygon {
+	tl := Vec2{rect.width, rect.height} * -0.5
+	tr := tl * {-1, 1}
+	br := tl * {-1, -1}
+	bl := tl * {1, -1}
+
+	return {get_center(rect), {tl, tr, br, bl}}
 }

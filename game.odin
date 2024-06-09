@@ -46,6 +46,9 @@ move :: proc(e: ^PhysicsEntity, input: Vec2, acceleration: f32, max_speed: f32, 
 	}
 
 	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
+	// Prevent friction overshooting
+	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
+	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
 
 	speed := get_length(e.vel)
 	if speed > max_speed {
@@ -62,10 +65,21 @@ main :: proc() {
 	enemies: [dynamic]Enemy = make([dynamic]Enemy, context.allocator)
 
 	append(&enemies, Enemy{pos = {20, 80}, size = {10, 10}, detection_range = 200})
-	append(&enemies, Enemy{pos = {120, 200}, size = {30, 20}, detection_range = 100})
+	append(&enemies, Enemy{pos = {400, 300}, size = {100, 100}, detection_range = 100})
 
 	p1: Polygon = {{200, 200}, {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
 	mouse_poly: Polygon = {rl.GetMousePosition(), {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
+
+	punch_rect: rl.Rectangle = {
+		player.size.x * 0.5,
+		PLAYER_PUNCH_SIZE.y * -0.5,
+		PLAYER_PUNCH_SIZE.x,
+		PLAYER_PUNCH_SIZE.y,
+	}
+	punch_points := rect_to_points(punch_rect)
+	punch_poly: Polygon
+	punch_poly.pos = player.pos
+	punch_poly.points = punch_points[:]
 
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
@@ -82,12 +96,7 @@ main :: proc() {
 			delta,
 		)
 
-		player_rect: rl.Rectangle = {
-			player.pos.x - player.size.x * 0.5,
-			player.pos.y - player.size.y * 0.5,
-			player.size.x,
-			player.size.y,
-		}
+		player_rect := get_centered_rect(player.pos, player.size)
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
@@ -95,9 +104,14 @@ main :: proc() {
 			if rl.CheckCollisionCircleRec(enemy.pos, enemy.detection_range, player_rect) {
 				input = normalize(player.pos - enemy.pos)
 			}
-			move(&enemy, input, 240, 80, delta)
+			move(&enemy, input, 80, 120, delta)
 		}
 
+		punch_poly.pos = player.pos
+		rotated_punch_poly := rotate_polygon(
+			punch_poly,
+			get_angle(rl.GetMousePosition() - player.pos),
+		)
 		if rl.IsMouseButtonPressed(.LEFT) {
 			punching = true
 			punch_timer = PUNCH_TIME
@@ -106,19 +120,12 @@ main :: proc() {
 				punching = false
 			}
 			if punching {
-				// fmt.println("yo")
 				punch_timer -= delta
 				for enemy, i in enemies {
-					if rl.CheckCollisionRecs(
-						{enemy.pos.x, enemy.pos.y, enemy.size.x, enemy.size.y},
-						{
-							player.pos.x + player.size.x * 0.5,
-							player.pos.y + PLAYER_PUNCH_SIZE.y * -0.5,
-							PLAYER_PUNCH_SIZE.x,
-							PLAYER_PUNCH_SIZE.y,
-						},
+					if check_collision_polygons(
+						rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)),
+						rotated_punch_poly,
 					) {
-						fmt.println("kill")
 						unordered_remove(&enemies, i)
 					}
 				}
@@ -136,7 +143,8 @@ main :: proc() {
 		rl.DrawRectangleRec(player_rect, rl.RED)
 		//rl.DrawRectanglePro() sword drawing
 		for enemy in enemies {
-			rl.DrawRectangleV(enemy.pos - enemy.size / 2, enemy.size.y, rl.GREEN)
+			rl.DrawRectangleRec(get_centered_rect(enemy.pos, enemy.size), rl.GREEN)
+			draw_polygon_lines(rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)), rl.GREEN)
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 		}
 
@@ -163,15 +171,7 @@ main :: proc() {
 		// 	get_angle(rl.GetMousePosition() - player.pos),
 		// 	punch_area_color,
 		// )
-		rl.DrawRectangleRec(
-			{
-				player.pos.x + player.size.x * 0.5,
-				player.pos.y + PLAYER_PUNCH_SIZE.y * -0.5,
-				PLAYER_PUNCH_SIZE.x,
-				PLAYER_PUNCH_SIZE.y,
-			},
-			punch_area_color,
-		)
+		draw_polygon_lines(rotated_punch_poly, punch_area_color)
 
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
