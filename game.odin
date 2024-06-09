@@ -140,19 +140,13 @@ main :: proc() {
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 		}
 
-		// rl.DrawText(
-		// 	fmt.ctprintf(
-		// 		"Colliding: %v",
-		// 		check_collision_polygons(
-		// 			offset_polygon(p1, {200, 200}),
-		// 			offset_polygon(p2, rl.GetMousePosition()),
-		// 		),
-		// 	),
-		// 	200,
-		// 	20,
-		// 	24,
-		// 	rl.BLACK,
-		// )
+		rl.DrawText(
+			fmt.ctprintf("Colliding: %v", check_collision_polygons(p1, mouse_poly)),
+			200,
+			20,
+			24,
+			rl.BLACK,
+		)
 
 
 		draw_polygon_lines(p1, rl.ORANGE)

@@ -1,6 +1,6 @@
 package game
 
-import "core:fmt"
+import "core:math"
 import rl "vendor:raylib"
 
 Polygon :: struct {
@@ -8,16 +8,38 @@ Polygon :: struct {
 	points: []Vec2,
 }
 
-check_collision_polygons :: proc(p1: Polygon, p2: Polygon) -> bool {
-	points1 := polygon_to_points(p1)
-	points2 := polygon_to_points(p2)
+check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
+	p1 := polygon_to_points(a)
+	p2 := polygon_to_points(b)
 	for i in 0 ..< 2 {
 		if i == 1 {
-			points1, points2 = swap(points1, points2)
+			p1, p2 = swap(p1, p2)
 		}
-		fmt.printfln("%v and %v", points1, points2)
+
+		for index in 0 ..< len(p1) {
+			edge := p1[index] - p1[(index + 1) % len(p1)]
+			normal := edge.yx * {-1, 1}
+
+			min_p1, max_p1 := math.INF_F32, math.NEG_INF_F32
+			for v in p1 {
+				dot := dot(v, normal)
+				min_p1 = min(min_p1, dot)
+				max_p1 = max(max_p1, dot)
+			}
+
+			min_p2, max_p2 := math.INF_F32, math.NEG_INF_F32
+			for v in p2 {
+				dot := dot(v, normal)
+				min_p2 = min(min_p2, dot)
+				max_p2 = max(max_p2, dot)
+			}
+
+			if max_p1 < min_p2 || max_p2 < min_p1 {
+				return false
+			}
+		}
 	}
-	return false
+	return true
 }
 
 polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
