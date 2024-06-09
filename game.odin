@@ -1,10 +1,12 @@
 package game
 
-import "core:fmt"
+// import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-SCREEN_SIZE :: Vec2i{1280, 720}
+WINDOW_SIZE :: Vec2i{1280, 720}
+CANVAS_SIZE :: Vec2i{640, 360}
+WINDOW_TO_CANVAS :: f32(WINDOW_SIZE.x) / f32(CANVAS_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 150
 PLAYER_BASE_ACCELERATION :: 1200
 PLAYER_PUNCH_SIZE :: Vec2{20, 32}
@@ -25,7 +27,6 @@ Enemy :: struct {
 	using physics_entity: PhysicsEntity,
 	detection_range:      f32,
 }
-
 
 player: PhysicsEntity = {
 	pos  = {300, 300},
@@ -63,15 +64,17 @@ move :: proc(e: ^PhysicsEntity, input: Vec2, acceleration: f32, max_speed: f32, 
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(SCREEN_SIZE.x, SCREEN_SIZE.y, "Trials of Yarbil")
+	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
+
+	load_textures()
 
 	enemies: [dynamic]Enemy = make([dynamic]Enemy, context.allocator)
 
 	append(&enemies, Enemy{pos = {20, 80}, size = {10, 10}, detection_range = 200})
 	append(&enemies, Enemy{pos = {400, 300}, size = {100, 100}, detection_range = 100})
 
-	p1: Polygon = {{200, 200}, {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
-	mouse_poly: Polygon = {rl.GetMousePosition(), {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
+	// p1: Polygon = {{200, 200}, {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
+	// mouse_poly: Polygon = {rl.GetMousePosition(), {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
 
 	punch_rect: rl.Rectangle = {
 		player.size.x * 0.5,
@@ -86,10 +89,11 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
+		mouse_canvas_pos := rl.GetMousePosition() / WINDOW_TO_CANVAS
 
-		copy(p1.points, rotate_points(p1.points, 10 * delta))
+		// copy(p1.points, rotate_points(p1.points, 10 * delta))
 
-		mouse_poly.pos = rl.GetMousePosition()
+		// mouse_poly.pos = mouse
 
 		move(
 			&player,
@@ -111,10 +115,7 @@ main :: proc() {
 		}
 
 		punch_poly.pos = player.pos
-		rotated_punch_poly := rotate_polygon(
-			punch_poly,
-			get_angle(rl.GetMousePosition() - player.pos),
-		)
+		rotated_punch_poly := rotate_polygon(punch_poly, get_angle(mouse_canvas_pos - player.pos))
 
 		if rl.IsMouseButtonPressed(.LEFT) && can_punch {
 			punching = true
@@ -150,7 +151,15 @@ main :: proc() {
 
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.BLUE)
+
+		camera := rl.Camera2D {
+			zoom = WINDOW_TO_CANVAS,
+		}
+
+		rl.BeginMode2D(camera)
+
 		rl.DrawRectangleRec(player_rect, rl.RED)
+		rl.DrawTextureV(textures[.Player], player.pos, rl.WHITE)
 		//rl.DrawRectanglePro() sword drawing
 		for enemy in enemies {
 			rl.DrawRectangleRec(get_centered_rect(enemy.pos, enemy.size), rl.GREEN)
@@ -158,17 +167,17 @@ main :: proc() {
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 		}
 
-		rl.DrawText(
-			fmt.ctprintf("Colliding: %v", check_collision_polygons(p1, mouse_poly)),
-			200,
-			20,
-			24,
-			rl.BLACK,
-		)
+		// rl.DrawText(
+		// 	fmt.ctprintf("Colliding: %v", check_collision_polygons(p1, mouse_poly)),
+		// 	200,
+		// 	20,
+		// 	24,
+		// 	rl.BLACK,
+		// )
 
 
-		draw_polygon_lines(p1, rl.ORANGE)
-		draw_polygon_lines(mouse_poly, rl.ORANGE)
+		// draw_polygon_lines(p1, rl.ORANGE)
+		// draw_polygon_lines(mouse_poly, rl.ORANGE)
 		// draw_polygon_lines(offset_polygon(p2, rl.GetMousePosition()), rl.RED)
 
 		punch_area_color := rl.Color{255, 255, 255, 120}
@@ -183,12 +192,14 @@ main :: proc() {
 		// )
 		draw_polygon_lines(rotated_punch_poly, punch_area_color)
 
+		rl.EndMode2D()
+
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
 	}
 
 	free_all(context.allocator)
-
+	unload_textures()
 	rl.CloseWindow()
 }
 

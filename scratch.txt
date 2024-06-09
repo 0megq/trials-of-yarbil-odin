@@ -35,7 +35,7 @@ items
 enemy
 - follow player
 - attack
-- drop items/weapons
+- drop items/weapons on death/hit
 - react to physics
 - hurtable
 
