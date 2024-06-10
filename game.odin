@@ -9,9 +9,9 @@ CANVAS_SIZE :: Vec2i{640, 360}
 WINDOW_TO_CANVAS :: f32(WINDOW_SIZE.x) / f32(CANVAS_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 150
 PLAYER_BASE_ACCELERATION :: 1200
-PLAYER_PUNCH_SIZE :: Vec2{20, 32}
+PLAYER_PUNCH_SIZE :: Vec2{12, 16}
 PUNCH_TIME :: 0.2
-TIME_BETWEEN_PUNCH :: 0.4
+TIME_BETWEEN_PUNCH :: 0.2
 
 Entity :: struct {
 	pos: Vec2,
@@ -26,11 +26,12 @@ PhysicsEntity :: struct {
 Enemy :: struct {
 	using physics_entity: PhysicsEntity,
 	detection_range:      f32,
+	knockback_applied:    bool,
 }
 
 player: PhysicsEntity = {
 	pos  = {300, 300},
-	size = {32, 32},
+	size = {12, 12},
 }
 
 punching: bool
@@ -38,29 +39,6 @@ punch_timer: f32
 can_punch: bool
 punch_rate_timer: f32
 
-move :: proc(e: ^PhysicsEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
-	e.vel += normalize(input) * acceleration * delta
-
-	friction_vector: Vec2
-	if input.x == 0 {
-		friction_vector.x = -math.sign(e.vel.x)
-	}
-	if input.y == 0 {
-		friction_vector.y = -math.sign(e.vel.y)
-	}
-
-	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
-	// Prevent friction overshooting
-	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
-	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
-
-	speed := get_length(e.vel)
-	if speed > max_speed {
-		e.vel = normalize(e.vel) * max_speed
-	}
-
-	e.pos += e.vel * delta
-}
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -70,8 +48,7 @@ main :: proc() {
 
 	enemies: [dynamic]Enemy = make([dynamic]Enemy, context.allocator)
 
-	append(&enemies, Enemy{pos = {20, 80}, size = {10, 10}, detection_range = 200})
-	append(&enemies, Enemy{pos = {400, 300}, size = {100, 100}, detection_range = 100})
+	append(&enemies, Enemy{pos = {20, 80}, size = {16, 16}, detection_range = 160})
 
 	// p1: Polygon = {{200, 200}, {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
 	// mouse_poly: Polygon = {rl.GetMousePosition(), {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
@@ -86,6 +63,9 @@ main :: proc() {
 	punch_poly: Polygon
 	punch_poly.pos = player.pos
 	punch_poly.points = punch_points[:]
+
+	hit_enemies: [dynamic]bool = make([dynamic]bool, context.allocator)
+	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
 
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
@@ -111,7 +91,7 @@ main :: proc() {
 			if rl.CheckCollisionCircleRec(enemy.pos, enemy.detection_range, player_rect) {
 				input = normalize(player.pos - enemy.pos)
 			}
-			move(&enemy, input, 80, 120, delta)
+			move(&enemy, input, 400, 140, delta)
 		}
 
 		punch_poly.pos = player.pos
@@ -121,6 +101,9 @@ main :: proc() {
 			punching = true
 			punch_timer = PUNCH_TIME
 			can_punch = false
+			for i in 0 ..< len(hit_enemies) {
+				hit_enemies[i] = false
+			}
 		} else if punching {
 			if punch_timer <= 0 {
 				punching = false
@@ -128,11 +111,13 @@ main :: proc() {
 			} else {
 				punch_timer -= delta
 				for enemy, i in enemies {
-					if check_collision_polygons(
-						rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)),
-						rotated_punch_poly,
-					) {
-						unordered_remove(&enemies, i)
+					if !hit_enemies[i] &&
+					   check_collision_polygons(
+						   rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)),
+						   rotated_punch_poly,
+					   ) {
+						enemies[i].vel += normalize(mouse_canvas_pos - player.pos) * 200
+						hit_enemies[i] = true
 					}
 				}
 			}
@@ -159,11 +144,11 @@ main :: proc() {
 		rl.BeginMode2D(camera)
 
 		rl.DrawRectangleRec(player_rect, rl.RED)
-		rl.DrawTextureV(textures[.Player], player.pos, rl.WHITE)
+		// rl.DrawTextureV(textures[.Player], player.pos, rl.WHITE)
 		//rl.DrawRectanglePro() sword drawing
 		for enemy in enemies {
 			rl.DrawRectangleRec(get_centered_rect(enemy.pos, enemy.size), rl.GREEN)
-			draw_polygon_lines(rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)), rl.GREEN)
+			// draw_polygon_lines(rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)), rl.GREEN)
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 		}
 
@@ -202,6 +187,30 @@ main :: proc() {
 	free_all(context.allocator)
 	unload_textures()
 	rl.CloseWindow()
+}
+
+move :: proc(e: ^PhysicsEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
+	e.vel += normalize(input) * acceleration * delta
+
+	friction_vector: Vec2
+	if input.x == 0 {
+		friction_vector.x = -math.sign(e.vel.x)
+	}
+	if input.y == 0 {
+		friction_vector.y = -math.sign(e.vel.y)
+	}
+
+	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
+	// Prevent friction overshooting
+	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
+	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
+
+	speed := get_length(e.vel)
+	if speed > max_speed {
+		e.vel = normalize(e.vel) * max_speed
+	}
+
+	e.pos += e.vel * delta
 }
 
 get_directional_input :: proc() -> Vec2 {
