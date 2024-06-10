@@ -66,6 +66,20 @@ rotate_polygon :: proc(p: Polygon, deg: f32) -> Polygon {
 	return {p.pos, points}
 }
 
+// Polygon must be in clockwise order! 
+draw_polygon :: proc(polygon: Polygon, color: rl.Color) {
+	points := polygon_to_points(polygon)
+	summed_points: Vec2
+	for p in points {
+		summed_points += p
+	}
+
+	average_point: Vec2 = summed_points / f32(len(points))
+	for i in 0 ..< len(points) {
+		rl.DrawTriangle(points[i], average_point, points[(i + 1) % len(points)], color)
+	}
+}
+
 draw_polygon_lines :: proc(polygon: Polygon, color: rl.Color) {
 	points := polygon_to_points(polygon)
 	for i in 0 ..< len(points) {

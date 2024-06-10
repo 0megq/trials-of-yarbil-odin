@@ -190,7 +190,8 @@ main :: proc() {
 		// 	get_angle(rl.GetMousePosition() - player.pos),
 		// 	punch_area_color,
 		// )
-		draw_polygon_lines(rotated_punch_poly, punch_area_color)
+		// draw_polygon_lines(rotated_punch_poly, punch_area_color)
+		draw_polygon(rotated_punch_poly, punch_area_color)
 
 		rl.EndMode2D()
 
