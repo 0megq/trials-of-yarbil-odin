@@ -1,6 +1,6 @@
 package game
 
-// import "core:fmt"
+import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -12,9 +12,16 @@ PLAYER_BASE_ACCELERATION :: 1200
 PLAYER_PUNCH_SIZE :: Vec2{12, 16}
 PUNCH_TIME :: 0.2
 TIME_BETWEEN_PUNCH :: 0.2
+PUNCH_POWER :: 150
+SWORD_POWER :: 250
 
 Entity :: struct {
 	pos: Vec2,
+}
+
+StaticEntity :: struct {
+	using entity: Entity,
+	size:         Vec2,
 }
 
 PhysicsEntity :: struct {
@@ -29,16 +36,27 @@ Enemy :: struct {
 	knockback_applied:    bool,
 }
 
-player: PhysicsEntity = {
-	pos  = {300, 300},
-	size = {12, 12},
+Item :: struct {
+	using physics_entity: PhysicsEntity,
+	item_id:              ItemId,
+}
+
+Player :: struct {
+	using physics_entity: PhysicsEntity,
+	pickup_range:         f32,
+}
+
+player: Player = {
+	pos          = {300, 300},
+	size         = {12, 12},
+	pickup_range = 16,
 }
 
 punching: bool
 punch_timer: f32
 can_punch: bool
 punch_rate_timer: f32
-
+holding_sword: bool
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -46,8 +64,13 @@ main :: proc() {
 
 	load_textures()
 
-	enemies: [dynamic]Enemy = make([dynamic]Enemy, context.allocator)
+	items := make([dynamic]Item, context.allocator)
+	append(&items, Item{pos = {500, 300}, size = {8, 8}, item_id = .Sword})
 
+	obstacles := make([dynamic]StaticEntity, context.allocator)
+	append(&obstacles, StaticEntity{pos = {200, 100}, size = {16, 32}})
+
+	enemies := make([dynamic]Enemy, context.allocator)
 	append(&enemies, Enemy{pos = {20, 80}, size = {16, 16}, detection_range = 160})
 
 	// p1: Polygon = {{200, 200}, {{30, 0}, {0, -30}, {-30, 0}, {0, 30}}}
@@ -60,9 +83,16 @@ main :: proc() {
 		PLAYER_PUNCH_SIZE.y,
 	}
 	punch_points := rect_to_points(punch_rect)
-	punch_poly: Polygon
-	punch_poly.pos = player.pos
-	punch_poly.points = punch_points[:]
+	sword_points: []Vec2 = {
+		{player.size.x * 0.5, -12},
+		{player.size.x * 0.5 + 10, -5},
+		{player.size.x * 0.5 + 12, 0},
+		{player.size.x * 0.5 + 10, 5},
+		{player.size.x * 0.5, 12},
+	}
+	attack_poly: Polygon
+	attack_poly.pos = player.pos
+	attack_poly.points = punch_points[:]
 
 	hit_enemies: [dynamic]bool = make([dynamic]bool, context.allocator)
 	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
@@ -94,8 +124,11 @@ main :: proc() {
 			move(&enemy, input, 400, 140, delta)
 		}
 
-		punch_poly.pos = player.pos
-		rotated_punch_poly := rotate_polygon(punch_poly, get_angle(mouse_canvas_pos - player.pos))
+		attack_poly.pos = player.pos
+		rotated_attack_poly := rotate_polygon(
+			attack_poly,
+			get_angle(mouse_canvas_pos - player.pos),
+		)
 
 		if rl.IsMouseButtonPressed(.LEFT) && can_punch {
 			punching = true
@@ -114,9 +147,11 @@ main :: proc() {
 					if !hit_enemies[i] &&
 					   check_collision_polygons(
 						   rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)),
-						   rotated_punch_poly,
+						   rotated_attack_poly,
 					   ) {
-						enemies[i].vel += normalize(mouse_canvas_pos - player.pos) * 200
+						enemies[i].vel +=
+							normalize(mouse_canvas_pos - player.pos) *
+							(SWORD_POWER if holding_sword else PUNCH_POWER)
 						hit_enemies[i] = true
 					}
 				}
@@ -128,6 +163,28 @@ main :: proc() {
 			punch_rate_timer -= delta
 		}
 
+		if rl.IsKeyPressed(.LEFT_SHIFT) {
+			if holding_sword {
+				append(&items, Item{pos = player.pos, size = {8, 8}, item_id = .Sword})
+				holding_sword = false
+				attack_poly.points = punch_points[:]
+			} else {
+				for item, i in items {
+					if rl.CheckCollisionCircleRec(
+						player.pos,
+						player.pickup_range,
+						get_centered_rect(item.pos, item.size),
+					) {
+						fmt.printfln("picked up %v", item.item_id)
+						if item.item_id == .Sword {
+							holding_sword = true
+							attack_poly.points = sword_points
+						}
+						unordered_remove(&items, i)
+					}
+				}
+			}
+		}
 
 		// rl.TraceLog(
 		// 	.INFO,
@@ -144,6 +201,17 @@ main :: proc() {
 		rl.BeginMode2D(camera)
 
 		rl.DrawRectangleRec(player_rect, rl.RED)
+		rl.DrawCircleLinesV(player.pos, player.pickup_range, rl.DARKBLUE)
+
+		for item in items {
+			rl.DrawRectangleRec(get_centered_rect(item.pos, item.size), rl.PURPLE)
+		}
+
+		for obstacle in obstacles {
+			rl.DrawRectangleRec(get_centered_rect(obstacle.pos, obstacle.size), rl.GRAY)
+			// draw_polygon_lines(rect_to_polygon(get_centered_rect(enemy.pos, enemy.size)), rl.GREEN)
+		}
+
 		// rl.DrawTextureV(textures[.Player], player.pos, rl.WHITE)
 		//rl.DrawRectanglePro() sword drawing
 		for enemy in enemies {
@@ -160,6 +228,14 @@ main :: proc() {
 		// 	rl.BLACK,
 		// )
 
+		// fmt.println(
+		// 	sweep_rect(
+		// 		e.pos,
+		// 		e.size,
+		// 		get_centered_rect(obstacles[0].pos, obstacles[0].size),
+		// 		e.vel,
+		// 	),
+		// )
 
 		// draw_polygon_lines(p1, rl.ORANGE)
 		// draw_polygon_lines(mouse_poly, rl.ORANGE)
@@ -176,7 +252,7 @@ main :: proc() {
 		// 	punch_area_color,
 		// )
 		// draw_polygon_lines(rotated_punch_poly, punch_area_color)
-		draw_polygon(rotated_punch_poly, punch_area_color)
+		draw_polygon(rotated_attack_poly, punch_area_color)
 
 		rl.EndMode2D()
 
