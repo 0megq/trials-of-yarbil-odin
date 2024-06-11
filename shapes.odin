@@ -1,22 +1,101 @@
 package game
 
+import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
 Shape :: union {
 	rl.Rectangle,
 	Polygon,
+	Circle,
+}
+
+Circle :: struct {
+	pos:    Vec2,
+	radius: f32,
 }
 
 Polygon :: struct {
-	pos:    Vec2,
-	points: []Vec2,
+	pos:      Vec2,
+	points:   []Vec2,
+	rotation: f32, // in degrees
 }
 
 RectCollision :: struct {
 	delta:  f32, // the delta at which the collision occurred. 
 	// if delta is negative then the recs are already inside each other
 	normal: Vec2,
+}
+
+check_collision_shapes :: proc(shape_a: Shape, a_pos: Vec2, shape_b: Shape, b_pos: Vec2) -> bool {
+	switch a in shape_a {
+	case Circle:
+		switch b in shape_b {
+		case Circle:
+			return rl.CheckCollisionCircles(a.pos + a_pos, a.radius, b.pos + b_pos, b.radius)
+		case Polygon:
+			return check_collision_polygon_circle(
+				{b.pos + b_pos, b.points, b.rotation},
+				{a.pos + a_pos, a.radius},
+			)
+		case rl.Rectangle:
+			rect_b := b
+			rect_b.x += b_pos.x
+			rect_b.y += b_pos.y
+			return rl.CheckCollisionCircleRec(a.pos + a_pos, a.radius, rect_b)
+		}
+	case Polygon:
+		switch b in shape_b {
+		case Circle:
+			return check_collision_polygon_circle(
+				{a.pos + a_pos, a.points, a.rotation},
+				{b.pos + b_pos, b.radius},
+			)
+		case Polygon:
+			return check_collision_polygons(
+				{a.pos + a_pos, a.points, a.rotation},
+				{b.pos + b_pos, b.points, b.rotation},
+			)
+		case rl.Rectangle:
+			rect_b := b
+			rect_b.x += b_pos.x
+			rect_b.y += b_pos.y
+			return check_collision_polygons(
+				{a.pos + a_pos, a.points, a.rotation},
+				rect_to_polygon(rect_b),
+			)
+		}
+	case rl.Rectangle:
+		switch b in shape_b {
+		case Circle:
+			rect_a := a
+			rect_a.x += a_pos.x
+			rect_a.y += a_pos.y
+			return rl.CheckCollisionCircleRec(b.pos + b_pos, b.radius, rect_a)
+		case Polygon:
+			rect_a := a
+			rect_a.x += a_pos.x
+			rect_a.y += a_pos.y
+			return check_collision_polygons(
+				rect_to_polygon(rect_a),
+				{b.pos + b_pos, b.points, b.rotation},
+			)
+		case rl.Rectangle:
+			rect_a := a
+			rect_a.x += a_pos.x
+			rect_a.y += a_pos.y
+			rect_b := b
+			rect_b.x += b_pos.x
+			rect_b.y += b_pos.y
+			return rl.CheckCollisionRecs(rect_a, rect_b)
+		}
+	}
+	return false
+}
+
+check_collision_polygon_circle :: proc(poly: Polygon, circle: Circle) -> bool {
+	fmt.println("check_collision_circle_polygon not implemented")
+	return false
 }
 
 check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
@@ -53,11 +132,13 @@ check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
 	return true
 }
 
+// Returns a slice of Vec2 points representing the polygon. Rotation and position are applied to each point
 // Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
 polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
 	result := make([]Vec2, len(polygon.points), context.temp_allocator)
 	for i in 0 ..< len(polygon.points) {
-		result[i] = polygon.points[i] + polygon.pos
+		// Rotate point, then translate
+		result[i] = rotate_vector(polygon.points[i], polygon.rotation) + polygon.pos
 	}
 	return result
 }
@@ -72,9 +153,9 @@ rotate_points :: proc(points: []Vec2, deg: f32) -> []Vec2 {
 }
 
 // Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
-rotate_polygon :: proc(p: Polygon, deg: f32) -> Polygon {
-	points := rotate_points(p.points, deg)
-	return {p.pos, points}
+get_rotated_polygon :: proc(p: Polygon) -> Polygon {
+	points := rotate_points(p.points, p.rotation)
+	return {p.pos, points, 0}
 }
 
 // Polygon must be in clockwise order! 
@@ -84,8 +165,8 @@ draw_polygon :: proc(polygon: Polygon, color: rl.Color) {
 	for p in points {
 		summed_points += p
 	}
-
 	average_point: Vec2 = summed_points / f32(len(points))
+
 	for i in 0 ..< len(points) {
 		rl.DrawTriangle(points[i], average_point, points[(i + 1) % len(points)], color)
 	}
@@ -95,6 +176,34 @@ draw_polygon_lines :: proc(polygon: Polygon, color: rl.Color) {
 	points := polygon_to_points(polygon)
 	for i in 0 ..< len(points) {
 		rl.DrawLineV(points[i], points[(i + 1) % len(points)], color)
+	}
+}
+
+draw_shape :: proc(shape: Shape, pos: Vec2, color: rl.Color) {
+	switch s in shape {
+	case Circle:
+		rl.DrawCircleV(s.pos + pos, s.radius, color)
+	case Polygon:
+		draw_polygon({s.pos + pos, s.points, s.rotation}, color)
+	case rl.Rectangle:
+		rl.DrawRectangle(i32(s.x + pos.x), i32(s.y + pos.y), i32(s.width), i32(s.height), color)
+	}
+}
+
+draw_shape_lines :: proc(shape: Shape, pos: Vec2, color: rl.Color) {
+	switch s in shape {
+	case Circle:
+		rl.DrawCircleLinesV(s.pos + pos, s.radius, color)
+	case Polygon:
+		draw_polygon_lines({s.pos + pos, s.points, s.rotation}, color)
+	case rl.Rectangle:
+		rl.DrawRectangleLines(
+			i32(s.x + pos.x),
+			i32(s.y + pos.y),
+			i32(s.width),
+			i32(s.height),
+			color,
+		)
 	}
 }
 
@@ -120,7 +229,7 @@ rect_to_polygon :: proc(rect: rl.Rectangle) -> Polygon {
 	br := tl * {-1, -1}
 	bl := tl * {1, -1}
 
-	return {get_center(rect), {tl, tr, br, bl}}
+	return {get_center(rect), {tl, tr, br, bl}, 0}
 }
 
 // Sweep the current aabb to the other AABB with the given velocity and delta. The delta at which the collision occurred is returned.

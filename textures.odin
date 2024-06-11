@@ -6,16 +6,16 @@ TextureId :: enum {
 	Player,
 }
 
-textures: [TextureId]rl.Texture2D
+loaded_textures: [TextureId]rl.Texture2D
 
 load_textures :: proc() {
-	textures = {
+	loaded_textures = {
 		.Player = rl.LoadTexture("assets/samurai.png"),
 	}
 }
 
 unload_textures :: proc() {
-	for tex in textures {
+	for tex in loaded_textures {
 		rl.UnloadTexture(tex)
 	}
 }
