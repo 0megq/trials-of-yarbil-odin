@@ -1,7 +1,8 @@
-- sweeping rectangle collisions
 - movement abilities
 	- allow movement above max speed
 	- deaccelerate back down to max speed
+- sweeping rectangle collisions
+- collision resolution
 - timer/wait system
 - streamlined game entity system
 - game object editor
@@ -10,7 +11,10 @@
 	- static, rigid, and kinematic bodies
 	- mass
 	- apply force
-- textures
+	- bounciness
+- health system
+	- responds to physics
+- elevation
 - polygon editor
 - level editor
 - particle system
