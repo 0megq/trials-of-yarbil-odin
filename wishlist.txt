@@ -1,8 +1,18 @@
 - sweeping rectangle collisions
-- polygon editor
-- game object editor
-- level editor
-- textures
-- streamlined game entity system
-- overhaul physics
 - movement abilities
+	- allow movement above max speed
+	- deaccelerate back down to max speed
+- timer/wait system
+- streamlined game entity system
+- game object editor
+- overhaul physics
+	- list of all physics objects
+	- static, rigid, and kinematic bodies
+	- mass
+	- apply force
+- textures
+- polygon editor
+- level editor
+- particle system
+- animation system
+

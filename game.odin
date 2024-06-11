@@ -15,35 +15,9 @@ TIME_BETWEEN_PUNCH :: 0.2
 PUNCH_POWER :: 150
 SWORD_POWER :: 250
 
-Entity :: struct {
-	pos: Vec2,
-}
-
-StaticEntity :: struct {
-	using entity: Entity,
-	size:         Vec2,
-}
-
-PhysicsEntity :: struct {
-	using entity: Entity,
-	vel:          Vec2,
-	size:         Vec2,
-}
-
-Enemy :: struct {
-	using physics_entity: PhysicsEntity,
-	detection_range:      f32,
-	knockback_applied:    bool,
-}
-
-Item :: struct {
-	using physics_entity: PhysicsEntity,
-	item_id:              ItemId,
-}
-
-Player :: struct {
-	using physics_entity: PhysicsEntity,
-	pickup_range:         f32,
+Timer :: struct {
+	time_left: f32,
+	callable:  proc(),
 }
 
 player: Player = {
@@ -63,6 +37,8 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
 	load_textures()
+
+	timers := make([dynamic]Timer, context.allocator)
 
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, size = {8, 8}, item_id = .Sword})
@@ -100,6 +76,14 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
 		mouse_canvas_pos := rl.GetMousePosition() / WINDOW_TO_CANVAS
+
+		for &timer, i in timers {
+			timer.time_left -= delta
+			if timer.time_left <= 0 {
+				timer.callable()
+				unordered_remove(&timers, i)
+			}
+		}
 
 		// copy(p1.points, rotate_points(p1.points, 10 * delta))
 
