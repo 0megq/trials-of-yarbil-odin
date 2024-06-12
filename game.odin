@@ -14,16 +14,11 @@ PUNCH_TIME :: 0.2
 TIME_BETWEEN_PUNCH :: 0.2
 PUNCH_POWER :: 150
 SWORD_POWER :: 250
+FIRE_DASH_RADIUS :: 16
 
 Timer :: struct {
 	time_left: f32,
 	callable:  proc(),
-}
-
-player: Player = {
-	pos          = {300, 300},
-	shape        = Circle{{}, 8},
-	pickup_range = 16,
 }
 
 punching: bool
@@ -37,6 +32,14 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
 	load_textures()
+
+	player: Player = {
+		pos          = {300, 300},
+		shape        = Circle{{}, 8},
+		pickup_range = 16,
+	}
+
+	fires := make([dynamic]Circle, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -87,13 +90,18 @@ main :: proc() {
 			}
 		}
 
-		move(
-			&player,
-			get_directional_input(),
-			PLAYER_BASE_ACCELERATION,
-			PLAYER_BASE_MAX_SPEED,
-			delta,
-		)
+		if rl.IsKeyPressed(.SPACE) {
+			player.vel = normalize(get_directional_input()) * 250
+			fire := Circle{player.pos, FIRE_DASH_RADIUS}
+			append(&fires, fire)
+			for &enemy in enemies {
+				if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
+					enemy.vel -= normalize(get_directional_input()) * 200
+				}
+			}
+		}
+
+		player_move(&player, delta)
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
@@ -174,9 +182,10 @@ main :: proc() {
 
 		rl.BeginMode2D(camera)
 
-		draw_shape(player.shape, player.pos, rl.RED)
-		draw_sprite(player_sprite, player.pos)
-		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+
+		for fire in fires {
+			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
+		}
 
 		for item in items {
 			draw_shape(item.shape, item.pos, rl.PURPLE)
@@ -196,6 +205,10 @@ main :: proc() {
 			punch_area_color = rl.Color{255, 0, 0, 120}
 		}
 
+		draw_shape(player.shape, player.pos, rl.RED)
+		draw_sprite(player_sprite, player.pos)
+		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+
 		draw_shape(attack_poly, player.pos, punch_area_color)
 
 		rl.EndMode2D()
@@ -207,6 +220,54 @@ main :: proc() {
 	free_all(context.allocator)
 	unload_textures()
 	rl.CloseWindow()
+}
+
+player_move :: proc(e: ^Player, delta: f32) {
+	max_speed: f32 = 160.0
+	acceleration: f32 = 960.0
+	friction: f32 = 320.0
+	harsh_friction: f32 = 1040.0
+
+	input := get_directional_input()
+	acceleration_v := normalize(input) * acceleration * delta
+
+	friction_dir: Vec2 = -normalize(e.vel)
+	if length(e.vel) > max_speed {
+		friction = harsh_friction
+	}
+	friction_v := normalize(friction_dir) * friction * delta
+
+	// Prevent friction overshooting when deaccelerating
+	// if math.sign(e.vel.x) == sign(friction_dir.x) {e.vel.x = 0}
+	// if math.sign(e.vel.y) == sign(friction_dir.y) {e.vel.y = 0}
+
+	if length(e.vel + acceleration_v + friction_v) > max_speed && length(e.vel) <= max_speed { 	// If overshooting above max speed
+		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
+	} else if length(e.vel + acceleration_v + friction_v) < max_speed &&
+	   length(e.vel) > max_speed &&
+	   angle_between(e.vel, acceleration_v) <= 90 { 	// If overshooting below max speed
+		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
+	} else {
+		e.vel += acceleration_v
+		e.vel += friction_v
+		// Account for friction overshooting when slowing down
+		if acceleration_v.x == 0 && math.sign(e.vel.x) == math.sign(friction_v.x) {
+			e.vel.x = 0
+		}
+		if acceleration_v.y == 0 && math.sign(e.vel.y) == math.sign(friction_v.y) {
+			e.vel.y = 0
+		}
+	}
+
+	fmt.printfln(
+		"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
+		length(e.vel),
+		e.vel,
+		friction_v,
+		acceleration_v,
+	)
+
+	e.pos += e.vel * delta
 }
 
 move :: proc(e: ^MovingEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
