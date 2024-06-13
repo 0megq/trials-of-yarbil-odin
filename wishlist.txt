@@ -1,11 +1,14 @@
-- movement abilities
-	- allow movement above max speed
-	- deaccelerate back down to max speed
+- walls!
+	- rewrite polygon collisions to resolve
+	- resolving all other shape collisions
 - sweeping rectangle collisions
 - collision resolution
 - timer/wait system
 - streamlined game entity system
 - game object editor
+- movement abilities
+	- allow movement above max speed
+	- deaccelerate back down to max speed
 - overhaul physics
 	- list of all physics objects
 	- static, rigid, and kinematic bodies
