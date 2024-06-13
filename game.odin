@@ -14,11 +14,19 @@ PUNCH_TIME :: 0.2
 TIME_BETWEEN_PUNCH :: 0.2
 PUNCH_POWER :: 150
 SWORD_POWER :: 250
-FIRE_DASH_RADIUS :: 16
+FIRE_DASH_RADIUS :: 32
 
 Timer :: struct {
 	time_left: f32,
 	callable:  proc(),
+}
+
+MovementAbility :: enum {
+	FIRE,
+	WATER,
+	ELECTRIC,
+	GROUND,
+	AIR,
 }
 
 punching: bool
@@ -26,6 +34,8 @@ punch_timer: f32
 can_punch: bool
 punch_rate_timer: f32
 holding_sword: bool
+surfing: bool
+current_ability: MovementAbility
 
 main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT})
@@ -38,6 +48,10 @@ main :: proc() {
 		shape        = Circle{{}, 8},
 		pickup_range = 16,
 	}
+
+	current_ability = .FIRE
+
+	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
 	fires := make([dynamic]Circle, context.allocator)
 
@@ -53,6 +67,18 @@ main :: proc() {
 	append(
 		&enemies,
 		Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
 	)
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
@@ -91,12 +117,42 @@ main :: proc() {
 		}
 
 		if rl.IsKeyPressed(.SPACE) {
-			player.vel = normalize(get_directional_input()) * 250
-			fire := Circle{player.pos, FIRE_DASH_RADIUS}
-			append(&fires, fire)
+			switch current_ability {
+			case .FIRE:
+				player.vel = normalize(get_directional_input()) * 250
+				fire := Circle{player.pos, FIRE_DASH_RADIUS}
+				append(&fires, fire)
+				for &enemy in enemies {
+					if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
+						power_scale :=
+							(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) / FIRE_DASH_RADIUS
+						power_scale = max(power_scale, 0.6) // TODO use a map function
+						enemy.vel -= normalize(get_directional_input()) * 600 * power_scale
+					}
+				}
+			case .WATER:
+				surfing = true
+				append(&timers, Timer{1, turn_off_surf})
+			// for &enemy in enemies {
+			// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
+			// 		enemy.vel -= normalize(get_directional_input()) * 200
+			// 	}
+			// }
+			case .ELECTRIC:
+
+			case .GROUND:
+
+			case .AIR:
+			}
+		}
+
+		if surfing {
+			player.vel = normalize(get_directional_input()) * 200
+			surf_poly.rotation = angle(get_directional_input())
+			surf_poly.pos = player.pos
 			for &enemy in enemies {
-				if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
-					enemy.vel -= normalize(get_directional_input()) * 200
+				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
+					enemy.vel += normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 200
 				}
 			}
 		}
@@ -105,16 +161,7 @@ main :: proc() {
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
-			input: Vec2
-			if check_collision_shapes(
-				Circle{{}, enemy.detection_range},
-				enemy.pos,
-				player.shape,
-				player.pos,
-			) {
-				input = normalize(player.pos - enemy.pos)
-			}
-			move(&enemy, input, 400, 120, delta)
+			enemy_move(&enemy, delta, player)
 		}
 
 		attack_poly.rotation = angle(mouse_canvas_pos - player.pos)
@@ -182,6 +229,7 @@ main :: proc() {
 
 		rl.BeginMode2D(camera)
 
+		draw_polygon(surf_poly, rl.DARKGREEN)
 
 		for fire in fires {
 			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
@@ -259,13 +307,64 @@ player_move :: proc(e: ^Player, delta: f32) {
 		}
 	}
 
-	fmt.printfln(
-		"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
-		length(e.vel),
-		e.vel,
-		friction_v,
-		acceleration_v,
-	)
+	// fmt.printfln(
+	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
+	// 	length(e.vel),
+	// 	e.vel,
+	// 	friction_v,
+	// 	acceleration_v,
+	// )
+
+	e.pos += e.vel * delta
+}
+
+enemy_move :: proc(e: ^Enemy, delta: f32, player: Player) {
+	max_speed: f32 = 120.0
+	acceleration: f32 = 720.0
+	friction: f32 = 240.0
+	harsh_friction: f32 = 960.0
+
+	input: Vec2
+	if check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
+		input = normalize(player.pos - e.pos)
+	}
+	acceleration_v := normalize(input) * acceleration * delta
+
+	friction_dir: Vec2 = -normalize(e.vel)
+	if length(e.vel) > max_speed {
+		friction = harsh_friction
+	}
+	friction_v := normalize(friction_dir) * friction * delta
+
+	// Prevent friction overshooting when deaccelerating
+	// if math.sign(e.vel.x) == sign(friction_dir.x) {e.vel.x = 0}
+	// if math.sign(e.vel.y) == sign(friction_dir.y) {e.vel.y = 0}
+
+	if length(e.vel + acceleration_v + friction_v) > max_speed && length(e.vel) <= max_speed { 	// If overshooting above max speed
+		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
+	} else if length(e.vel + acceleration_v + friction_v) < max_speed &&
+	   length(e.vel) > max_speed &&
+	   angle_between(e.vel, acceleration_v) <= 90 { 	// If overshooting below max speed
+		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
+	} else {
+		e.vel += acceleration_v
+		e.vel += friction_v
+		// Account for friction overshooting when slowing down
+		if acceleration_v.x == 0 && math.sign(e.vel.x) == math.sign(friction_v.x) {
+			e.vel.x = 0
+		}
+		if acceleration_v.y == 0 && math.sign(e.vel.y) == math.sign(friction_v.y) {
+			e.vel.y = 0
+		}
+	}
+
+	// fmt.printfln(
+	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
+	// 	length(e.vel),
+	// 	e.vel,
+	// 	friction_v,
+	// 	acceleration_v,
+	// )
 
 	e.pos += e.vel * delta
 }
@@ -336,4 +435,8 @@ get_directional_input :: proc() -> Vec2 {
 	}
 
 	return dir
+}
+
+turn_off_surf :: proc() {
+	surfing = false
 }
