@@ -1,6 +1,4 @@
-- walls!
-	- rewrite polygon collisions to resolve
-	- resolving all other shape collisions
+- test level
 - sweeping rectangle collisions
 - collision resolution
 - timer/wait system

@@ -61,7 +61,10 @@ main :: proc() {
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
 
 	walls := make([dynamic]PhysicsEntity, context.allocator)
-	append(&walls, PhysicsEntity{pos = {200, 100}, shape = Circle{{}, 32}})
+	append(
+		&walls,
+		PhysicsEntity{pos = {200, 100}, shape = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0}},
+	)
 
 	enemies := make([dynamic]Enemy, context.allocator)
 	append(
@@ -169,7 +172,7 @@ main :: proc() {
 			// fmt.printfln("%v, %v, %v", collide, normal, depth)
 			if depth > 0 {
 				player.pos -= normal * depth
-				// player.vel
+				player.vel = slide(player.vel, normal)
 			}
 		}
 
@@ -185,7 +188,7 @@ main :: proc() {
 			// fmt.printfln("%v, %v, %v", collide, normal, depth)
 			if depth > 0 {
 				enemy.pos -= normal * depth
-				// player.vel
+				enemy.vel = slide(enemy.vel, normal)
 			}
 		}
 
