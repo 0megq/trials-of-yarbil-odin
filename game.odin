@@ -60,8 +60,8 @@ main :: proc() {
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
 
-	obstacles := make([dynamic]PhysicsEntity, context.allocator)
-	append(&obstacles, PhysicsEntity{pos = {200, 100}, shape = Circle{{}, 32}})
+	walls := make([dynamic]PhysicsEntity, context.allocator)
+	append(&walls, PhysicsEntity{pos = {200, 100}, shape = Circle{{}, 32}})
 
 	enemies := make([dynamic]Enemy, context.allocator)
 	append(
@@ -163,8 +163,8 @@ main :: proc() {
 			_, normal, depth := resolve_collision_shapes(
 				player.shape,
 				player.pos,
-				obstacles[0].shape,
-				obstacles[0].pos,
+				walls[0].shape,
+				walls[0].pos,
 			)
 			// fmt.printfln("%v, %v, %v", collide, normal, depth)
 			if depth > 0 {
@@ -179,8 +179,8 @@ main :: proc() {
 			_, normal, depth := resolve_collision_shapes(
 				enemy.shape,
 				enemy.pos,
-				obstacles[0].shape,
-				obstacles[0].pos,
+				walls[0].shape,
+				walls[0].pos,
 			)
 			// fmt.printfln("%v, %v, %v", collide, normal, depth)
 			if depth > 0 {
@@ -264,7 +264,7 @@ main :: proc() {
 			draw_shape(item.shape, item.pos, rl.PURPLE)
 		}
 
-		for obstacle in obstacles {
+		for obstacle in walls {
 			draw_shape(obstacle.shape, obstacle.pos, rl.GRAY)
 		}
 
