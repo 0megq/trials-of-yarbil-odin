@@ -49,7 +49,7 @@ main :: proc() {
 		pickup_range = 16,
 	}
 
-	current_ability = .FIRE
+	current_ability = .WATER
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
@@ -64,22 +64,22 @@ main :: proc() {
 	append(&obstacles, PhysicsEntity{pos = {200, 100}, shape = Circle{{}, 32}})
 
 	enemies := make([dynamic]Enemy, context.allocator)
-	// append(
-	// 	&enemies,
-	// 	Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	// )
-	// append(
-	// 	&enemies,
-	// 	Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	// )
-	// append(
-	// 	&enemies,
-	// 	Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	// )
-	// append(
-	// 	&enemies,
-	// 	Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	// )
+	append(
+		&enemies,
+		Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
+	append(
+		&enemies,
+		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	)
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
@@ -152,28 +152,41 @@ main :: proc() {
 			surf_poly.pos = player.pos
 			for &enemy in enemies {
 				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
-					enemy.vel += normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 200
+					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
 				}
 			}
 		}
 
-		player_move(&player, delta)
+		{
+			player_move(&player, delta)
 
-		_, normal, depth := resolve_collision_shapes(
-			player.shape,
-			player.pos,
-			obstacles[0].shape,
-			obstacles[0].pos,
-		)
-		// fmt.printfln("%v, %v, %v", collide, normal, depth)
-		if depth > 0 {
-			player.pos -= normal * depth
-			// player.vel
+			_, normal, depth := resolve_collision_shapes(
+				player.shape,
+				player.pos,
+				obstacles[0].shape,
+				obstacles[0].pos,
+			)
+			// fmt.printfln("%v, %v, %v", collide, normal, depth)
+			if depth > 0 {
+				player.pos -= normal * depth
+				// player.vel
+			}
 		}
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
 			enemy_move(&enemy, delta, player)
+			_, normal, depth := resolve_collision_shapes(
+				enemy.shape,
+				enemy.pos,
+				obstacles[0].shape,
+				obstacles[0].pos,
+			)
+			// fmt.printfln("%v, %v, %v", collide, normal, depth)
+			if depth > 0 {
+				enemy.pos -= normal * depth
+				// player.vel
+			}
 		}
 
 		attack_poly.rotation = angle(mouse_canvas_pos - player.pos)
