@@ -1,0 +1,2 @@
+- this is manually memory managed language. if there is magic bugs happening out of nowhere it's probably a memory issue
+	- addendum: it's not the language. it's you, honey
