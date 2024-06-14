@@ -61,30 +61,30 @@ main :: proc() {
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
 
 	obstacles := make([dynamic]PhysicsEntity, context.allocator)
-	append(&obstacles, PhysicsEntity{pos = {200, 100}, shape = get_centered_rect({}, {16, 32})})
+	append(&obstacles, PhysicsEntity{pos = {200, 100}, shape = Circle{{}, 32}})
 
 	enemies := make([dynamic]Enemy, context.allocator)
-	append(
-		&enemies,
-		Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	)
-	append(
-		&enemies,
-		Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	)
-	append(
-		&enemies,
-		Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	)
-	append(
-		&enemies,
-		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	)
+	// append(
+	// 	&enemies,
+	// 	Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	// )
+	// append(
+	// 	&enemies,
+	// 	Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	// )
+	// append(
+	// 	&enemies,
+	// 	Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	// )
+	// append(
+	// 	&enemies,
+	// 	Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+	// )
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
-	player_radius := player.shape.(Circle).radius
-	punch_rect: rl.Rectangle = {
+	player_radius: f32 = 8
+	punch_rect: Rectangle = {
 		player_radius,
 		PLAYER_PUNCH_SIZE.y * -0.5,
 		PLAYER_PUNCH_SIZE.x,
@@ -158,6 +158,18 @@ main :: proc() {
 		}
 
 		player_move(&player, delta)
+
+		_, normal, depth := resolve_collision_shapes(
+			player.shape,
+			player.pos,
+			obstacles[0].shape,
+			obstacles[0].pos,
+		)
+		// fmt.printfln("%v, %v, %v", collide, normal, depth)
+		if depth > 0 {
+			player.pos -= normal * depth
+			// player.vel
+		}
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
@@ -395,14 +407,14 @@ move :: proc(e: ^MovingEntity, input: Vec2, acceleration: f32, max_speed: f32, d
 
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
-	dst_rec := rl.Rectangle {
+	dst_rec := Rectangle {
 		pos.x,
 		pos.y,
 		f32(tex.width) * math.abs(sprite.scale.x), // scale the sprite. a negative would mess this up
 		f32(tex.height) * math.abs(sprite.scale.y),
 	}
 
-	src_rec := rl.Rectangle {
+	src_rec := Rectangle {
 		sprite.tex_region.x,
 		sprite.tex_region.y,
 		sprite.tex_region.width * math.sign(sprite.scale.x), // Flip the texture, based off sprite scale
