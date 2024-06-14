@@ -417,9 +417,9 @@ get_closest_polygon_point :: proc(poly: Polygon, pos: Vec2) -> int {
 }
 
 // Returns a slice of Vec2 points representing the polygon. Rotation and position are applied to each point
-// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
-polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
-	result := make([]Vec2, len(polygon.points), context.temp_allocator)
+// Allocates the slice using temp allocator by default
+polygon_to_points :: proc(polygon: Polygon, allocator := context.temp_allocator) -> []Vec2 {
+	result := make([]Vec2, len(polygon.points), allocator)
 	for i in 0 ..< len(polygon.points) {
 		// Rotate point, then translate
 		result[i] = rotate_vector(polygon.points[i], polygon.rotation) + polygon.pos
@@ -427,18 +427,18 @@ polygon_to_points :: proc(polygon: Polygon) -> []Vec2 {
 	return result
 }
 
-// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
-rotate_points :: proc(points: []Vec2, deg: f32) -> []Vec2 {
-	new_points := make([]Vec2, len(points), context.temp_allocator)
+// Allocates polygon.points using temp allocator by default
+rotate_points :: proc(points: []Vec2, deg: f32, allocator := context.temp_allocator) -> []Vec2 {
+	new_points := make([]Vec2, len(points), allocator)
 	for i in 0 ..< len(points) {
 		new_points[i] = rotate_vector(points[i], deg)
 	}
 	return new_points
 }
 
-// Copy the result of this proc if you want to save it past the current frame. Allocates using context.temp_allocator
-get_rotated_polygon :: proc(p: Polygon) -> Polygon {
-	points := rotate_points(p.points, p.rotation)
+// Allocates polygon.points using temp allocator by default
+get_rotated_polygon :: proc(p: Polygon, allocator := context.temp_allocator) -> Polygon {
+	points := rotate_points(p.points, p.rotation, allocator)
 	return {p.pos, points, 0}
 }
 
