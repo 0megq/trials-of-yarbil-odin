@@ -1,7 +1,10 @@
 package game
 
+import "core:encoding/json"
 import "core:fmt"
 import "core:math"
+import "core:mem"
+import "core:os"
 import rl "vendor:raylib"
 
 WINDOW_SIZE :: Vec2i{1280, 720}
@@ -29,6 +32,10 @@ MovementAbility :: enum {
 	AIR,
 }
 
+Level :: struct {
+	walls: [dynamic]PhysicsEntity,
+}
+
 punching: bool
 punch_timer: f32
 can_punch: bool
@@ -38,6 +45,20 @@ surfing: bool
 current_ability: MovementAbility
 
 main :: proc() {
+	track: mem.Tracking_Allocator
+	mem.tracking_allocator_init(&track, context.allocator)
+	context.allocator = mem.tracking_allocator(&track)
+
+	defer {
+		for _, entry in track.allocation_map {
+			fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
+		}
+		for entry in track.bad_free_array {
+			fmt.eprintf("%v bad free\n", entry.location)
+		}
+		mem.tracking_allocator_destroy(&track)
+	}
+
 	rl.SetConfigFlags({.VSYNC_HINT})
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
@@ -60,11 +81,22 @@ main :: proc() {
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
 
-	walls := make([dynamic]PhysicsEntity, context.allocator)
-	append(
-		&walls,
-		PhysicsEntity{pos = {200, 100}, shape = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0}},
-	)
+	level: Level
+
+	wall1 := PhysicsEntity {
+		pos   = {200, 100},
+		shape = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0},
+	}
+	level.walls = make([dynamic]PhysicsEntity, context.allocator)
+
+
+	if level_data, ok := os.read_entire_file("level.json", context.allocator); ok {
+		if json.unmarshal(level_data, &level) != nil {
+			append(&level.walls, wall1)
+		}
+	} else {
+		append(&level.walls, wall1)
+	}
 
 	enemies := make([dynamic]Enemy, context.allocator)
 	append(
@@ -163,32 +195,36 @@ main :: proc() {
 		{
 			player_move(&player, delta)
 
-			_, normal, depth := resolve_collision_shapes(
-				player.shape,
-				player.pos,
-				walls[0].shape,
-				walls[0].pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				player.pos -= normal * depth
-				player.vel = slide(player.vel, normal)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					player.shape,
+					player.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					player.pos -= normal * depth
+					player.vel = slide(player.vel, normal)
+				}
 			}
 		}
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
 			enemy_move(&enemy, delta, player)
-			_, normal, depth := resolve_collision_shapes(
-				enemy.shape,
-				enemy.pos,
-				walls[0].shape,
-				walls[0].pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				enemy.pos -= normal * depth
-				enemy.vel = slide(enemy.vel, normal)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					enemy.shape,
+					enemy.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					enemy.pos -= normal * depth
+					enemy.vel = slide(enemy.vel, normal)
+				}
 			}
 		}
 
@@ -267,8 +303,8 @@ main :: proc() {
 			draw_shape(item.shape, item.pos, rl.PURPLE)
 		}
 
-		for obstacle in walls {
-			draw_shape(obstacle.shape, obstacle.pos, rl.GRAY)
+		for wall in level.walls {
+			draw_shape(wall.shape, wall.pos, rl.GRAY)
 		}
 
 		for enemy in enemies {
@@ -293,7 +329,13 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 
-	free_all(context.allocator)
+	if level_data, err := json.marshal(level, allocator = context.allocator); err == nil {
+		os.write_entire_file("level.json", level_data)
+	}
+
+	mem.tracking_allocator_clear(&track)
+	free_all(context.temp_allocator)
+
 	unload_textures()
 	rl.CloseWindow()
 }
