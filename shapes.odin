@@ -360,8 +360,73 @@ check_collision_shapes :: proc(shape_a: Shape, a_pos: Vec2, shape_b: Shape, b_po
 }
 
 check_collision_polygon_circle :: proc(poly: Polygon, circle: Circle) -> bool {
-	fmt.println("check_collision_circle_polygon not implemented")
-	return false
+	points := polygon_to_points(poly)
+	// _ = fmt.ctprintf("%v", poly)
+	for index in 0 ..< len(points) {
+
+		edge := points[index] - points[(index + 1) % len(points)]
+		axis := normalize(edge.yx * {-1, 1})
+
+		min_poly, max_poly := math.INF_F32, math.NEG_INF_F32
+		for v in points {
+			dot := dot(v, axis)
+			min_poly = min(min_poly, dot)
+			max_poly = max(max_poly, dot)
+		}
+
+		min_circle, max_circle := math.INF_F32, math.NEG_INF_F32
+		{
+			p1 := circle.pos + axis * circle.radius
+			p2 := circle.pos - axis * circle.radius
+
+			min_circle = dot(p1, axis)
+			max_circle = dot(p2, axis)
+
+			if (min_circle > max_circle) {
+				min_circle, max_circle = max_circle, min_circle
+			}
+		}
+
+		axis_depth := math.min(max_poly - min_circle, max_circle - min_poly)
+
+		if axis_depth < 0 {
+			return false
+		}
+	}
+
+	// Final axis test (closest point on polygon to circle center)
+	cp_index := get_closest_polygon_point(poly, circle.pos)
+	cp := points[cp_index]
+
+	axis := normalize(cp - circle.pos)
+
+	min_poly, max_poly := math.INF_F32, math.NEG_INF_F32
+	for v in points {
+		dot := dot(v, axis)
+		min_poly = min(min_poly, dot)
+		max_poly = max(max_poly, dot)
+	}
+
+	min_circle, max_circle := math.INF_F32, math.NEG_INF_F32
+	{
+		p1 := circle.pos + axis * circle.radius
+		p2 := circle.pos - axis * circle.radius
+
+		min_circle = dot(p1, axis)
+		max_circle = dot(p2, axis)
+
+		if (min_circle > max_circle) {
+			min_circle, max_circle = max_circle, min_circle
+		}
+	}
+
+	axis_depth := math.min(max_poly - min_circle, max_circle - min_poly)
+
+	if axis_depth < 0 {
+		return false
+	}
+
+	return true
 }
 
 check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {

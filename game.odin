@@ -151,6 +151,8 @@ main :: proc() {
 			}
 		}
 
+		update_editor(&level.walls, mouse_canvas_pos)
+
 		if rl.IsKeyPressed(.SPACE) {
 			switch current_ability {
 			case .FIRE:
@@ -322,6 +324,8 @@ main :: proc() {
 		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 
 		draw_shape(attack_poly, player.pos, punch_area_color)
+
+		draw_editor()
 
 		rl.EndMode2D()
 
