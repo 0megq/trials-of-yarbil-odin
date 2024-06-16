@@ -335,6 +335,7 @@ main :: proc() {
 
 	mem.tracking_allocator_clear(&track)
 	free_all(context.temp_allocator)
+	free_all(context.allocator)
 
 	unload_textures()
 	rl.CloseWindow()
