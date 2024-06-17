@@ -39,14 +39,37 @@ update_button :: proc(button: ^Button, mouse_pos: Vec2) {
 	case .Hovered:
 		if !touching_mouse {
 			button.status = .Normal
+		} else if mouse_pressed {
+			button.status = .Pressed
 		}
-
 	case .Pressed:
-
+		if !touching_mouse {
+			button.status = .Normal
+		} else if mouse_down {
+			button.status = .Down
+		} else if mouse_released {
+			button.status = .Released
+		} else {
+			button.status = .Normal
+		}
 	case .Down:
-
+		if !touching_mouse {
+			button.status = .Normal
+		} else if mouse_released {
+			button.status = .Released
+		} else if !mouse_down {
+			button.status = .Hovered
+		}
 	case .Released:
-
+		if touching_mouse {
+			if mouse_pressed {
+				button.status = .Pressed
+			} else {
+				button.status = .Hovered
+			}
+		} else {
+			button.status = .Normal
+		}
 	}
 }
 

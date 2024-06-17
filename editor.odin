@@ -7,7 +7,7 @@ selected_wall: ^PhysicsEntity
 selected_wall_index: int = -1
 
 my_but := Button {
-	{200, 400, 50, 30},
+	{100, 200, 50, 30},
 	"hello",
 	.Normal,
 	{200, 200, 200, 255},
@@ -16,8 +16,7 @@ my_but := Button {
 }
 
 update_editor :: proc(walls: ^[dynamic]PhysicsEntity, mouse_pos: Vec2) {
-
-
+	update_button(&my_but, mouse_pos)
 	if rl.IsKeyPressed(.BACKSPACE) && selected_wall != nil {
 		unordered_remove(walls, selected_wall_index)
 		selected_wall = nil
