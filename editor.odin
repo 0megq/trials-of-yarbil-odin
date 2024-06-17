@@ -6,17 +6,22 @@ SELECTED_OUTLINE_COLOR :: rl.GREEN
 selected_wall: ^PhysicsEntity
 selected_wall_index: int = -1
 
-// TODO: Make the editor render outside the game canvas.
 new_shape := Button {
 	{10, 100, 150, 30},
 	"New Shape",
 	.Normal,
-	{200, 200, 200, 255},
-	{150, 150, 150, 255},
-	{100, 100, 100, 255},
+	{200, 200, 200, 200},
+	{150, 150, 150, 200},
+	{100, 100, 100, 200},
 }
 
-update_editor :: proc(walls: ^[dynamic]PhysicsEntity, mouse_pos: Vec2, mouse_delta: Vec2) {
+update_editor :: proc(
+	walls: ^[dynamic]PhysicsEntity,
+	mouse_pos: Vec2,
+	mouse_delta: Vec2,
+	mouse_world_pos: Vec2,
+	mouse_world_delta: Vec2,
+) {
 	update_button(&new_shape, mouse_pos)
 	update_number_field(nil, mouse_pos)
 
@@ -42,21 +47,23 @@ update_editor :: proc(walls: ^[dynamic]PhysicsEntity, mouse_pos: Vec2, mouse_del
 	if rl.IsMouseButtonPressed(.LEFT) {
 		selected_wall = nil
 		for &wall, index in walls {
-			if check_collision_shape_point(wall.shape, wall.pos, mouse_pos) {
+			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				selected_wall = &wall
 				selected_wall_index = index
 				break
 			}
 		}
 	} else if rl.IsMouseButtonDown(.LEFT) && selected_wall != nil { 	// Moving shape
-		selected_wall.pos += mouse_delta
+		selected_wall.pos += mouse_world_delta
 	}
 }
 
-draw_editor :: proc() {
-	draw_button(new_shape)
+draw_editor_world :: proc() {
 	if selected_wall != nil {
 		draw_shape_lines(selected_wall.shape, selected_wall.pos, SELECTED_OUTLINE_COLOR)
 	}
+}
 
+draw_editor_ui :: proc() {
+	draw_button(new_shape)
 }

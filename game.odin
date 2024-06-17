@@ -8,8 +8,8 @@ import "core:os"
 import rl "vendor:raylib"
 
 WINDOW_SIZE :: Vec2i{1280, 720}
-CANVAS_SIZE :: Vec2i{640, 360}
-WINDOW_TO_CANVAS :: f32(WINDOW_SIZE.x) / f32(CANVAS_SIZE.x)
+GAME_SIZE :: Vec2i{640, 360}
+WINDOW_TO_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 150
 PLAYER_BASE_ACCELERATION :: 1200
 PLAYER_PUNCH_SIZE :: Vec2{12, 16}
@@ -141,8 +141,8 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
-		mouse_canvas_pos := rl.GetMousePosition() / WINDOW_TO_CANVAS
-		mouse_canvas_delta := rl.GetMouseDelta() / WINDOW_TO_CANVAS
+		mouse_world_pos := rl.GetMousePosition() / WINDOW_TO_GAME
+		mouse_world_delta := rl.GetMouseDelta() / WINDOW_TO_GAME
 
 		for &timer, i in timers {
 			timer.time_left -= delta
@@ -152,7 +152,13 @@ main :: proc() {
 			}
 		}
 
-		update_editor(&level.walls, mouse_canvas_pos, mouse_canvas_delta)
+		update_editor(
+			&level.walls,
+			rl.GetMousePosition(),
+			rl.GetMouseDelta(),
+			mouse_world_pos,
+			mouse_world_delta,
+		)
 
 		if rl.IsKeyPressed(.SPACE) {
 			switch current_ability {
@@ -231,7 +237,7 @@ main :: proc() {
 			}
 		}
 
-		attack_poly.rotation = angle(mouse_canvas_pos - player.pos)
+		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
 		if rl.IsMouseButtonPressed(.LEFT) && can_punch {
 			punching = true
@@ -250,7 +256,7 @@ main :: proc() {
 					if !hit_enemies[i] &&
 					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
 						enemies[i].vel +=
-							normalize(mouse_canvas_pos - player.pos) *
+							normalize(mouse_world_pos - player.pos) *
 							(SWORD_POWER if holding_sword else PUNCH_POWER)
 						hit_enemies[i] = true
 					}
@@ -291,7 +297,7 @@ main :: proc() {
 		rl.ClearBackground(rl.BLUE)
 
 		camera := rl.Camera2D {
-			zoom = WINDOW_TO_CANVAS,
+			zoom = WINDOW_TO_GAME,
 		}
 
 		rl.BeginMode2D(camera)
@@ -326,10 +332,10 @@ main :: proc() {
 
 		draw_shape(attack_poly, player.pos, punch_area_color)
 
-		draw_editor()
-
+		draw_editor_world()
 		rl.EndMode2D()
 
+		draw_editor_ui()
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
 	}
