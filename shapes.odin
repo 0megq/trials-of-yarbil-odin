@@ -293,6 +293,10 @@ resolve_collision_polygons :: proc(
 	return true, normal, depth
 }
 
+check_collision_shape_point :: proc(shape: Shape, pos: Vec2, point: Vec2) -> bool {
+	return check_collision_shapes(shape, pos, Circle{}, point)
+}
+
 check_collision_shapes :: proc(shape_a: Shape, a_pos: Vec2, shape_b: Shape, b_pos: Vec2) -> bool {
 	switch a in shape_a {
 	case Circle:
@@ -556,7 +560,12 @@ get_centered_rect :: proc(center: Vec2, size: Vec2) -> Rectangle {
 	return {center.x - size.x * 0.5, center.y - size.y * 0.5, size.x, size.y}
 }
 
-get_center :: proc(rect: Rectangle) -> Vec2 {
+get_center :: proc {
+	get_polygon_center,
+	get_rect_center,
+}
+
+get_rect_center :: proc(rect: Rectangle) -> Vec2 {
 	return {rect.x, rect.y} + {rect.width, rect.height} * 0.5
 }
 
