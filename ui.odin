@@ -1,5 +1,6 @@
 package game
 
+import "core:fmt"
 import "core:strings"
 import rl "vendor:raylib"
 
@@ -20,6 +21,23 @@ Button :: struct {
 	normal_color:  Color,
 	hover_color:   Color,
 	pressed_color: Color,
+}
+
+NumberField :: struct {
+	rect:           Rectangle,
+	saved_number:   f32,
+	current_number: f32,
+	selected:       bool,
+	cursor_pos:     int,
+	normal_color:   Color,
+	selected_color: Color,
+}
+
+update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2) {
+	// Get all keys pressed
+	for key := rl.GetKeyPressed(); key != .KEY_NULL; key = rl.GetKeyPressed() {
+		fmt.println(key)
+	}
 }
 
 update_button :: proc(button: ^Button, mouse_pos: Vec2) {

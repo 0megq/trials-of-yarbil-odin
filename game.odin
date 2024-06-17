@@ -142,6 +142,7 @@ main :: proc() {
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
 		mouse_canvas_pos := rl.GetMousePosition() / WINDOW_TO_CANVAS
+		mouse_canvas_delta := rl.GetMouseDelta() / WINDOW_TO_CANVAS
 
 		for &timer, i in timers {
 			timer.time_left -= delta
@@ -151,7 +152,7 @@ main :: proc() {
 			}
 		}
 
-		update_editor(&level.walls, mouse_canvas_pos)
+		update_editor(&level.walls, mouse_canvas_pos, mouse_canvas_delta)
 
 		if rl.IsKeyPressed(.SPACE) {
 			switch current_ability {
