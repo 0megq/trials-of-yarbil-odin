@@ -35,8 +35,30 @@ NumberField :: struct {
 
 update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2) {
 	// Get all keys pressed
-	for key := rl.GetKeyPressed(); key != .KEY_NULL; key = rl.GetKeyPressed() {
-		fmt.println(key)
+	fmt.print()
+	if field.selected {
+		for key := rl.GetKeyPressed(); key != .KEY_NULL; key = rl.GetKeyPressed() {
+			#partial switch key {
+			case .BACKSPACE:
+
+			case .DELETE:
+
+			case .LEFT:
+
+			case .RIGHT:
+
+			case .HOME:
+
+			case .END:
+
+			case:
+				if key >= .ZERO && key <= .NINE {
+					fmt.println(int(key - .ZERO))
+				}
+			}
+		}
+	} else {
+
 	}
 }
 

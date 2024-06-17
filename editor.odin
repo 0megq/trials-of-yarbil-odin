@@ -6,13 +6,17 @@ SELECTED_OUTLINE_COLOR :: rl.GREEN
 selected_wall: ^PhysicsEntity
 selected_wall_index: int = -1
 
-new_shape := Button {
+new_shape_but := Button {
 	{10, 100, 150, 30},
 	"New Shape",
 	.Normal,
 	{200, 200, 200, 200},
 	{150, 150, 150, 200},
 	{100, 100, 100, 200},
+}
+
+test_text_field := NumberField {
+	selected = true,
 }
 
 update_editor :: proc(
@@ -22,10 +26,10 @@ update_editor :: proc(
 	mouse_world_pos: Vec2,
 	mouse_world_delta: Vec2,
 ) {
-	update_button(&new_shape, mouse_pos)
-	update_number_field(nil, mouse_pos)
+	update_button(&new_shape_but, mouse_pos)
+	update_number_field(&test_text_field, mouse_pos)
 
-	if new_shape.status == .Released {
+	if new_shape_but.status == .Released {
 		append(walls, PhysicsEntity{{}, Circle{{}, 20}})
 		selected_wall_index = len(walls) - 1
 		selected_wall = &walls[selected_wall_index]
@@ -33,7 +37,7 @@ update_editor :: proc(
 
 	// Update property fields ui
 	if selected_wall != nil {
-		update_number_field(nil, mouse_pos)
+		// update_number_field(nil, mouse_pos)
 	}
 
 	// Deleting shapes
@@ -65,5 +69,5 @@ draw_editor_world :: proc() {
 }
 
 draw_editor_ui :: proc() {
-	draw_button(new_shape)
+	draw_button(new_shape_but)
 }
