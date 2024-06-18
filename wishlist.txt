@@ -1,3 +1,4 @@
+- add_timer procedure
 - shape editor
 	- new polygon
 		- set pos

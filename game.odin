@@ -22,6 +22,7 @@ FIRE_DASH_RADIUS :: 32
 Timer :: struct {
 	time_left: f32,
 	callable:  proc(),
+	start_time: f32, // Set to 0 or less if want to not one shot
 }
 
 MovementAbility :: enum {
@@ -77,6 +78,8 @@ main :: proc() {
 	fires := make([dynamic]Circle, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
+
+	append(&timers, Timer{0.5, toggle_text_cursor, 0.5})
 
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
@@ -148,7 +151,11 @@ main :: proc() {
 			timer.time_left -= delta
 			if timer.time_left <= 0 {
 				timer.callable()
-				unordered_remove(&timers, i)
+				if timer.start_time > 0 {
+					timer.time_left += timer.start_time
+				} else {
+					unordered_remove(&timers, i)
+				}
 			}
 		}
 
@@ -176,7 +183,7 @@ main :: proc() {
 				}
 			case .WATER:
 				surfing = true
-				append(&timers, Timer{1, turn_off_surf})
+				append(&timers, Timer{1, turn_off_surf, 0})
 			// for &enemy in enemies {
 			// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 			// 		enemy.vel -= normalize(get_directional_input()) * 200
