@@ -139,6 +139,9 @@ resolve_collision_polygon_circle :: proc(
 	normal: Vec2,
 	depth: f32,
 ) {
+	if len(poly.points) < 2 {
+		return false, {}, 0
+	}
 	depth = math.INF_F32
 	points := polygon_to_points(poly)
 	// _ = fmt.ctprintf("%v", poly)
@@ -240,6 +243,9 @@ resolve_collision_polygons :: proc(
 	normal: Vec2,
 	depth: f32,
 ) {
+	if len(a.points) < 2 || len(b.points) < 2 {
+		return false, {}, 0
+	}
 	depth = math.INF_F32
 	p1 := polygon_to_points(a)
 	p2 := polygon_to_points(b)
@@ -364,6 +370,9 @@ check_collision_shapes :: proc(shape_a: Shape, a_pos: Vec2, shape_b: Shape, b_po
 }
 
 check_collision_polygon_circle :: proc(poly: Polygon, circle: Circle) -> bool {
+	if len(poly.points) < 2 {
+		return false
+	}
 	points := polygon_to_points(poly)
 	// _ = fmt.ctprintf("%v", poly)
 	for index in 0 ..< len(points) {
@@ -434,6 +443,9 @@ check_collision_polygon_circle :: proc(poly: Polygon, circle: Circle) -> bool {
 }
 
 check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
+	if len(a.points) < 2 || len(b.points) < 2 {
+		return false
+	}
 	p1 := polygon_to_points(a)
 	p2 := polygon_to_points(b)
 	for i in 0 ..< 2 {
@@ -524,7 +536,7 @@ draw_polygon :: proc(polygon: Polygon, color: rl.Color) {
 draw_polygon_lines :: proc(polygon: Polygon, color: rl.Color) {
 	points := polygon_to_points(polygon)
 	for i in 0 ..< len(points) {
-		rl.DrawLineV(points[i], points[(i + 1) % len(points)], color)
+		rl.DrawLineEx(points[i], points[(i + 1) % len(points)], 1, color)
 	}
 }
 

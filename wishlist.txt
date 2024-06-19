@@ -1,29 +1,12 @@
-- add_timer procedure
-- shape editor
-	- new polygon
-		- set pos
-		- move points
-		- add points
-		- remove points
-	- new circle
-		- set pos
-		- set radius
-	- new rectangle
-		- set pos
-		- set center
-		- change size
-	- controls
-		- E toggle editor
-		- LMB select/deselect shape
-		- When shape is selected display the shape data and allow editing with text fields and scrolling values. Allow deleting shape
-		- 
-
-	- saving and loading
 - level editor
-	- saving and loading
+	- polygon points
+	- scaling rectangle from center
+	- toggle editor
+	- increment and decrement buttons
 - test level
 - health system
 	- responds to physics
+- add_timer procedure
 - streamlined game entity system
 - game object editor
 - sweeping rectangle collisions

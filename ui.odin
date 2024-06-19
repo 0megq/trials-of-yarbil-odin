@@ -41,6 +41,12 @@ NumberField :: struct {
 
 show_text_cursor: bool = false
 
+set_number_field_value :: proc(field: ^NumberField, value: f32) {
+	field.number = value
+	delete(field.current_string, context.allocator)
+	field.current_string = fmt.aprint(field.number)
+}
+
 update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2) {
 	// Get all keys pressed
 	if rl.IsMouseButtonPressed(.LEFT) {
