@@ -7,8 +7,8 @@ import "core:mem"
 import "core:os"
 import rl "vendor:raylib"
 
-WINDOW_SIZE :: Vec2i{1280, 720}
-GAME_SIZE :: Vec2i{640, 360}
+WINDOW_SIZE :: Vec2i{1920, 1080}
+GAME_SIZE :: Vec2i{480, 270}
 WINDOW_TO_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 150
 PLAYER_BASE_ACCELERATION :: 1200
@@ -301,7 +301,7 @@ main :: proc() {
 		}
 
 		rl.BeginDrawing()
-		rl.ClearBackground(rl.BLUE)
+		rl.ClearBackground(rl.DARKGRAY)
 
 		camera := rl.Camera2D {
 			zoom = WINDOW_TO_GAME,

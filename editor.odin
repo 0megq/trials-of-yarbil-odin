@@ -15,9 +15,22 @@ new_shape_but := Button {
 	{100, 100, 100, 200},
 }
 
-test_number_field := NumberField {
-	{200, 300, 200, 50},
-	10.2,
+x_pos_field := NumberField {
+	{40, 150, 120, 40},
+	10,
+	"10",
+	" X ",
+	false,
+	0,
+	{150, 150, 150, 200},
+	{150, 255, 150, 200},
+}
+
+y_pos_field := NumberField {
+	{200, 210, 120, 40},
+	0,
+	"0",
+	" Y ",
 	false,
 	0,
 	{150, 150, 150, 200},
@@ -32,7 +45,7 @@ update_editor :: proc(
 	mouse_world_delta: Vec2,
 ) {
 	update_button(&new_shape_but, mouse_pos)
-	update_number_field(&test_number_field, mouse_pos)
+	update_number_field(&x_pos_field, mouse_pos)
 
 	if new_shape_but.status == .Released {
 		append(walls, PhysicsEntity{{}, Circle{{}, 20}})
@@ -67,6 +80,10 @@ update_editor :: proc(
 	}
 }
 
+update_shape_fields :: proc() {
+
+}
+
 draw_editor_world :: proc() {
 	if selected_wall != nil {
 		draw_shape_lines(selected_wall.shape, selected_wall.pos, SELECTED_OUTLINE_COLOR)
@@ -74,6 +91,11 @@ draw_editor_world :: proc() {
 }
 
 draw_editor_ui :: proc() {
-	draw_number_field(test_number_field)
+	draw_shape_fields()
 	draw_button(new_shape_but)
+}
+
+draw_shape_fields :: proc() {
+	draw_number_field(x_pos_field)
+
 }
