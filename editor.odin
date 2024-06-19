@@ -7,7 +7,7 @@ selected_wall: ^PhysicsEntity
 selected_wall_index: int = -1
 
 new_shape_but := Button {
-	{10, 100, 150, 30},
+	{20, 100, 120, 30},
 	"New Shape",
 	.Normal,
 	{200, 200, 200, 200},
@@ -15,10 +15,18 @@ new_shape_but := Button {
 	{100, 100, 100, 200},
 }
 
-x_pos_field := NumberField {
-	{40, 150, 120, 40},
-	10,
-	"10",
+// Game plan:
+// Switch case for union type
+// When a shape is selected set the fields to their values
+// Display and update different fields
+// Editing fields changes values of shapes
+// Polygon
+// Add point button, reorder points
+
+x_field := NumberField {
+	{20, 150, 120, 40},
+	0,
+	"0",
 	" X ",
 	false,
 	0,
@@ -26,11 +34,33 @@ x_pos_field := NumberField {
 	{150, 255, 150, 200},
 }
 
-y_pos_field := NumberField {
-	{200, 210, 120, 40},
+y_field := NumberField {
+	{20, 210, 120, 40},
 	0,
 	"0",
 	" Y ",
+	false,
+	0,
+	{150, 150, 150, 200},
+	{150, 255, 150, 200},
+}
+
+width_field := NumberField {
+	{20, 270, 120, 40},
+	0,
+	"0",
+	" W ",
+	false,
+	0,
+	{150, 150, 150, 200},
+	{150, 255, 150, 200},
+}
+
+height_field := NumberField {
+	{20, 330, 120, 40},
+	0,
+	"0",
+	" H ",
 	false,
 	0,
 	{150, 150, 150, 200},
@@ -45,7 +75,10 @@ update_editor :: proc(
 	mouse_world_delta: Vec2,
 ) {
 	update_button(&new_shape_but, mouse_pos)
-	update_number_field(&x_pos_field, mouse_pos)
+	update_number_field(&x_field, mouse_pos)
+	update_number_field(&y_field, mouse_pos)
+	update_number_field(&width_field, mouse_pos)
+	update_number_field(&height_field, mouse_pos)
 
 	if new_shape_but.status == .Released {
 		append(walls, PhysicsEntity{{}, Circle{{}, 20}})
@@ -53,10 +86,7 @@ update_editor :: proc(
 		selected_wall = &walls[selected_wall_index]
 	}
 
-	// Update property fields ui
-	if selected_wall != nil {
-		// update_number_field(nil, mouse_pos)
-	}
+	update_shape_fields(mouse_pos)
 
 	// Deleting shapes
 	if rl.IsKeyPressed(.BACKSPACE) && selected_wall != nil {
@@ -80,8 +110,16 @@ update_editor :: proc(
 	}
 }
 
-update_shape_fields :: proc() {
+update_shape_fields :: proc(mouse_pos: Vec2) {
+	if selected_wall != nil {
+		switch _ in selected_wall.shape {
+			case Circle:
 
+			case Polygon:
+
+			case Rectangle:
+		}
+	}
 }
 
 draw_editor_world :: proc() {
@@ -96,6 +134,9 @@ draw_editor_ui :: proc() {
 }
 
 draw_shape_fields :: proc() {
-	draw_number_field(x_pos_field)
+	draw_number_field(x_field)
+	draw_number_field(y_field)
+	draw_number_field(width_field)
+	draw_number_field(height_field)
 
 }

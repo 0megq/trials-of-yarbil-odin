@@ -57,7 +57,7 @@ update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2) {
 			// Getting cursor position - TODO: Make this work on a per character basis rather than averaging
 			text_width := rl.MeasureText(strings.clone_to_cstring(field.current_string, context.temp_allocator), NUMBER_FIELD_FONT_SIZE)
 			avg_character_width := text_width / i32(len(field.current_string))
-			text_start := field.rect.x + label_width + (field.rect.width - f32(text_width)) / 2
+			text_start := field.rect.x + label_width + (field.rect.width - label_width - f32(text_width)) / 2
 			field.cursor_pos = i32((mouse_pos.x - text_start)) / avg_character_width
 			// bounds
 			field.cursor_pos = max(field.cursor_pos, 0)
@@ -196,12 +196,12 @@ draw_number_field :: proc(field: NumberField) {
 
 	// Draw Rectangle
 	color := field.selected_color if field.selected else field.normal_color
-	rl.DrawRectangleRec({field.rect.x + label_width, field.rect.y, field.rect.width, field.rect.height}, color)
+	rl.DrawRectangleRec({field.rect.x + label_width, field.rect.y, field.rect.width - label_width, field.rect.height}, color)
 
 	// Draw field value
 	text := strings.clone_to_cstring(field.current_string, context.temp_allocator)
 	text_width := f32(rl.MeasureText(text, NUMBER_FIELD_FONT_SIZE))
-	text_pos: Vec2 = {field.rect.x + label_width + (field.rect.width - text_width) / 2, field.rect.y + (field.rect.height - NUMBER_FIELD_FONT_SIZE) / 2}
+	text_pos: Vec2 = {field.rect.x + label_width + (field.rect.width - label_width - text_width) / 2, field.rect.y + (field.rect.height - NUMBER_FIELD_FONT_SIZE) / 2}
 
 	rl.DrawText(text, i32(text_pos.x), i32(text_pos.y), NUMBER_FIELD_FONT_SIZE, rl.BLACK)
 
