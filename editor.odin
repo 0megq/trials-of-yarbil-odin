@@ -146,13 +146,13 @@ update_editor :: proc(
 		update_button(&change_shape_but, mouse_pos)
 		if change_shape_but.status == .Released {
 			switch shape in selected_wall.shape {
-				case Circle:
-					selected_wall.shape = Polygon{}
-				case Polygon:
-					delete(shape.points)
-					selected_wall.shape = Rectangle{}
-				case Rectangle:
-					selected_wall.shape = Circle{}
+			case Circle:
+				selected_wall.shape = Polygon{}
+			case Polygon:
+				delete(shape.points)
+				selected_wall.shape = Rectangle{}
+			case Rectangle:
+				selected_wall.shape = Circle{}
 			}
 		}
 		update_shape_fields(mouse_pos)
@@ -191,20 +191,20 @@ set_shape_fields_to_selected :: proc() {
 	set_number_field_value(&entity_x_field, selected_wall.pos.x)
 	set_number_field_value(&entity_y_field, selected_wall.pos.y)
 	switch shape in selected_wall.shape {
-		case Circle:
-			set_number_field_value(&x_field, shape.pos.x)
-			set_number_field_value(&y_field, shape.pos.y)
-			set_number_field_value(&radius_field, shape.radius)
-		case Polygon:
-			set_number_field_value(&x_field, shape.pos.x)
-			set_number_field_value(&y_field, shape.pos.y)
-			set_number_field_value(&rotation_field, shape.rotation)
-			//TODO: Implement points and rotation
-		case Rectangle:
-			set_number_field_value(&x_field, shape.x)
-			set_number_field_value(&y_field, shape.y)
-			set_number_field_value(&width_field, shape.width)
-			set_number_field_value(&height_field, shape.height)
+	case Circle:
+		set_number_field_value(&x_field, shape.pos.x)
+		set_number_field_value(&y_field, shape.pos.y)
+		set_number_field_value(&radius_field, shape.radius)
+	case Polygon:
+		set_number_field_value(&x_field, shape.pos.x)
+		set_number_field_value(&y_field, shape.pos.y)
+		set_number_field_value(&rotation_field, shape.rotation)
+	//TODO: Implement points and rotation
+	case Rectangle:
+		set_number_field_value(&x_field, shape.x)
+		set_number_field_value(&y_field, shape.y)
+		set_number_field_value(&width_field, shape.width)
+		set_number_field_value(&height_field, shape.height)
 	}
 }
 
@@ -216,23 +216,23 @@ update_shape_fields :: proc(mouse_pos: Vec2) {
 	update_number_field(&x_field, mouse_pos)
 	update_number_field(&y_field, mouse_pos)
 	switch &shape in selected_wall.shape {
-		case Circle:
-			update_number_field(&radius_field, mouse_pos)
-			shape.pos.x = x_field.number
-			shape.pos.y = y_field.number
-			shape.radius = radius_field.number
-		case Polygon:
-			shape.pos.x = x_field.number
-			shape.pos.y = y_field.number
-			shape.rotation = rotation_field.number
-			//TODO: Implement points and rotation
-		case Rectangle:
-			update_number_field(&width_field, mouse_pos)
-			update_number_field(&height_field, mouse_pos)
-			shape.x = x_field.number
-			shape.y = y_field.number
-			shape.width = width_field.number
-			shape.height = height_field.number
+	case Circle:
+		update_number_field(&radius_field, mouse_pos)
+		shape.pos.x = x_field.number
+		shape.pos.y = y_field.number
+		shape.radius = radius_field.number
+	case Polygon:
+		shape.pos.x = x_field.number
+		shape.pos.y = y_field.number
+		shape.rotation = rotation_field.number
+	//TODO: Implement points and rotation
+	case Rectangle:
+		update_number_field(&width_field, mouse_pos)
+		update_number_field(&height_field, mouse_pos)
+		shape.x = x_field.number
+		shape.y = y_field.number
+		shape.width = width_field.number
+		shape.height = height_field.number
 	}
 }
 
@@ -257,13 +257,13 @@ draw_shape_fields :: proc() {
 	draw_number_field(x_field)
 	draw_number_field(y_field)
 	switch _ in selected_wall.shape {
-		case Circle:
-			draw_number_field(radius_field)
-		case Polygon:
-			draw_number_field(rotation_field)
-			//TODO: Implement points and rotation
-		case Rectangle:
-			draw_number_field(width_field)
-			draw_number_field(height_field)
+	case Circle:
+		draw_number_field(radius_field)
+	case Polygon:
+		draw_number_field(rotation_field)
+	//TODO: Implement points and rotation
+	case Rectangle:
+		draw_number_field(width_field)
+		draw_number_field(height_field)
 	}
 }

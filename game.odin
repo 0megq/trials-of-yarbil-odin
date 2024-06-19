@@ -20,8 +20,8 @@ SWORD_POWER :: 250
 FIRE_DASH_RADIUS :: 32
 
 Timer :: struct {
-	time_left: f32,
-	callable:  proc(),
+	time_left:  f32,
+	callable:   proc(),
 	start_time: f32, // Set to 0 or less if want to not one shot
 }
 
