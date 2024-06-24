@@ -8,6 +8,13 @@ selected_wall_index: int = -1
 
 /*
 polygon point interface
+- references polygon's slice. uses same slice
+- new slice when a point is added
+- new slice when a point is removed
+- reorder slice
+- 
+
+
 add point (adds point at end of points slice)
 remove point (removes specific point) - x button next to each point
 reorder point? maybe - swap two adjacent points
@@ -222,6 +229,7 @@ update_shape_fields :: proc(mouse_pos: Vec2) {
 		shape.pos.y = y_field.number
 		shape.radius = radius_field.number
 	case Polygon:
+		update_number_field(&rotation_field, mouse_pos)
 		shape.pos.x = x_field.number
 		shape.pos.y = y_field.number
 		shape.rotation = rotation_field.number

@@ -27,6 +27,9 @@ items
 	- bow
 - healing
 - temporary powerups
+	- speed
+	- damage
+	- knockback
 - other items
 	- smoke bombs
 	- firecrackers

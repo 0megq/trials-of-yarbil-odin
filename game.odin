@@ -7,14 +7,16 @@ import "core:mem"
 import "core:os"
 import rl "vendor:raylib"
 
-WINDOW_SIZE :: Vec2i{1920, 1080}
+WINDOW_SIZE :: Vec2i{1280, 720}
 GAME_SIZE :: Vec2i{480, 270}
 WINDOW_TO_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
-PLAYER_BASE_MAX_SPEED :: 150
-PLAYER_BASE_ACCELERATION :: 1200
+PLAYER_BASE_MAX_SPEED :: 80
+PLAYER_BASE_ACCELERATION :: 1500
+PLAYER_BASE_FRICTION :: 750
+PLAYER_BASE_HARSH_FRICTION :: 2000
 PLAYER_PUNCH_SIZE :: Vec2{12, 16}
 PUNCH_TIME :: 0.2
-TIME_BETWEEN_PUNCH :: 0.2
+TIME_BETWEEN_PUNCH :: 0.4
 PUNCH_POWER :: 150
 SWORD_POWER :: 250
 FIRE_DASH_RADIUS :: 32
@@ -44,6 +46,7 @@ punch_rate_timer: f32
 holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
+editor_enabled: bool
 
 main :: proc() {
 	track: mem.Tracking_Allocator
@@ -66,12 +69,12 @@ main :: proc() {
 	load_textures()
 
 	player: Player = {
-		pos          = {300, 300},
+		pos          = {32, 32},
 		shape        = Circle{{}, 8},
 		pickup_range = 16,
 	}
 
-	current_ability = .WATER
+	current_ability = .FIRE
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
@@ -104,19 +107,15 @@ main :: proc() {
 	enemies := make([dynamic]Enemy, context.allocator)
 	append(
 		&enemies,
-		Enemy{pos = {20, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+		Enemy{pos = {300, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
 	)
 	append(
 		&enemies,
-		Enemy{pos = {100, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+		Enemy{pos = {200, 200}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
 	)
 	append(
 		&enemies,
-		Enemy{pos = {600, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
-	)
-	append(
-		&enemies,
-		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 160},
+		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
 	)
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
@@ -142,9 +141,14 @@ main :: proc() {
 	hit_enemies: [dynamic]bool = make([dynamic]bool, context.allocator)
 	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
 
+	camera := rl.Camera2D {
+		target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2,
+		zoom   = WINDOW_TO_GAME,
+	}
+
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
-		mouse_world_pos := rl.GetMousePosition() / WINDOW_TO_GAME
+		mouse_world_pos := rl.GetMousePosition() / WINDOW_TO_GAME + camera.target
 		mouse_world_delta := rl.GetMouseDelta() / WINDOW_TO_GAME
 
 		for &timer, i in timers {
@@ -159,13 +163,19 @@ main :: proc() {
 			}
 		}
 
-		update_editor(
-			&level.walls,
-			rl.GetMousePosition(),
-			rl.GetMouseDelta(),
-			mouse_world_pos,
-			mouse_world_delta,
-		)
+		if rl.IsKeyPressed(.E) {
+			editor_enabled = !editor_enabled
+		}
+
+		if editor_enabled {
+			update_editor(
+				&level.walls,
+				rl.GetMousePosition(),
+				rl.GetMouseDelta(),
+				mouse_world_pos,
+				mouse_world_delta,
+			)
+		}
 
 		if rl.IsKeyPressed(.SPACE) {
 			switch current_ability {
@@ -183,7 +193,7 @@ main :: proc() {
 				}
 			case .WATER:
 				surfing = true
-				append(&timers, Timer{1, turn_off_surf, 0})
+				append(&timers, Timer{0.5, turn_off_surf, 0})
 			// for &enemy in enemies {
 			// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 			// 		enemy.vel -= normalize(get_directional_input()) * 200
@@ -208,7 +218,7 @@ main :: proc() {
 			}
 		}
 
-		{
+		if !editor_enabled {
 			player_move(&player, delta)
 
 			for wall in level.walls {
@@ -303,9 +313,7 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.DARKGRAY)
 
-		camera := rl.Camera2D {
-			zoom = WINDOW_TO_GAME,
-		}
+		camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
 
 		rl.BeginMode2D(camera)
 
@@ -338,11 +346,14 @@ main :: proc() {
 		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 
 		draw_shape(attack_poly, player.pos, punch_area_color)
-
-		draw_editor_world()
+		if editor_enabled {
+			draw_editor_world()
+		}
 		rl.EndMode2D()
 
-		draw_editor_ui()
+		if editor_enabled {
+			draw_editor_ui()
+		}
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
 	}
@@ -360,10 +371,10 @@ main :: proc() {
 }
 
 player_move :: proc(e: ^Player, delta: f32) {
-	max_speed: f32 = 160.0
-	acceleration: f32 = 960.0
-	friction: f32 = 320.0
-	harsh_friction: f32 = 1040.0
+	max_speed: f32 = PLAYER_BASE_MAX_SPEED
+	acceleration: f32 = PLAYER_BASE_ACCELERATION
+	friction: f32 = PLAYER_BASE_FRICTION
+	harsh_friction: f32 = PLAYER_BASE_HARSH_FRICTION
 
 	input := get_directional_input()
 	acceleration_v := normalize(input) * acceleration * delta
@@ -402,16 +413,17 @@ player_move :: proc(e: ^Player, delta: f32) {
 	// 	e.vel,
 	// 	friction_v,
 	// 	acceleration_v,
+	// 	length(acceleration_v),
 	// )
 
 	e.pos += e.vel * delta
 }
 
 enemy_move :: proc(e: ^Enemy, delta: f32, player: Player) {
-	max_speed: f32 = 120.0
-	acceleration: f32 = 720.0
-	friction: f32 = 240.0
-	harsh_friction: f32 = 960.0
+	max_speed: f32 = 60.0
+	acceleration: f32 = 200.0
+	friction: f32 = 50.0
+	harsh_friction: f32 = 300.0
 
 	input: Vec2
 	if check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
