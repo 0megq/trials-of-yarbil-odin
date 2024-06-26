@@ -1,11 +1,13 @@
 wishlist
+- enemy attack
+- test level
 - health system
 	- responds to physics
 	- colliding fast will damage entity
-- test level
 - better enemy ai
 	- better pathfinding
 	- account for walls
+	- ranged enemy
 - environment and items
 - level editor
 	- polygon points

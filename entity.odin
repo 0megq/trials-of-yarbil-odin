@@ -23,6 +23,8 @@ Enemy :: struct {
 	using moving_entity:    MovingEntity,
 	detection_range:        f32,
 	knockback_just_applied: bool,
+	health:                 f32,
+	max_health:             f32,
 }
 
 Item :: struct {
@@ -33,6 +35,7 @@ Item :: struct {
 Player :: struct {
 	using moving_entity: MovingEntity,
 	pickup_range:        f32,
+	health:              f32,
 }
 
 Sprite :: struct {

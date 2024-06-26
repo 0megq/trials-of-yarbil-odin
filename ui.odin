@@ -126,20 +126,23 @@ update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2, offset := Vec2
 				field.current_string = fmt.aprint(field.number)
 			}
 
-			label_text := strings.clone_to_cstring(field.label, context.temp_allocator)
-			label_width := f32(rl.MeasureText(label_text, NUMBER_FIELD_FONT_SIZE))
+			if len(field.current_string) > 0 {
+				label_text := strings.clone_to_cstring(field.label, context.temp_allocator)
+				label_width := f32(rl.MeasureText(label_text, NUMBER_FIELD_FONT_SIZE))
 
-			// Getting cursor position - TODO: Make this work on a per character basis rather than averaging
-			text_width := rl.MeasureText(
-				strings.clone_to_cstring(field.current_string, context.temp_allocator),
-				NUMBER_FIELD_FONT_SIZE,
-			)
-			avg_character_width := text_width / i32(len(field.current_string))
-			text_start := rect.x + label_width + (rect.width - label_width - f32(text_width)) / 2
-			field.cursor_pos = i32((mouse_pos.x - text_start)) / avg_character_width
-			// bounds
-			field.cursor_pos = max(field.cursor_pos, 0)
-			field.cursor_pos = min(field.cursor_pos, i32(len(field.current_string)))
+				// Getting cursor position - TODO: Make this work on a per character basis rather than averaging
+				text_width := rl.MeasureText(
+					strings.clone_to_cstring(field.current_string, context.temp_allocator),
+					NUMBER_FIELD_FONT_SIZE,
+				)
+				avg_character_width := text_width / i32(len(field.current_string))
+				text_start :=
+					rect.x + label_width + (rect.width - label_width - f32(text_width)) / 2
+				field.cursor_pos = i32((mouse_pos.x - text_start)) / avg_character_width
+				// bounds
+				field.cursor_pos = max(field.cursor_pos, 0)
+				field.cursor_pos = min(field.cursor_pos, i32(len(field.current_string)))
+			}
 		} else if field.selected { 	// Cancel the input if clicked outside of field
 			field.selected = false
 			delete(field.current_string, context.allocator)

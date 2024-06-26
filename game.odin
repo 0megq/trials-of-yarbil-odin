@@ -72,9 +72,10 @@ main :: proc() {
 		pos          = {32, 32},
 		shape        = Circle{{}, 8},
 		pickup_range = 16,
+		health       = 100,
 	}
 
-	current_ability = .FIRE
+	current_ability = .WATER
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
@@ -107,15 +108,33 @@ main :: proc() {
 	enemies := make([dynamic]Enemy, context.allocator)
 	append(
 		&enemies,
-		Enemy{pos = {300, 80}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
+		Enemy {
+			pos = {300, 80},
+			shape = get_centered_rect({}, {16, 16}),
+			detection_range = 80,
+			health = 80,
+			max_health = 80,
+		},
 	)
 	append(
 		&enemies,
-		Enemy{pos = {200, 200}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
+		Enemy {
+			pos = {200, 200},
+			shape = get_centered_rect({}, {16, 16}),
+			detection_range = 80,
+			health = 80,
+			max_health = 80,
+		},
 	)
 	append(
 		&enemies,
-		Enemy{pos = {80, 300}, shape = get_centered_rect({}, {16, 16}), detection_range = 80},
+		Enemy {
+			pos = {80, 300},
+			shape = get_centered_rect({}, {16, 16}),
+			detection_range = 80,
+			health = 80,
+			max_health = 80,
+		},
 	)
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
@@ -174,6 +193,7 @@ main :: proc() {
 				rl.GetMouseDelta(),
 				mouse_world_pos,
 				mouse_world_delta,
+				camera.target,
 			)
 		}
 
@@ -183,12 +203,16 @@ main :: proc() {
 				player.vel = normalize(get_directional_input()) * 250
 				fire := Circle{player.pos, FIRE_DASH_RADIUS}
 				append(&fires, fire)
-				for &enemy in enemies {
+				for &enemy, i in enemies {
 					if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 						power_scale :=
 							(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) / FIRE_DASH_RADIUS
 						power_scale = max(power_scale, 0.6) // TODO use a map function
-						enemy.vel -= normalize(get_directional_input()) * 600 * power_scale
+						enemy.vel -= normalize(get_directional_input()) * 400 * power_scale
+						enemy.health -= 20
+						if enemy.health <= 0 {
+							unordered_remove(&enemies, i)
+						}
 					}
 				}
 			case .WATER:
@@ -211,9 +235,13 @@ main :: proc() {
 			player.vel = normalize(get_directional_input()) * 200
 			surf_poly.rotation = angle(get_directional_input())
 			surf_poly.pos = player.pos
-			for &enemy in enemies {
+			for &enemy, i in enemies {
 				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
 					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
+					enemy.health -= 5
+					if enemy.health <= 0 {
+						unordered_remove(&enemies, i)
+					}
 				}
 			}
 		}
@@ -276,6 +304,10 @@ main :: proc() {
 							normalize(mouse_world_pos - player.pos) *
 							(SWORD_POWER if holding_sword else PUNCH_POWER)
 						hit_enemies[i] = true
+						enemies[i].health -= 10
+						if enemies[i].health <= 0 {
+							unordered_remove(&enemies, i)
+						}
 					}
 				}
 			}
@@ -334,6 +366,16 @@ main :: proc() {
 		for enemy in enemies {
 			draw_shape(enemy.shape, enemy.pos, rl.GREEN)
 			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+			health_bar_length: f32 = 20
+			health_bar_height: f32 = 5
+			health_bar_base_rec := get_centered_rect(
+				{enemy.pos.x, enemy.pos.y - 20},
+				{health_bar_length, health_bar_height},
+			)
+			rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+			health_bar_filled_rec := health_bar_base_rec
+			health_bar_filled_rec.width *= enemy.health / enemy.max_health
+			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 		}
 
 		punch_area_color := rl.Color{255, 255, 255, 120}

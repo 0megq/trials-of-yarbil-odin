@@ -139,11 +139,12 @@ update_editor :: proc(
 	mouse_delta: Vec2,
 	mouse_world_pos: Vec2,
 	mouse_world_delta: Vec2,
+	camera_target: Vec2,
 ) {
 	update_button(&new_shape_but, mouse_pos)
 
 	if new_shape_but.status == .Released {
-		append(walls, PhysicsEntity{{}, Rectangle{0, 0, 20, 20}})
+		append(walls, PhysicsEntity{pos = camera_target, shape = Rectangle{0, 0, 20, 20}})
 		selected_wall_index = len(walls) - 1
 		selected_wall = &walls[selected_wall_index]
 		set_shape_fields_to_selected()
@@ -188,7 +189,7 @@ update_editor :: proc(
 				break
 			}
 		}
-	} else if rl.IsMouseButtonDown(.LEFT) && selected_wall != nil { 	// Moving shape
+	} else if rl.IsMouseButtonDown(.RIGHT) && selected_wall != nil { 	// Moving shape
 		selected_wall.pos += mouse_world_delta
 		set_shape_fields_to_selected()
 	}
