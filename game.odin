@@ -73,6 +73,7 @@ main :: proc() {
 		shape        = Circle{{}, 8},
 		pickup_range = 16,
 		health       = 100,
+		max_health   = 100,
 	}
 
 	current_ability = .WATER
@@ -106,36 +107,10 @@ main :: proc() {
 	}
 
 	enemies := make([dynamic]Enemy, context.allocator)
-	append(
-		&enemies,
-		Enemy {
-			pos = {300, 80},
-			shape = get_centered_rect({}, {16, 16}),
-			detection_range = 80,
-			health = 80,
-			max_health = 80,
-		},
-	)
-	append(
-		&enemies,
-		Enemy {
-			pos = {200, 200},
-			shape = get_centered_rect({}, {16, 16}),
-			detection_range = 80,
-			health = 80,
-			max_health = 80,
-		},
-	)
-	append(
-		&enemies,
-		Enemy {
-			pos = {80, 300},
-			shape = get_centered_rect({}, {16, 16}),
-			detection_range = 80,
-			health = 80,
-			max_health = 80,
-		},
-	)
+	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
+	append(&enemies, new_enemy({300, 80}, enemy_attack_poly))
+	append(&enemies, new_enemy({200, 200}, enemy_attack_poly))
+	append(&enemies, new_enemy({80, 300}, enemy_attack_poly))
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
@@ -280,6 +255,38 @@ main :: proc() {
 					enemy.vel = slide(enemy.vel, normal)
 				}
 			}
+
+			if enemy.charging {
+				enemy.current_charge_time -= delta
+				if enemy.current_charge_time <= 0 {
+					enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
+					enemy.charging = false
+					if check_collision_shapes(
+						enemy.attack_poly,
+						enemy.pos,
+						player.shape,
+						player.pos,
+					) {
+						fmt.println("damaged")
+						player.health -= 5
+						if player.health <= 0 {
+							fmt.println("player is dead")
+						}
+					}
+				}
+			}
+
+			// If player in attack trigger range
+			if !enemy.charging &&
+			   check_collision_shapes(
+				   Circle{{}, enemy.attack_charge_range},
+				   enemy.pos,
+				   player.shape,
+				   player.pos,
+			   ) {
+				enemy.charging = true
+				enemy.current_charge_time = enemy.start_charge_time
+			}
 		}
 
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
@@ -376,6 +383,12 @@ main :: proc() {
 			health_bar_filled_rec := health_bar_base_rec
 			health_bar_filled_rec.width *= enemy.health / enemy.max_health
 			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+			attack_area_color := rl.Color{255, 255, 255, 120}
+			if enemy.charging {
+				attack_area_color = rl.Color{255, 0, 0, 120}
+			}
+			draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
 		}
 
 		punch_area_color := rl.Color{255, 255, 255, 120}
@@ -386,6 +399,18 @@ main :: proc() {
 		draw_shape(player.shape, player.pos, rl.RED)
 		draw_sprite(player_sprite, player.pos)
 		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+		/* Health Bar */
+		health_bar_length: f32 = 20
+		health_bar_height: f32 = 5
+		health_bar_base_rec := get_centered_rect(
+			{player.pos.x, player.pos.y - 20},
+			{health_bar_length, health_bar_height},
+		)
+		rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+		health_bar_filled_rec := health_bar_base_rec
+		health_bar_filled_rec.width *= player.health / player.max_health
+		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+		/* End of Health Bar */
 
 		draw_shape(attack_poly, player.pos, punch_area_color)
 		if editor_enabled {
@@ -468,7 +493,8 @@ enemy_move :: proc(e: ^Enemy, delta: f32, player: Player) {
 	harsh_friction: f32 = 300.0
 
 	input: Vec2
-	if check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
+	if !e.charging &&
+	   check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
 		input = normalize(player.pos - e.pos)
 	}
 	acceleration_v := normalize(input) * acceleration * delta
