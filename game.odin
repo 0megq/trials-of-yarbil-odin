@@ -20,6 +20,8 @@ TIME_BETWEEN_PUNCH :: 0.4
 PUNCH_POWER :: 150
 SWORD_POWER :: 250
 FIRE_DASH_RADIUS :: 32
+FIRE_DASH_FIRE_DURATION :: 0.5
+FIRE_DASH_COOLDOWN :: 2
 
 Timer :: struct {
 	time_left:  f32,
@@ -47,6 +49,8 @@ holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
 editor_enabled: bool
+can_fire_dash: bool
+fire_dash_timer: f32
 
 main :: proc() {
 	track: mem.Tracking_Allocator
@@ -76,11 +80,12 @@ main :: proc() {
 		max_health   = 100,
 	}
 
-	current_ability = .WATER
+	current_ability = .FIRE
+	can_fire_dash = true
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
-	fires := make([dynamic]Circle, context.allocator)
+	fires := make([dynamic]Fire, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -110,6 +115,8 @@ main :: proc() {
 	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
 	append(&enemies, new_enemy({300, 80}, enemy_attack_poly))
 	append(&enemies, new_enemy({200, 200}, enemy_attack_poly))
+	append(&enemies, new_enemy({130, 200}, enemy_attack_poly))
+	append(&enemies, new_enemy({220, 180}, enemy_attack_poly))
 	append(&enemies, new_enemy({80, 300}, enemy_attack_poly))
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
@@ -172,21 +179,34 @@ main :: proc() {
 			)
 		}
 
+		if !can_fire_dash {
+			fire_dash_timer -= delta
+			if fire_dash_timer <= 0 {
+				can_fire_dash = true
+			}
+		}
+
 		if rl.IsKeyPressed(.SPACE) {
 			switch current_ability {
 			case .FIRE:
-				player.vel = normalize(get_directional_input()) * 250
-				fire := Circle{player.pos, FIRE_DASH_RADIUS}
-				append(&fires, fire)
-				for &enemy, i in enemies {
-					if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
-						power_scale :=
-							(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) / FIRE_DASH_RADIUS
-						power_scale = max(power_scale, 0.6) // TODO use a map function
-						enemy.vel -= normalize(get_directional_input()) * 400 * power_scale
-						damage_enemy(&enemy, 20)
-						if enemy.health <= 0 {
-							unordered_remove(&enemies, i)
+				if can_fire_dash {
+					can_fire_dash = false
+					fire_dash_timer = FIRE_DASH_COOLDOWN
+
+					player.vel = normalize(get_directional_input()) * 250
+					fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
+					append(&fires, fire)
+					for &enemy, i in enemies {
+						if check_collision_shapes(fire.circle, {}, enemy.shape, enemy.pos) {
+							power_scale :=
+								(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) /
+								FIRE_DASH_RADIUS
+							power_scale = max(power_scale, 0.6) // TODO use a map function
+							enemy.vel -= normalize(get_directional_input()) * 400 * power_scale
+							damage_enemy(&enemy, 20)
+							if enemy.health <= 0 {
+								unordered_remove(&enemies, i)
+							}
 						}
 					}
 				}
@@ -239,6 +259,13 @@ main :: proc() {
 			}
 		}
 
+		for &fire, i in fires {
+			fire.time_left -= delta
+			if fire.time_left <= 0 {
+				unordered_remove(&fires, i)
+			}
+		}
+
 		// Move enemies and track player if in range
 		for &enemy in enemies {
 			enemy_move(&enemy, delta, player)
@@ -263,10 +290,11 @@ main :: proc() {
 				}
 			}
 
+			enemy.just_attacked = false
 			if enemy.charging {
 				enemy.current_charge_time -= delta
 				if enemy.current_charge_time <= 0 {
-					enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
+					enemy.just_attacked = true
 					enemy.charging = false
 					if check_collision_shapes(
 						enemy.attack_poly,
@@ -292,6 +320,7 @@ main :: proc() {
 				   player.shape,
 				   player.pos,
 			   ) {
+				enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
 				enemy.charging = true
 				enemy.current_charge_time = enemy.start_charge_time
 			}
@@ -365,7 +394,9 @@ main :: proc() {
 
 		rl.BeginMode2D(camera)
 
-		draw_polygon(surf_poly, rl.DARKGREEN)
+		if surfing {
+			draw_polygon(surf_poly, rl.DARKGREEN)
+		}
 
 		for fire in fires {
 			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
@@ -394,20 +425,19 @@ main :: proc() {
 			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 
 			attack_area_color := rl.Color{255, 255, 255, 120}
-			if enemy.charging {
+			if enemy.just_attacked {
 				attack_area_color = rl.Color{255, 0, 0, 120}
 			}
-			draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
+			if enemy.charging || enemy.just_attacked {
+				draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
+			}
 		}
 
-		punch_area_color := rl.Color{255, 255, 255, 120}
-		if punching {
-			punch_area_color = rl.Color{255, 0, 0, 120}
-		}
-
-		draw_shape(player.shape, player.pos, rl.RED)
+		// Player collision shape
+		// draw_shape(player.shape, player.pos, rl.RED)
 		draw_sprite(player_sprite, player.pos)
-		draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+		// Player pickup range
+		// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 		/* Health Bar */
 		health_bar_length: f32 = 20
 		health_bar_height: f32 = 5
@@ -421,11 +451,32 @@ main :: proc() {
 		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 		/* End of Health Bar */
 
+		punch_area_color := rl.Color{255, 255, 255, 120}
+		if punching {
+			punch_area_color = rl.Color{255, 0, 0, 120}
+		}
 		draw_shape(attack_poly, player.pos, punch_area_color)
+
 		if editor_enabled {
 			draw_editor_world()
 		}
+
 		rl.EndMode2D()
+
+		// Display Fire Dash Status
+		if current_ability == .FIRE {
+			if can_fire_dash {
+				rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
+			} else {
+				rl.DrawText(
+					fmt.ctprintf("On Cooldown: %f", fire_dash_timer),
+					1000,
+					16,
+					20,
+					rl.WHITE,
+				)
+			}
+		}
 
 		if editor_enabled {
 			draw_editor_ui()

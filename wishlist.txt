@@ -1,5 +1,4 @@
 wishlist
-- enemy attack
 - test level
 - health system
 	- responds to physics
