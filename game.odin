@@ -184,7 +184,7 @@ main :: proc() {
 							(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) / FIRE_DASH_RADIUS
 						power_scale = max(power_scale, 0.6) // TODO use a map function
 						enemy.vel -= normalize(get_directional_input()) * 400 * power_scale
-						enemy.health -= 20
+						damage_enemy(&enemy, 20)
 						if enemy.health <= 0 {
 							unordered_remove(&enemies, i)
 						}
@@ -213,7 +213,7 @@ main :: proc() {
 			for &enemy, i in enemies {
 				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
 					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
-					enemy.health -= 5
+					damage_enemy(&enemy, 5)
 					if enemy.health <= 0 {
 						unordered_remove(&enemies, i)
 					}
@@ -256,6 +256,13 @@ main :: proc() {
 				}
 			}
 
+			if enemy.flinching {
+				enemy.current_flinch_time -= delta
+				if enemy.current_flinch_time <= 0 {
+					enemy.flinching = false
+				}
+			}
+
 			if enemy.charging {
 				enemy.current_charge_time -= delta
 				if enemy.current_charge_time <= 0 {
@@ -277,7 +284,8 @@ main :: proc() {
 			}
 
 			// If player in attack trigger range
-			if !enemy.charging &&
+			if !enemy.flinching &&
+			   !enemy.charging &&
 			   check_collision_shapes(
 				   Circle{{}, enemy.attack_charge_range},
 				   enemy.pos,
@@ -304,15 +312,15 @@ main :: proc() {
 				punch_rate_timer = TIME_BETWEEN_PUNCH
 			} else {
 				punch_timer -= delta
-				for enemy, i in enemies {
+				for &enemy, i in enemies {
 					if !hit_enemies[i] &&
 					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
 						enemies[i].vel +=
 							normalize(mouse_world_pos - player.pos) *
 							(SWORD_POWER if holding_sword else PUNCH_POWER)
 						hit_enemies[i] = true
-						enemies[i].health -= 10
-						if enemies[i].health <= 0 {
+						damage_enemy(&enemy, 10)
+						if enemy.health <= 0 {
 							unordered_remove(&enemies, i)
 						}
 					}
@@ -325,6 +333,7 @@ main :: proc() {
 			punch_rate_timer -= delta
 		}
 
+		// Item pickup and drop
 		if rl.IsKeyPressed(.LEFT_SHIFT) {
 			if holding_sword {
 				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, item_id = .Sword})
@@ -488,12 +497,13 @@ player_move :: proc(e: ^Player, delta: f32) {
 
 enemy_move :: proc(e: ^Enemy, delta: f32, player: Player) {
 	max_speed: f32 = 60.0
-	acceleration: f32 = 200.0
-	friction: f32 = 50.0
-	harsh_friction: f32 = 300.0
+	acceleration: f32 = 400.0
+	friction: f32 = 240.0
+	harsh_friction: f32 = 500.0
 
 	input: Vec2
 	if !e.charging &&
+	   !e.flinching &&
 	   check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
 		input = normalize(player.pos - e.pos)
 	}
@@ -587,6 +597,14 @@ draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 		sprite.tint,
 	)
 }
+
+damage_enemy :: proc(enemy: ^Enemy, amount: f32) {
+	enemy.charging = false
+	enemy.health -= amount
+	enemy.flinching = true
+	enemy.current_flinch_time = enemy.start_flinch_time
+}
+
 
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
