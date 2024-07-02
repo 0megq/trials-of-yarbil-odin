@@ -1,5 +1,6 @@
 scratch work document
 
+player starts with abilities that can interact with environment ()
 environment
 - explosive barrels
 - water
@@ -12,9 +13,11 @@ environment
 - enemy projectiles
 - enemies themselves
 - fog and darkness
+- burnable grass and trees
+
 
 items
-- weapons
+- weapons (provide alternate fighting style - slightly more damage)
 	- kunai
 	- katana
 	- dagger
@@ -41,6 +44,7 @@ enemy
 - drop items/weapons on death/hit
 - react to physics
 - hurtable
+- botw inspired
 
 player
 - movement abilities
