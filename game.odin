@@ -7,7 +7,7 @@ import "core:mem"
 import "core:os"
 import rl "vendor:raylib"
 
-WINDOW_SIZE :: Vec2i{1280, 720}
+WINDOW_SIZE :: Vec2i{1440, 810}
 GAME_SIZE :: Vec2i{480, 270}
 WINDOW_TO_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 80
@@ -202,7 +202,7 @@ main :: proc() {
 								(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) /
 								FIRE_DASH_RADIUS
 							power_scale = max(power_scale, 0.6) // TODO use a map function
-							enemy.vel -= normalize(get_directional_input()) * 400 * power_scale
+							enemy.vel -= normalize(fire.pos - enemy.pos) * 400 * power_scale
 							damage_enemy(&enemy, 20)
 							if enemy.health <= 0 {
 								unordered_remove(&enemies, i)
