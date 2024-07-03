@@ -1,9 +1,13 @@
 package game
 
 
-NavMesh :: struct {}
-// slice of Vec2 representing concave polygon
-// slice of slice of indices into concave polygon. each slice of indices represents a convex polygon
-// this is used for making sure we dont got outside the nav mesh. used later for the funnel algo
-// slice of dynamic array of indices. this slice is indexed by the vertex indices
-// this is used for A* to find a path from the start to end
+// To be used in a NavMesh
+NavCell :: struct {
+	verts:         [3]Vec2, // Vertices that make up the cell
+	adj_cells:     [3]int, // Index to adjacent cells in NavMesh
+	num_adj_cells: int,
+}
+
+NavMesh :: struct {
+	cells: [dynamic]NavCell,
+}
