@@ -4,6 +4,8 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
+COL_TRIANGLE_POINT_EPSILON :: 0.001
+
 Rectangle :: rl.Rectangle
 
 Shape :: union {
@@ -477,6 +479,26 @@ check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
 		}
 	}
 	return true
+}
+
+check_collision_triangle_point :: proc(tri: [3]Vec2, point: Vec2) -> bool {
+	area_original := math.abs(
+		(tri[1].x - tri[0].x) * (tri[2].y - tri[0].y) -
+		(tri[2].x - tri[0].x) * (tri[1].y - tri[0].y),
+	)
+
+	area1 := math.abs(
+		(tri[1].x - point.x) * (tri[2].y - point.y) - (tri[2].x - point.x) * (tri[1].y - point.y),
+	)
+	area2 := math.abs(
+		(tri[0].x - point.x) * (tri[2].y - point.y) - (tri[2].x - point.x) * (tri[0].y - point.y),
+	)
+
+	area3 := math.abs(
+		(tri[0].x - point.x) * (tri[1].y - point.y) - (tri[1].x - point.x) * (tri[0].y - point.y),
+	)
+
+	return area1 + area2 + area3 - area_original <= COL_TRIANGLE_POINT_EPSILON
 }
 
 

@@ -23,6 +23,12 @@ FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
 
+EditorMode :: enum {
+	None,
+	Level,
+	NavMesh,
+}
+
 Timer :: struct {
 	time_left:  f32,
 	callable:   proc(),
@@ -38,7 +44,8 @@ MovementAbility :: enum {
 }
 
 Level :: struct {
-	walls: [dynamic]PhysicsEntity,
+	walls:    [dynamic]PhysicsEntity,
+	nav_mesh: NavMesh,
 }
 
 punching: bool
@@ -48,7 +55,7 @@ punch_rate_timer: f32
 holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
-editor_enabled: bool
+editor_mode: EditorMode
 can_fire_dash: bool
 fire_dash_timer: f32
 
@@ -71,6 +78,7 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
 	load_textures()
+	load_navmesh()
 
 	player: Player = {
 		pos          = {32, 32},
@@ -107,6 +115,7 @@ main :: proc() {
 		if json.unmarshal(level_data, &level) != nil {
 			append(&level.walls, wall1)
 		}
+		delete(level_data)
 	} else {
 		append(&level.walls, wall1)
 	}
@@ -149,8 +158,8 @@ main :: proc() {
 
 	for !rl.WindowShouldClose() {
 		delta := rl.GetFrameTime()
-		mouse_world_pos := rl.GetMousePosition() / WINDOW_TO_GAME + camera.target
-		mouse_world_delta := rl.GetMouseDelta() / WINDOW_TO_GAME
+		mouse_world_pos := rl.GetMousePosition() / camera.zoom + camera.target
+		mouse_world_delta := rl.GetMouseDelta() / camera.zoom
 
 		for &timer, i in timers {
 			timer.time_left -= delta
@@ -165,10 +174,11 @@ main :: proc() {
 		}
 
 		if rl.IsKeyPressed(.E) {
-			editor_enabled = !editor_enabled
+			editor_mode = EditorMode((int(editor_mode) + 1) % 3)
 		}
 
-		if editor_enabled {
+		#partial switch editor_mode {
+		case .Level:
 			update_editor(
 				&level.walls,
 				rl.GetMousePosition(),
@@ -177,6 +187,8 @@ main :: proc() {
 				mouse_world_delta,
 				camera.target,
 			)
+		case .NavMesh:
+			update_navmesh_editor(mouse_world_pos, mouse_world_delta)
 		}
 
 		if !can_fire_dash {
@@ -241,7 +253,7 @@ main :: proc() {
 			}
 		}
 
-		if !editor_enabled {
+		if editor_mode == .None {
 			player_move(&player, delta)
 
 			for wall in level.walls {
@@ -390,7 +402,20 @@ main :: proc() {
 		rl.BeginDrawing()
 		rl.ClearBackground(rl.DARKGRAY)
 
-		camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
+		if editor_mode == .None {
+			camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
+			camera.zoom = WINDOW_TO_GAME
+		} else {
+			if rl.IsMouseButtonDown(.MIDDLE) {
+				camera.target -= mouse_world_delta
+			}
+			world_center :=
+				camera.target + {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
+			camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
+			camera.zoom = max(0.1, camera.zoom)
+			camera.target =
+				world_center - {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
+		}
 
 		rl.BeginMode2D(camera)
 
@@ -457,8 +482,11 @@ main :: proc() {
 		}
 		draw_shape(attack_poly, player.pos, punch_area_color)
 
-		if editor_enabled {
+		#partial switch editor_mode {
+		case .Level:
 			draw_editor_world()
+		case .NavMesh:
+			draw_navmesh_editor_world(mouse_world_pos)
 		}
 
 		rl.EndMode2D()
@@ -478,17 +506,25 @@ main :: proc() {
 			}
 		}
 
-		if editor_enabled {
+		#partial switch editor_mode {
+		case .Level:
 			draw_editor_ui()
+		case .NavMesh:
+			draw_navmesh_editor_ui(mouse_world_pos)
 		}
+
 		rl.EndDrawing()
 		free_all(context.temp_allocator)
 	}
 
 	if level_data, err := json.marshal(level, allocator = context.allocator); err == nil {
 		os.write_entire_file("level.json", level_data)
+		delete(level_data)
 	}
+	delete(level.walls)
 
+	save_navmesh()
+	unload_navmesh()
 	mem.tracking_allocator_clear(&track)
 	free_all(context.temp_allocator)
 	free_all(context.allocator)
