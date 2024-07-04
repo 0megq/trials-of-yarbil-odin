@@ -7,13 +7,11 @@ NavCell :: struct {
 	verts: [3]Vec2, // Vertices that make up the cell
 }
 
-// Stores connections to other nodes and the cell it is a part of
+// Stores connections to other nodes
 NavNode :: struct {
-	using pos:        Vec2,
-	connections:      [3]int, // Stores indices into the nodes field of NavMesh
-	num_connections:  int,
-	connection_edges: [3][2]Vec2, // Stores corresponding edges (portals) to the indices in connections field...
-	// First index of [2]Vec2 is the left point and second index is the right
+	pos:         Vec2, // Average of both vertices is the position of the node
+	verts:       [2]Vec2, // These are the two vertices of the edge
+	connections: [4]int, // Stores indices to connected nodes
 }
 
 NavMesh :: struct {
@@ -25,64 +23,85 @@ calculate_graph :: proc(mesh: ^NavMesh) {
 	clear(&mesh.nodes)
 	// Create nodes and calculate centers
 	for cell in mesh.cells {
-		node: NavNode
-		// Calculate position of node (center of cell, which is the average of cells vertices)
-		node.pos = (cell.verts[0] + cell.verts[1] + cell.verts[2]) / 3
-		node.connections = {-1, -1, -1}
-		append(&mesh.nodes, node)
+		// Add new nodes to array
+		append(
+			&mesh.nodes,
+			NavNode {
+				pos = (cell.verts[0] + cell.verts[1]) / 2,
+				verts = {cell.verts[0], cell.verts[1]},
+			},
+		)
+		append(
+			&mesh.nodes,
+			NavNode {
+				pos = (cell.verts[1] + cell.verts[2]) / 2,
+				verts = {cell.verts[1], cell.verts[2]},
+			},
+		)
+		append(
+			&mesh.nodes,
+			NavNode {
+				pos = (cell.verts[2] + cell.verts[0]) / 2,
+				verts = {cell.verts[2], cell.verts[0]},
+			},
+		)
+
+		// Set connections
+		arr_size := len(mesh.nodes)
+		mesh.nodes[arr_size - 3].connections = {arr_size - 2, arr_size - 1, -1, -1}
+		mesh.nodes[arr_size - 2].connections = {arr_size - 3, arr_size - 1, -1, -1}
+		mesh.nodes[arr_size - 1].connections = {arr_size - 2, arr_size - 3, -1, -1}
 	}
 
-	// Find connections and connection edges
-	for main_cell, i in mesh.cells {
-		main_node := &mesh.nodes[i]
-		for j := i + 1; j < len(mesh.cells); j += 1 {
-			other_cell := mesh.cells[j]
-			other_node := &mesh.nodes[j]
+	// Remove duplicates, add connections
+	for &a, ai in mesh.nodes {
+		for bi := ai + 1; bi < len(mesh.nodes); bi += 1 {
+			// b is the potential duplicate
+			b := mesh.nodes[bi]
+			// If vertices match AKA duplicate edge
+			if (a.verts[0] == b.verts[0] && a.verts[1] == b.verts[1]) ||
+			   (a.verts[1] == b.verts[0] && a.verts[0] == b.verts[1]) {
+				// Copy connections
+				a.connections[2] = b.connections[0]
+				a.connections[3] = b.connections[1]
+				// Reconnect connections to b, to a
+				for &connection in mesh.nodes[b.connections[0]].connections {
+					if connection == bi {
+						connection = ai
+					}
+				}
+				for &connection in mesh.nodes[b.connections[1]].connections {
+					if connection == bi {
+						connection = ai
+					}
+				}
 
-			if main_node.num_connections == 3 { 	// If all connections already set
+				// Remove the duplicate (b)
+				unordered_remove(&mesh.nodes, bi)
+
+				// Change indices in reaction to unordered_remove
+				// If the new length of the nodes array is the greater than the index that we removed, then we need to adjust indices
+				// Otherwise, the removed index was at the end and no adjustment is needed
+				if len(mesh.nodes) > bi {
+					// c is the node that was at the end of the array before the unordered_remove call
+					// Now it is at index bi, as a result of the unordered_remove call
+					c := mesh.nodes[bi]
+					c_prev_index := len(mesh.nodes)
+					// Reconnect connections to c_prev_index, to bi (c's new index)
+					for &connection in mesh.nodes[c.connections[0]].connections {
+						if connection == c_prev_index {
+							connection = bi
+						}
+					}
+					for &connection in mesh.nodes[c.connections[1]].connections {
+						if connection == c_prev_index {
+							connection = bi
+						}
+					}
+				}
+
+				// a is fully saturated now, so we can break out of inner loop to go to next a
 				break
-			}
-
-			if other_node.num_connections == 3 { 	// If all connections already set
-				continue
-			}
-
-			// Get matching vertices
-			matching_verts: [dynamic]Vec2 = make([dynamic]Vec2, context.temp_allocator)
-			defer delete(matching_verts)
-
-			outer: for vc in main_cell.verts {
-				for vo in other_cell.verts {
-					if vo == vc {
-						append(&matching_verts, vc)
-						continue outer
-					}
-				}
-			}
-
-			// If there are 2 matching vertices then there is a connection
-			if len(matching_verts) == 2 {
-				main_node.connections[main_node.num_connections] = j // Copy index of other
-				other_node.connections[other_node.num_connections] = i // Copy index of main
-				main_node.num_connections += 1
-				other_node.num_connections += 1
-				// Storing the connection edges in proper order (left and right)
-				{
-					to_other := other_node.pos - main_node.pos
-					to_v0 := matching_verts[0] - main_node.pos
-					// Known bug: it is possible that both vertices are on one side of to_other in certain cases
-					// This could be fixed by using edges instead of centers for our node positions
-					// This means the connection on the graph could go through somewhere that isn't part of the navmesh
-					// This is undefined behavior
-					if cross(to_other, to_v0) > 0 { 	// If v0 is to the right of the connection from main to other
-						// Flip the values at index 0 and 1 so that index 0 stores the vertice to the left of main when looking at other
-						matching_verts[0], matching_verts[1] = matching_verts[1], matching_verts[0]
-					}
-					main_node.connection_edges[0] = matching_verts[0] // Store leftside point of main
-					main_node.connection_edges[1] = matching_verts[1] // Store rightside point of main
-					other_node.connection_edges[0] = matching_verts[1] // Store leftside point of other
-					other_node.connection_edges[1] = matching_verts[0] // Store rightside point of other
-				}
 			}
 		}
 	}

@@ -16,6 +16,8 @@ selected_nav_cell_index: int = -1
 selected_point: ^Vec2 = nil
 selected_point_cell_index: int = -1
 
+display_nav_graph: bool
+
 load_navmesh :: proc() {
 	if nav_mesh_data, ok := os.read_entire_file("nav_mesh.json", context.allocator); ok {
 		if json.unmarshal(nav_mesh_data, &nav_mesh) != nil {
@@ -29,6 +31,7 @@ load_navmesh :: proc() {
 		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
 		nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 	}
+	rl.TraceLog(.INFO, "Navmesh Loaded")
 }
 
 save_navmesh :: proc() {
@@ -37,6 +40,7 @@ save_navmesh :: proc() {
 		os.write_entire_file("nav_mesh.json", nav_mesh_data)
 		delete(nav_mesh_data)
 	}
+	rl.TraceLog(.INFO, "Navmesh Saved")
 }
 
 unload_navmesh :: proc() {
@@ -57,6 +61,11 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 	Move close together points together (Ctrl click)
 	Triangles must store points in counter-clockwise order
 	*/
+
+	// Toggle Graph Display (G)
+	if rl.IsKeyPressed(.G) {
+		display_nav_graph = !display_nav_graph
+	}
 
 	// Deselecting point
 	if rl.IsMouseButtonReleased(.LEFT) {
@@ -133,6 +142,33 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 		selected_nav_cell_index = -1
 	}
 
+	// Subdivide triangle in to 4 smaller triangles (T)
+	if rl.IsKeyPressed(.T) && selected_nav_cell != nil {
+		// Get points
+		edge_point0 := (selected_nav_cell.verts[0] + selected_nav_cell.verts[1]) / 2
+		edge_point1 := (selected_nav_cell.verts[1] + selected_nav_cell.verts[2]) / 2
+		edge_point2 := (selected_nav_cell.verts[2] + selected_nav_cell.verts[0]) / 2
+		v0 := selected_nav_cell.verts[0]
+		v1 := selected_nav_cell.verts[1]
+		v2 := selected_nav_cell.verts[2]
+
+		// Delete triangle
+		unordered_remove(&nav_mesh.cells, selected_nav_cell_index)
+		selected_nav_cell = nil
+		selected_nav_cell_index = -1
+		selected_point = nil
+		selected_point_cell_index = -1
+
+		// Create 4 smaller triangles
+		append(&nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
+
+		append(&nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
+
+		append(&nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
+
+		append(&nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
+	}
+
 	// Delete (D)
 	if rl.IsKeyPressed(.D) && selected_nav_cell != nil {
 		// if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -184,14 +220,12 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 	// Manual Save (Ctrl + S)
 	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
 		save_navmesh()
-		rl.TraceLog(.INFO, "Navmesh Saved")
 	}
 
 	// Manual Load (Ctrl + L)
 	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.L) {
 		unload_navmesh()
 		load_navmesh()
-		rl.TraceLog(.INFO, "Navmesh Loaded")
 	}
 
 	/* Completed features
@@ -245,8 +279,25 @@ draw_navmesh_editor_world :: proc(mouse_world_pos: Vec2) {
 				radius = 2
 			}
 			rl.DrawCircleV(v, radius, rl.GOLD)
-		}}
+		}
+	}
 
+	if display_nav_graph {
+		// Draw connections
+		for node in nav_mesh.nodes {
+			for connection in node.connections {
+				if connection < 0 {
+					break
+				}
+				rl.DrawLineV(node.pos, nav_mesh.nodes[connection].pos, rl.GRAY)
+			}
+		}
+
+		// Draw nodes
+		for node in nav_mesh.nodes {
+			rl.DrawCircleV(node.pos, 1, rl.BLACK)
+		}
+	}
 }
 
 draw_navmesh_editor_ui :: proc(mouse_world_pos: Vec2) {
