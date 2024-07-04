@@ -20,17 +20,19 @@ load_navmesh :: proc() {
 	if nav_mesh_data, ok := os.read_entire_file("nav_mesh.json", context.allocator); ok {
 		if json.unmarshal(nav_mesh_data, &nav_mesh) != nil {
 			nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-			append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
+			append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+			nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 		}
 		delete(nav_mesh_data)
 	} else {
 		nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
+		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+		nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 	}
 }
 
 save_navmesh :: proc() {
-	reconnect_cells(nav_mesh)
+	calculate_graph(&nav_mesh)
 	if nav_mesh_data, err := json.marshal(nav_mesh, allocator = context.allocator); err == nil {
 		os.write_entire_file("nav_mesh.json", nav_mesh_data)
 		delete(nav_mesh_data)
@@ -39,7 +41,9 @@ save_navmesh :: proc() {
 
 unload_navmesh :: proc() {
 	delete(nav_mesh.cells)
+	delete(nav_mesh.nodes)
 	nav_mesh.cells = nil
+	nav_mesh.nodes = nil
 }
 
 // init_navmesh :: proc() {
@@ -123,11 +127,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 	if rl.IsKeyPressed(.N) {
 		append(
 			&nav_mesh.cells,
-			NavCell {
-				{mouse_world_pos, mouse_world_pos + {0, 10}, mouse_world_pos + {10, 0}},
-				{-1, -1, -1},
-				0,
-			},
+			NavCell{{mouse_world_pos, mouse_world_pos + {0, 10}, mouse_world_pos + {10, 0}}},
 		)
 		selected_nav_cell = nil
 		selected_nav_cell_index = -1

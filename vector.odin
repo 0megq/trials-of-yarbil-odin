@@ -27,6 +27,16 @@ dot :: proc(v1: Vec2, v2: Vec2) -> f32 {
 	return v1.x * v2.x + v1.y * v2.y
 }
 
+// Returns positive if rotating from v1 to v2 moves in a clockwise direction (right). Returns negative for counter-clockwise (left)
+cross :: proc(v1: Vec2, v2: Vec2) -> f32 {
+	return dot(v1, perpindicular(v2))
+}
+
+// Rotates vector by +90 degrees (CCW)
+perpindicular :: proc(v: Vec2) -> Vec2 {
+	return v.yx * {-1, 1}
+}
+
 // Returns the component of the vector along the given plane, specificed by its normal vector
 slide :: proc(v: Vec2, normal: Vec2) -> Vec2 {
 	return v - normal * dot(v, normal)
