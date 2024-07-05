@@ -1,5 +1,7 @@
 package game
 
+// import "core:fmt"
+
 game_nav_mesh: NavMesh
 
 // To be used in a NavMesh
@@ -107,8 +109,14 @@ calculate_graph :: proc(mesh: ^NavMesh) {
 	}
 }
 
-// Allocates using temp allocator. Clone if you want to keep the slice for more than a frame
-find_path :: proc(start: Vec2, end: Vec2, nav_mesh: NavMesh) -> []Vec2 {
+// TODO: Write this comment
+find_path :: proc(
+	start: Vec2,
+	end: Vec2,
+	nav_mesh: NavMesh,
+	allocator := context.allocator,
+) -> []Vec2 {
+	// fmt.println("######\nSearching for path\n######")
 	// Get start and end node indices
 	start_node_index: int
 	end_node_index: int
@@ -121,16 +129,17 @@ find_path :: proc(start: Vec2, end: Vec2, nav_mesh: NavMesh) -> []Vec2 {
 		if start_index == -1 || end_index == -1 {
 			return nil
 		}
+
 		// If start and end are inside same cell then exit early and return a straight line path between start and end
 		if start_index == end_index {
-			path := make([]Vec2, 2, context.temp_allocator)
+			path := make([]Vec2, 2, allocator)
 			path[0] = start
 			path[1] = end
 			return path
 		}
 
-		start_node_index = find_closest_node_in_cell(start, start_index, nav_mesh)
-		end_node_index = find_closest_node_in_cell(end, end_index, nav_mesh)
+		start_node_index = find_closest_node_in_cell((end + start) / 2, start_index, nav_mesh)
+		end_node_index = find_closest_node_in_cell((end + start) / 2, end_index, nav_mesh)
 
 		// If a start node or an end node were not found then return nil
 		if start_node_index == -1 || end_node_index == -1 {
@@ -140,15 +149,130 @@ find_path :: proc(start: Vec2, end: Vec2, nav_mesh: NavMesh) -> []Vec2 {
 
 	// Get node path via A*
 	node_path_indices := astar(start_node_index, end_node_index, nav_mesh)
+	if node_path_indices == nil {
+		return nil
+	}
+
+	// Temporary solution not using funnel algo
+	path := make([]Vec2, len(node_path_indices) + 2, allocator)
+	path[0] = start
+	for node_index, i in node_path_indices {
+		path[i + 1] = nav_mesh.nodes[node_index].pos
+	}
+	path[len(node_path_indices) + 1] = end
+	return path
 
 
-	return nil
+	// return nil
 }
 
-// Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance
+// Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance. Allocates using context.temp_allocator
 astar :: proc(start_index: int, end_index: int, nav_mesh: NavMesh) -> []int {
+	// Initialize open and closed lists
+	closed_nodes := make(map[int]int, len(nav_mesh.nodes), context.temp_allocator) // Only stores came from nodes
+	open_nodes := make(map[int]struct {
+			came_from: int,
+			f:         f32,
+			g:         f32,
+		}, len(nav_mesh.nodes), context.temp_allocator)
+	defer delete(closed_nodes)
+	defer delete(open_nodes)
 
-	return nil
+	end_node := nav_mesh.nodes[end_index]
+
+	// Start f is just equal to the heuristic
+	start_f := distance(nav_mesh.nodes[start_index].pos, nav_mesh.nodes[end_index].pos)
+	open_nodes[start_index] = {start_index, start_f, 0}
+
+	for len(open_nodes) > 0 {
+		// fmt.printfln("******\n Open Nodes: %#v \nClosed Nodes: %#v", open_nodes, closed_nodes)
+		// Get current index
+		current_index := -1
+		current_value: struct {
+			came_from: int,
+			f:         f32,
+			g:         f32,
+		}
+		for index, value in open_nodes {
+			if current_index == -1 {
+				current_index = index
+				current_value = value
+				continue
+			}
+
+			if value.f < current_value.f {
+				current_index = index
+				current_value = value
+			}
+		}
+		// fmt.printfln("Current Index: %v, Values: %v", current_index, current_value)
+		delete_key(&open_nodes, current_index)
+		closed_nodes[current_index] = current_value.came_from
+
+		if current_index == end_index {
+			break
+		}
+
+		current_node := nav_mesh.nodes[current_index]
+
+		for connection in current_node.connections {
+			if connection == -1 {
+				break
+			}
+			// If in closed nodes
+			if connection in closed_nodes {
+				continue
+			}
+
+			node := nav_mesh.nodes[connection]
+			// Calculate G values
+			g := current_value.g + distance(current_node.pos, node.pos)
+
+			// If in open nodes, compare g
+			if value, ok := &open_nodes[connection]; ok {
+				// If new g is less then update the old g and f value, otherwise don't
+				if g < value.g {
+					// fmt.println("Replacing g value for %v from %v to %v", connection, value.g, g)
+					value.g = g
+					value.f -= g - value.g
+					value.came_from = current_index
+					continue
+				}
+			}
+
+			// fmt.printfln("Adding %v to open nodes", connection)
+			// Else calculate f = g + h (distance to end), and add node to open nodes
+			open_nodes[connection] = {
+				came_from = current_index,
+				f         = g + distance(node.pos, end_node.pos),
+				g         = g,
+			}
+
+			// fmt.println("------")
+		}
+	}
+	if _, ok := closed_nodes[end_index]; ok {
+		// Trace path backwards
+		path := make([dynamic]int, context.temp_allocator)
+		defer delete(path)
+		current_index := end_index
+		for current_index != start_index {
+			append(&path, current_index)
+			current_index = closed_nodes[current_index]
+		}
+		append(&path, start_index)
+
+		// Create slice result and copy the path values in reverse order
+		path_length := len(path)
+		result := make([]int, path_length, context.temp_allocator)
+		for v, i in path {
+			result[path_length - i - 1] = v
+		}
+		return result
+	} else {
+		// Unable to find path
+		return nil
+	}
 }
 
 find_closest_node_in_cell :: proc(point: Vec2, cell_index: int, nav_mesh: NavMesh) -> int {

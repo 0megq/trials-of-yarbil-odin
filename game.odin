@@ -55,7 +55,7 @@ punch_rate_timer: f32
 holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
-editor_mode: EditorMode
+editor_mode: EditorMode = .NavMesh
 can_fire_dash: bool
 fire_dash_timer: f32
 
@@ -510,7 +510,7 @@ main :: proc() {
 		case .Level:
 			draw_editor_ui()
 		case .NavMesh:
-			draw_navmesh_editor_ui(mouse_world_pos)
+			draw_navmesh_editor_ui(mouse_world_pos, camera)
 		}
 
 		rl.EndDrawing()
@@ -713,4 +713,8 @@ get_directional_input :: proc() -> Vec2 {
 
 turn_off_surf :: proc() {
 	surfing = false
+}
+
+world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
+	return (point - camera.target) * camera.zoom
 }
