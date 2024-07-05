@@ -1,6 +1,6 @@
 package game
 
-nav_mesh: NavMesh
+game_nav_mesh: NavMesh
 
 // To be used in a NavMesh
 NavCell :: struct {
@@ -107,22 +107,72 @@ calculate_graph :: proc(mesh: ^NavMesh) {
 	}
 }
 
-// Allocates using temp allocator
+// Allocates using temp allocator. Clone if you want to keep the slice for more than a frame
 find_path :: proc(start: Vec2, end: Vec2, nav_mesh: NavMesh) -> []Vec2 {
-	// start_index := find_cell_index(start, nav_mesh)
-	// end_index := find_cell_index(end, nav_mesh)
+	// Get start and end node indices
+	start_node_index: int
+	end_node_index: int
+	{
+		// Find the starting/ending index
+		start_index := find_cell_index(start, nav_mesh)
+		end_index := find_cell_index(end, nav_mesh)
+
+		// If a start or end cell weren't found exit early, returning nil
+		if start_index == -1 || end_index == -1 {
+			return nil
+		}
+		// If start and end are inside same cell then exit early and return a straight line path between start and end
+		if start_index == end_index {
+			path := make([]Vec2, 2, context.temp_allocator)
+			path[0] = start
+			path[1] = end
+			return path
+		}
+
+		start_node_index = find_closest_node_in_cell(start, start_index, nav_mesh)
+		end_node_index = find_closest_node_in_cell(end, end_index, nav_mesh)
+
+		// If a start node or an end node were not found then return nil
+		if start_node_index == -1 || end_node_index == -1 {
+			return nil
+		}
+	}
+
+	// Get node path via A*
+	node_path_indices := astar(start_node_index, end_node_index, nav_mesh)
+
+
 	return nil
 }
 
-// Returns indices to nodes in the navmesh
-astar :: proc() -> []int {
+// Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance
+astar :: proc(start_index: int, end_index: int, nav_mesh: NavMesh) -> []int {
+
 	return nil
 }
 
-// Edges make g(x) just as easy, and allow funnel algo to work easily
-// 
-// g(x)
-// h(x)
+find_closest_node_in_cell :: proc(point: Vec2, cell_index: int, nav_mesh: NavMesh) -> int {
+	// Find cell, node pos, and then node index
+	cell := nav_mesh.cells[cell_index]
+
+	node_pos: Vec2
+	// Find the starting node by getting the closest edge node to the start point
+	for v, i in cell.verts {
+		edge_point := (v + cell.verts[(i + 1) % 3]) / 2
+		// If not set or this edge_point is closer than the current start_node_point
+		if i == 0 || length_squared(point - node_pos) > length_squared(point - edge_point) {
+			node_pos = edge_point
+		}
+	}
+
+	// Find node with matching position and return its index
+	for node, i in nav_mesh.nodes {
+		if node_pos == node.pos {
+			return i
+		}
+	}
+	return -1
+}
 
 // Finds the cell in nav_mesh that point is in and returns the corresponding index into nav_mesh.cells
 find_cell_index :: proc(point: Vec2, nav_mesh: NavMesh) -> int {

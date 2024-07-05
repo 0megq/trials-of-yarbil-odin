@@ -20,23 +20,24 @@ display_nav_graph: bool
 
 load_navmesh :: proc() {
 	if nav_mesh_data, ok := os.read_entire_file("nav_mesh.json", context.allocator); ok {
-		if json.unmarshal(nav_mesh_data, &nav_mesh) != nil {
-			nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-			append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-			nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
+		if json.unmarshal(nav_mesh_data, &game_nav_mesh) != nil {
+			game_nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+			append(&game_nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+			game_nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 		}
 		delete(nav_mesh_data)
 	} else {
-		nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-		nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
+		game_nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+		append(&game_nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+		game_nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 	}
 	rl.TraceLog(.INFO, "Navmesh Loaded")
 }
 
 save_navmesh :: proc() {
-	calculate_graph(&nav_mesh)
-	if nav_mesh_data, err := json.marshal(nav_mesh, allocator = context.allocator); err == nil {
+	calculate_graph(&game_nav_mesh)
+	if nav_mesh_data, err := json.marshal(game_nav_mesh, allocator = context.allocator);
+	   err == nil {
 		os.write_entire_file("nav_mesh.json", nav_mesh_data)
 		delete(nav_mesh_data)
 	}
@@ -44,15 +45,15 @@ save_navmesh :: proc() {
 }
 
 unload_navmesh :: proc() {
-	delete(nav_mesh.cells)
-	delete(nav_mesh.nodes)
-	nav_mesh.cells = nil
-	nav_mesh.nodes = nil
+	delete(game_nav_mesh.cells)
+	delete(game_nav_mesh.nodes)
+	game_nav_mesh.cells = nil
+	game_nav_mesh.nodes = nil
 }
 
 // init_navmesh :: proc() {
-// 	nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-// 	append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
+// 	game_nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+// 	append(&game_nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
 // }
 
 update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
@@ -92,7 +93,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 			}
 		} else if selected_nav_cell == nil { 	// In all cells
 			selected_point = nil
-			for &cell, ci in nav_mesh.cells {
+			for &cell, ci in game_nav_mesh.cells {
 				for &v in cell.verts {
 					if length(v - mouse_world_pos) <= MOUSE_RADIUS {
 						// If there is no point selected or if v is closer to the mouse than the already selected point then set it
@@ -115,7 +116,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 		if rl.IsKeyDown(.LEFT_SHIFT) {
 			snapped := false
 			// Snapping to other points
-			for cell, ci in nav_mesh.cells {
+			for cell, ci in game_nav_mesh.cells {
 				for v in cell.verts {
 					if ci == selected_point_cell_index {continue}
 					if length(mouse_world_pos - v) <= POINT_SNAP_RADIUS {
@@ -135,7 +136,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 	// New triangle (N)
 	if rl.IsKeyPressed(.N) {
 		append(
-			&nav_mesh.cells,
+			&game_nav_mesh.cells,
 			NavCell{{mouse_world_pos, mouse_world_pos + {0, 10}, mouse_world_pos + {10, 0}}},
 		)
 		selected_nav_cell = nil
@@ -153,20 +154,20 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 		v2 := selected_nav_cell.verts[2]
 
 		// Delete triangle
-		unordered_remove(&nav_mesh.cells, selected_nav_cell_index)
+		unordered_remove(&game_nav_mesh.cells, selected_nav_cell_index)
 		selected_nav_cell = nil
 		selected_nav_cell_index = -1
 		selected_point = nil
 		selected_point_cell_index = -1
 
 		// Create 4 smaller triangles
-		append(&nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
+		append(&game_nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
+		append(&game_nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
+		append(&game_nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
+		append(&game_nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
 	}
 
 	// Delete (D)
@@ -176,7 +177,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 		// 	selected_nav_cell_index = -1
 		// }
 		// if rl.IsKeyDown(.LEFT_SHIFT) {
-		unordered_remove(&nav_mesh.cells, selected_nav_cell_index)
+		unordered_remove(&game_nav_mesh.cells, selected_nav_cell_index)
 		selected_nav_cell = nil
 		selected_nav_cell_index = -1
 		selected_point = nil
@@ -187,7 +188,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 	// Select/Deselect triangle (S)
 	if !rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
 		selected_nav_cell_index = -1
-		for &cell, i in nav_mesh.cells {
+		for &cell, i in game_nav_mesh.cells {
 			if selected_nav_cell != &cell &&
 			   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 				selected_nav_cell = &cell
@@ -206,7 +207,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 			// Move selected triangle
 			selected_nav_cell.verts += {mouse_world_delta, mouse_world_delta, mouse_world_delta}
 		} else {
-			for &cell, i in nav_mesh.cells {
+			for &cell, i in game_nav_mesh.cells {
 				if selected_nav_cell != &cell &&
 				   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 					selected_nav_cell = &cell
@@ -236,7 +237,7 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 
 draw_navmesh_editor_world :: proc(mouse_world_pos: Vec2) {
 	// Draw individual cells in navmesh. Draw points, edges, and fill cells
-	for &cell in nav_mesh.cells {
+	for &cell in game_nav_mesh.cells {
 		// Fill
 		rl.DrawTriangle(cell.verts[0], cell.verts[1], cell.verts[2], Color{0, 120, 120, 150})
 
@@ -284,17 +285,17 @@ draw_navmesh_editor_world :: proc(mouse_world_pos: Vec2) {
 
 	if display_nav_graph {
 		// Draw connections
-		for node in nav_mesh.nodes {
+		for node in game_nav_mesh.nodes {
 			for connection in node.connections {
 				if connection < 0 {
 					break
 				}
-				rl.DrawLineV(node.pos, nav_mesh.nodes[connection].pos, rl.GRAY)
+				rl.DrawLineV(node.pos, game_nav_mesh.nodes[connection].pos, rl.GRAY)
 			}
 		}
 
 		// Draw nodes
-		for node in nav_mesh.nodes {
+		for node in game_nav_mesh.nodes {
 			rl.DrawCircleV(node.pos, 1, rl.BLACK)
 		}
 	}

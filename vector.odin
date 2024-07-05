@@ -9,6 +9,10 @@ length :: proc(v: Vec2) -> f32 {
 	return math.sqrt(v.x * v.x + v.y * v.y)
 }
 
+length_squared :: proc(v: Vec2) -> f32 {
+	return v.x * v.x + v.y * v.y
+}
+
 abs :: proc(v: Vec2) -> Vec2 {
 	return {math.abs(v.x), math.abs(v.y)}
 }
