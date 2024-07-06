@@ -149,21 +149,53 @@ find_path :: proc(
 
 	// Get node path via A*
 	node_path_indices := astar(start_node_index, end_node_index, nav_mesh)
+	defer delete(node_path_indices)
 	if node_path_indices == nil {
 		return nil
 	}
 
 	// Temporary solution not using funnel algo
-	path := make([]Vec2, len(node_path_indices) + 2, allocator)
-	path[0] = start
-	for node_index, i in node_path_indices {
-		path[i + 1] = nav_mesh.nodes[node_index].pos
+	// path := make([]Vec2, len(node_path_indices) + 2, allocator)
+	// path[0] = start
+	// for node_index, i in node_path_indices {
+	// 	path[i + 1] = nav_mesh.nodes[node_index].pos
+	// }
+	// path[len(node_path_indices) + 1] = end
+	// return path
+
+	portals := build_portals(node_path_indices, nav_mesh, start, end)
+	defer delete(portals)
+
+	return string_pull(portals, allocator)
+}
+
+// Returns a path through the portals
+string_pull :: proc(portals: [][2]Vec2, allocator := context.allocator) -> []Vec2 {
+	return nil
+}
+
+// Allocates result using temp allocator. In [2]Vec2, index 0 is the left and index 1 is the right node
+build_portals :: proc(path: []int, nav_mesh: NavMesh, start: Vec2, end: Vec2) -> [][2]Vec2 {
+	portals := make([dynamic][2]Vec2, context.temp_allocator)
+	append(&portals, [2]Vec2{start, start})
+
+	prev_node_pos := start
+	for node_index in path {
+		node := nav_mesh.nodes[node_index]
+		v0 := node.verts[0]
+		v1 := node.verts[1]
+
+		// If vert 0 is to the left of vert 1 (AKA cross() > 0) when looking from the previous node, then vert 0 is the left side of the portal
+		if cross(v0 - prev_node_pos, v1 - prev_node_pos) > 0 {
+			append(&portals, [2]Vec2{v0, v1})
+		} else {
+			append(&portals, [2]Vec2{v1, v0})
+		}
+		prev_node_pos = node.pos
 	}
-	path[len(node_path_indices) + 1] = end
-	return path
 
-
-	// return nil
+	append(&portals, [2]Vec2{end, end})
+	return portals[:]
 }
 
 // Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance. Allocates using context.temp_allocator
