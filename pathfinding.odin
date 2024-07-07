@@ -1,7 +1,5 @@
 package game
 
-import "core:fmt"
-
 game_nav_mesh: NavMesh
 
 // To be used in a NavMesh
@@ -208,7 +206,6 @@ string_pull :: proc(
 				portal_right = right
 				right_index = i
 			} else {
-				fmt.println("left")
 				// Right over left, insert left to path and restart scan from portal left point
 				append(&path, portal_left)
 
@@ -234,7 +231,6 @@ string_pull :: proc(
 				portal_left = left
 				left_index = i
 			} else {
-				fmt.println("yo")
 				// Left over right, insert right to path and restart scan from portal right point
 				append(&path, portal_right)
 

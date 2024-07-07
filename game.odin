@@ -55,7 +55,7 @@ punch_rate_timer: f32
 holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
-editor_mode: EditorMode = .NavMesh
+editor_mode: EditorMode = .None
 can_fire_dash: bool
 fire_dash_timer: f32
 
@@ -280,7 +280,19 @@ main :: proc() {
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
-			enemy_move(&enemy, delta, player)
+			target := enemy.pos
+			if check_collision_shapes(
+				Circle{{}, enemy.detection_range},
+				enemy.pos,
+				player.shape,
+				player.pos,
+			) {
+				path := find_path(enemy.pos, player.pos, game_nav_mesh)
+				if path != nil {
+					target = path[1]
+				}
+			}
+			enemy_move(&enemy, delta, target)
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
 					enemy.shape,
@@ -582,17 +594,15 @@ player_move :: proc(e: ^Player, delta: f32) {
 	e.pos += e.vel * delta
 }
 
-enemy_move :: proc(e: ^Enemy, delta: f32, player: Player) {
+enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	max_speed: f32 = 60.0
 	acceleration: f32 = 400.0
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0
 
 	input: Vec2
-	if !e.charging &&
-	   !e.flinching &&
-	   check_collision_shapes(Circle{{}, e.detection_range}, e.pos, player.shape, player.pos) {
-		input = normalize(player.pos - e.pos)
+	if !e.charging && !e.flinching && target != e.pos {
+		input = normalize(target - e.pos)
 	}
 	acceleration_v := normalize(input) * acceleration * delta
 
