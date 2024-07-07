@@ -4,7 +4,6 @@ import "core:encoding/json"
 import "core:fmt"
 import "core:math"
 import "core:os"
-import "core:slice"
 import rl "vendor:raylib"
 
 GRID_SNAP_SIZE :: 5
@@ -18,13 +17,13 @@ selected_point: ^Vec2 = nil
 selected_point_cell_index: int = -1
 
 display_nav_graph: bool
-display_test_path: bool = true
+display_test_path: bool
 test_path_start: Vec2
 test_path_end: Vec2
 test_path: []Vec2
 
 load_navmesh :: proc() {
-	if nav_mesh_data, ok := os.read_entire_file("test_nav_mesh.json", context.allocator); ok {
+	if nav_mesh_data, ok := os.read_entire_file("game_nav_mesh.json", context.allocator); ok {
 		if json.unmarshal(nav_mesh_data, &game_nav_mesh) != nil {
 			game_nav_mesh.cells = make([dynamic]NavCell, context.allocator)
 			append(&game_nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
@@ -43,7 +42,7 @@ save_navmesh :: proc() {
 	calculate_graph(&game_nav_mesh)
 	if nav_mesh_data, err := json.marshal(game_nav_mesh, allocator = context.allocator);
 	   err == nil {
-		os.write_entire_file("test_nav_mesh.json", nav_mesh_data)
+		os.write_entire_file("game_nav_mesh.json", nav_mesh_data)
 		delete(nav_mesh_data)
 	}
 	rl.TraceLog(.INFO, "Navmesh Saved")
@@ -83,12 +82,11 @@ update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
 			if test_path != nil {
 				delete(test_path)
 			}
-			test_path = slice.clone(find_path(test_path_start, test_path_end, game_nav_mesh))
+			test_path = find_path(test_path_start, test_path_end, game_nav_mesh)
 		} else { 	// Toggle path display
 			display_test_path = !display_test_path
 		}
 	}
-
 
 	// Toggle Graph Display (G)
 	if rl.IsKeyPressed(.G) {
@@ -323,15 +321,15 @@ draw_navmesh_editor_world :: proc(mouse_world_pos: Vec2) {
 	}
 
 	if display_test_path {
+		rl.DrawCircleV(test_path_start, 2, rl.BLUE)
+		rl.DrawCircleV(test_path_end, 2, rl.GREEN)
+
 		for i in 0 ..< len(test_path) - 1 {
 			rl.DrawLineV(test_path[i], test_path[i + 1], rl.ORANGE)
 		}
 		for point in test_path {
 			rl.DrawCircleV(point, 1, rl.RED)
 		}
-
-		rl.DrawCircleV(test_path_start, 2, rl.BLUE)
-		rl.DrawCircleV(test_path_end, 2, rl.GREEN)
 	}
 }
 

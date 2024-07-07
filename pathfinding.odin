@@ -1,6 +1,6 @@
 package game
 
-// import "core:fmt"
+import "core:fmt"
 
 game_nav_mesh: NavMesh
 
@@ -118,28 +118,30 @@ find_path :: proc(
 ) -> []Vec2 {
 	// fmt.println("######\nSearching for path\n######")
 	// Get start and end node indices
+	start_cell_index: int
+	end_cell_index: int
 	start_node_index: int
 	end_node_index: int
 	{
 		// Find the starting/ending index
-		start_index := find_cell_index(start, nav_mesh)
-		end_index := find_cell_index(end, nav_mesh)
+		start_cell_index = find_cell_index(start, nav_mesh)
+		end_cell_index = find_cell_index(end, nav_mesh)
 
 		// If a start or end cell weren't found exit early, returning nil
-		if start_index == -1 || end_index == -1 {
+		if start_cell_index == -1 || end_cell_index == -1 {
 			return nil
 		}
 
 		// If start and end are inside same cell then exit early and return a straight line path between start and end
-		if start_index == end_index {
+		if start_cell_index == end_cell_index {
 			path := make([]Vec2, 2, allocator)
 			path[0] = start
 			path[1] = end
 			return path
 		}
 
-		start_node_index = find_closest_node_in_cell((end + start) / 2, start_index, nav_mesh)
-		end_node_index = find_closest_node_in_cell((end + start) / 2, end_index, nav_mesh)
+		start_node_index = find_closest_node_in_cell(end, start_cell_index, nav_mesh)
+		end_node_index = find_closest_node_in_cell(start, end_cell_index, nav_mesh)
 
 		// If a start node or an end node were not found then return nil
 		if start_node_index == -1 || end_node_index == -1 {
@@ -148,36 +150,123 @@ find_path :: proc(
 	}
 
 	// Get node path via A*
-	node_path_indices := astar(start_node_index, end_node_index, nav_mesh)
+	node_path_indices := astar(
+		start_node_index,
+		end_node_index,
+		nav_mesh,
+		start_cell_index,
+		end_cell_index,
+	)
 	defer delete(node_path_indices)
 	if node_path_indices == nil {
 		return nil
 	}
 
-	// Temporary solution not using funnel algo
+	// Getting path without using funnel algo
 	// path := make([]Vec2, len(node_path_indices) + 2, allocator)
 	// path[0] = start
 	// for node_index, i in node_path_indices {
 	// 	path[i + 1] = nav_mesh.nodes[node_index].pos
 	// }
 	// path[len(node_path_indices) + 1] = end
-	// return path
 
 	portals := build_portals(node_path_indices, nav_mesh, start, end)
 	defer delete(portals)
 
-	return string_pull(portals, allocator)
+	return string_pull(portals)
 }
 
 // Returns a path through the portals
-string_pull :: proc(portals: [][2]Vec2, allocator := context.allocator) -> []Vec2 {
-	return nil
+string_pull :: proc(
+	portals: []Vec2,
+	max_iterations := -1,
+	allocator := context.allocator,
+) -> []Vec2 {
+	// Indices into portals
+	apex_index, left_index, right_index := 0, 0, 0
+	portal_apex, portal_left, portal_right := portals[0], portals[0], portals[1]
+
+	path := make([dynamic]Vec2, allocator)
+	append(&path, portal_apex)
+
+	iterations := 0
+	// Add start point
+	for i := 1;
+	    i < len(portals) / 2 &&
+	    len(path) < len(portals) / 2 &&
+	    (max_iterations == -1 || iterations < max_iterations);
+	    i += 1 {
+		iterations += 1
+		left := portals[i * 2 + 0]
+		right := portals[i * 2 + 1]
+
+		// Update right vertex
+		if triangle_area2({portal_apex, portal_right, right}) <= 0 { 	// If the funnel will tighten
+			if portal_apex == portal_right ||
+			   triangle_area2({portal_apex, portal_left, right}) > 0 {
+				// Tighten funnel
+				portal_right = right
+				right_index = i
+			} else {
+				fmt.println("left")
+				// Right over left, insert left to path and restart scan from portal left point
+				append(&path, portal_left)
+
+				// Make current left new apex
+				portal_apex = portal_left
+				apex_index = left_index
+
+				// Reset portal
+				portal_right = portal_apex
+				right_index = apex_index
+
+				// Restart scan
+				i = apex_index
+				continue
+			}
+		}
+
+		// Update left vertex
+		if triangle_area2({portal_apex, portal_left, left}) >= 0 { 	// If the funnel will tighten
+			if portal_apex == portal_left ||
+			   triangle_area2({portal_apex, portal_right, left}) < 0 {
+				// Tighten funnel
+				portal_left = left
+				left_index = i
+			} else {
+				fmt.println("yo")
+				// Left over right, insert right to path and restart scan from portal right point
+				append(&path, portal_right)
+
+				// Make current right new apex
+				portal_apex = portal_right
+				apex_index = right_index
+
+				// Reset portal
+				portal_left = portal_apex
+				left_index = apex_index
+
+				// Restart scan
+				i = apex_index
+				continue
+			}
+		}
+	}
+
+
+	// Add last point
+	if len(path) < len(portals) / 2 {
+		append(&path, portals[len(portals) - 1])
+	}
+
+	return path[:]
 }
 
 // Allocates result using temp allocator. In [2]Vec2, index 0 is the left and index 1 is the right node
-build_portals :: proc(path: []int, nav_mesh: NavMesh, start: Vec2, end: Vec2) -> [][2]Vec2 {
-	portals := make([dynamic][2]Vec2, context.temp_allocator)
-	append(&portals, [2]Vec2{start, start})
+build_portals :: proc(path: []int, nav_mesh: NavMesh, start: Vec2, end: Vec2) -> []Vec2 {
+	portals := make([dynamic]Vec2, context.temp_allocator)
+	append(&portals, start)
+	append(&portals, start)
 
 	prev_node_pos := start
 	for node_index in path {
@@ -187,19 +276,28 @@ build_portals :: proc(path: []int, nav_mesh: NavMesh, start: Vec2, end: Vec2) ->
 
 		// If vert 0 is to the left of vert 1 (AKA cross() > 0) when looking from the previous node, then vert 0 is the left side of the portal
 		if cross(v0 - prev_node_pos, v1 - prev_node_pos) > 0 {
-			append(&portals, [2]Vec2{v0, v1})
+			append(&portals, v1)
+			append(&portals, v0)
 		} else {
-			append(&portals, [2]Vec2{v1, v0})
+			append(&portals, v0)
+			append(&portals, v1)
 		}
 		prev_node_pos = node.pos
 	}
 
-	append(&portals, [2]Vec2{end, end})
+	append(&portals, end)
+	append(&portals, end)
 	return portals[:]
 }
 
 // Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance. Allocates using context.temp_allocator
-astar :: proc(start_index: int, end_index: int, nav_mesh: NavMesh) -> []int {
+astar :: proc(
+	start_index: int,
+	end_index: int,
+	nav_mesh: NavMesh,
+	start_cell: int,
+	end_cell: int,
+) -> []int {
 	// Initialize open and closed lists
 	closed_nodes := make(map[int]int, len(nav_mesh.nodes), context.temp_allocator) // Only stores came from nodes
 	open_nodes := make(map[int]struct {
@@ -293,6 +391,93 @@ astar :: proc(start_index: int, end_index: int, nav_mesh: NavMesh) -> []int {
 			current_index = closed_nodes[current_index]
 		}
 		append(&path, start_index)
+
+		// // Remove extra nodes in the end cell
+		if len(path) > 2 {
+			n2 := nav_mesh.nodes[path[2]]
+			n2_matches := 0
+			n1 := nav_mesh.nodes[path[1]]
+			n1_matches := 0
+			// Check if 1st and 2nd index nodes are in the end cell
+			for vc in nav_mesh.cells[end_cell].verts {
+				for vn in n2.verts {
+					if vn == vc {
+						n2_matches += 1
+					}
+				}
+				for vn in n1.verts {
+					if vn == vc {
+						n1_matches += 1
+					}
+				}
+			}
+			// If matches are 2 or more then they are in the end cell and we can remove the nodes before
+			if n2_matches >= 2 {
+				ordered_remove(&path, 0)
+				ordered_remove(&path, 0)
+			} else if n1_matches >= 2 {
+				ordered_remove(&path, 0)
+			}
+		} else if len(path) > 1 {
+			n1 := nav_mesh.nodes[path[1]]
+			n1_matches := 0
+			// Check if 1st index node is in the end cell
+			for vc in nav_mesh.cells[end_cell].verts {
+				for vn in n1.verts {
+					if vn == vc {
+						n1_matches += 1
+					}
+				}
+			}
+			// If matches are 2 or more then they are in the end cell and we can remove the nodes before
+			if n1_matches >= 2 {
+				ordered_remove(&path, 0)
+			}
+		}
+		// // Remove extra nodes in the start cell
+		if len(path) > 2 {
+			// n3tol means node 3rd to last
+			n3tol := nav_mesh.nodes[path[len(path) - 3]]
+			n3tol_matches := 0
+			n2tol := nav_mesh.nodes[path[len(path) - 2]]
+			n2tol_matches := 0
+			// Check if 2nd to last and 3rd to last index nodes are in the start cell
+			for vc in nav_mesh.cells[start_cell].verts {
+				for vn in n3tol.verts {
+					if vn == vc {
+						n3tol_matches += 1
+					}
+				}
+				for vn in n2tol.verts {
+					if vn == vc {
+						n2tol_matches += 1
+					}
+				}
+			}
+			// If matches are 2 or more then they are in the start cell and we can remove the nodes after
+			if n3tol_matches >= 2 {
+				unordered_remove(&path, len(path) - 1)
+				unordered_remove(&path, len(path) - 1)
+			} else if n2tol_matches >= 2 {
+				unordered_remove(&path, len(path) - 1)
+			}
+		} else if len(path) > 1 {
+			// n3tol means node 3rd to last
+			n2tol := nav_mesh.nodes[path[len(path) - 2]]
+			n2tol_matches := 0
+			// Check if 2nd to last index node is in the start cell
+			for vc in nav_mesh.cells[start_cell].verts {
+				for vn in n2tol.verts {
+					if vn == vc {
+						n2tol_matches += 1
+					}
+				}
+			}
+			// If matches are 2 or more then they are in the start cell and we can remove the nodes after
+			if n2tol_matches >= 2 {
+				unordered_remove(&path, len(path) - 1)
+			}
+		}
 
 		// Create slice result and copy the path values in reverse order
 		path_length := len(path)

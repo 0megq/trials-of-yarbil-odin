@@ -482,21 +482,11 @@ check_collision_polygons :: proc(a: Polygon, b: Polygon) -> bool {
 }
 
 check_collision_triangle_point :: proc(tri: [3]Vec2, point: Vec2) -> bool {
-	area_original := math.abs(
-		(tri[1].x - tri[0].x) * (tri[2].y - tri[0].y) -
-		(tri[2].x - tri[0].x) * (tri[1].y - tri[0].y),
-	)
+	area_original := math.abs(triangle_area2(tri))
 
-	area1 := math.abs(
-		(tri[1].x - point.x) * (tri[2].y - point.y) - (tri[2].x - point.x) * (tri[1].y - point.y),
-	)
-	area2 := math.abs(
-		(tri[0].x - point.x) * (tri[2].y - point.y) - (tri[2].x - point.x) * (tri[0].y - point.y),
-	)
-
-	area3 := math.abs(
-		(tri[0].x - point.x) * (tri[1].y - point.y) - (tri[1].x - point.x) * (tri[0].y - point.y),
-	)
+	area1 := math.abs(triangle_area2({tri[1], tri[2], point}))
+	area2 := math.abs(triangle_area2({tri[0], tri[2], point}))
+	area3 := math.abs(triangle_area2({tri[0], tri[1], point}))
 
 	return area1 + area2 + area3 - area_original <= COL_TRIANGLE_POINT_EPSILON
 }
@@ -543,6 +533,15 @@ rotate_points :: proc(points: []Vec2, deg: f32, allocator := context.temp_alloca
 get_rotated_polygon :: proc(p: Polygon, allocator := context.temp_allocator) -> Polygon {
 	points := rotate_points(p.points, p.rotation, allocator)
 	return {p.pos, points, 0}
+}
+
+// Returns a positive area if the vertices are in clockwise order. Negative for counterclockwise
+triangle_area2 :: proc(verts: [3]Vec2) -> f32 {
+	x0 := verts[1].x - verts[0].x
+	y0 := verts[1].y - verts[0].y
+	x1 := verts[2].x - verts[0].x
+	y1 := verts[2].y - verts[0].y
+	return x0 * y1 - y0 * x1
 }
 
 // Polygon must be in clockwise order! 
