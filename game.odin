@@ -15,6 +15,7 @@ PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
 PLAYER_BASE_HARSH_FRICTION :: 2000
 PLAYER_PUNCH_SIZE :: Vec2{12, 16}
+ENEMY_PATHFINDING_TIME :: 0.5
 PUNCH_TIME :: 0.2
 TIME_BETWEEN_PUNCH :: 0.4
 PUNCH_POWER :: 150
@@ -280,18 +281,58 @@ main :: proc() {
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
-			target := enemy.pos
-			if check_collision_shapes(
-				Circle{{}, enemy.detection_range},
-				enemy.pos,
-				player.shape,
-				player.pos,
-			) {
-				path := find_path(enemy.pos, player.pos, game_nav_mesh)
-				if path != nil {
-					target = path[1]
+			if enemy.player_in_range &&
+			   !check_collision_shapes(
+					   Circle{{}, enemy.detection_range},
+					   enemy.pos,
+					   player.shape,
+					   player.pos,
+				   ) {
+				enemy.player_in_range = false
+			} else if !enemy.player_in_range &&
+			   check_collision_shapes(
+				   Circle{{}, enemy.detection_range},
+				   enemy.pos,
+				   player.shape,
+				   player.pos,
+			   ) {
+				enemy.player_in_range = true
+				if enemy.current_path != nil {
+					delete(enemy.current_path)
+				}
+				enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+				enemy.current_path_point = 1
+				enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
+			}
+
+			// Recalculate path based on timer or if the enemy is at the end of the path already
+			if enemy.player_in_range {
+				enemy.pathfinding_timer -= delta
+				if enemy.pathfinding_timer < 0 {
+					// Reset timer
+					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
+					// Find new path
+					delete(enemy.current_path)
+					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+					enemy.current_path_point = 1
+				}
+				if enemy.current_path_point >= len(enemy.current_path) {
+					delete(enemy.current_path)
+					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+					enemy.current_path_point = 1
 				}
 			}
+			// Follow path if there exists one and the enemy is not already at the end of it
+			target := enemy.pos
+			if enemy.current_path != nil && enemy.current_path_point < len(enemy.current_path) {
+				target = enemy.current_path[enemy.current_path_point]
+				if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) <
+				   10 { 	// Enemy is at the point
+					enemy.current_path_point += 1
+				}
+			}
+
+
 			enemy_move(&enemy, delta, target)
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
@@ -467,6 +508,12 @@ main :: proc() {
 			}
 			if enemy.charging || enemy.just_attacked {
 				draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
+			}
+
+			if enemy.current_path != nil {
+				for point in enemy.current_path {
+					rl.DrawCircleV(point, 2, rl.RED)
+				}
 			}
 		}
 

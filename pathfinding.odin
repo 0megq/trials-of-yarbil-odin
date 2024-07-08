@@ -1,5 +1,7 @@
 package game
 
+// import "core:fmt"
+
 game_nav_mesh: NavMesh
 
 // To be used in a NavMesh
@@ -167,8 +169,10 @@ find_path :: proc(
 	// 	path[i + 1] = nav_mesh.nodes[node_index].pos
 	// }
 	// path[len(node_path_indices) + 1] = end
+	// return path
 
 	portals := build_portals(node_path_indices, nav_mesh, start, end)
+	// fmt.println(portals)
 	defer delete(portals)
 
 	return string_pull(portals)
@@ -358,20 +362,21 @@ astar :: proc(
 			if value, ok := &open_nodes[connection]; ok {
 				// If new g is less then update the old g and f value, otherwise don't
 				if g < value.g {
+					// fmt.printfln("Replacing %v g value", connection)
 					// fmt.println("Replacing g value for %v from %v to %v", connection, value.g, g)
 					value.g = g
 					value.f -= g - value.g
 					value.came_from = current_index
 					continue
 				}
-			}
-
-			// fmt.printfln("Adding %v to open nodes", connection)
-			// Else calculate f = g + h (distance to end), and add node to open nodes
-			open_nodes[connection] = {
-				came_from = current_index,
-				f         = g + distance(node.pos, end_node.pos),
-				g         = g,
+			} else {
+				// fmt.printfln("Adding %v to open nodes", connection)
+				// Else calculate f = g + h (distance to end), and add node to open nodes
+				open_nodes[connection] = {
+					came_from = current_index,
+					f         = g + distance(node.pos, end_node.pos),
+					g         = g,
+				}
 			}
 
 			// fmt.println("------")
@@ -388,7 +393,7 @@ astar :: proc(
 		}
 		append(&path, start_index)
 
-		// // Remove extra nodes in the end cell
+		// Remove extra nodes in the end cell
 		if len(path) > 2 {
 			n2 := nav_mesh.nodes[path[2]]
 			n2_matches := 0
@@ -430,7 +435,7 @@ astar :: proc(
 				ordered_remove(&path, 0)
 			}
 		}
-		// // Remove extra nodes in the start cell
+		// Remove extra nodes in the start cell
 		if len(path) > 2 {
 			// n3tol means node 3rd to last
 			n3tol := nav_mesh.nodes[path[len(path) - 3]]

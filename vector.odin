@@ -17,6 +17,10 @@ distance :: proc(v1: Vec2, v2: Vec2) -> f32 {
 	return length(v1 - v2)
 }
 
+distance_squared :: proc(v1: Vec2, v2: Vec2) -> f32 {
+	return length_squared(v1 - v2)
+}
+
 abs :: proc(v: Vec2) -> Vec2 {
 	return {math.abs(v.x), math.abs(v.y)}
 }

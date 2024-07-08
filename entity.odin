@@ -34,6 +34,10 @@ Enemy :: struct {
 	knockback_just_applied: bool,
 	health:                 f32,
 	max_health:             f32,
+	current_path:           []Vec2,
+	current_path_point:     int,
+	pathfinding_timer:      f32,
+	player_in_range:        bool,
 }
 
 Item :: struct {
