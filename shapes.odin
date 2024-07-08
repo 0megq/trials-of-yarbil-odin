@@ -301,6 +301,34 @@ resolve_collision_polygons :: proc(
 	return true, normal, depth
 }
 
+// Returns the distance of the ray intersection. Returns -1 if there is no collision. Dir must be normalized
+cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
+	switch s in shape {
+	case Circle:
+		// The vector from start to center of circle
+		vector_to := s.pos - start
+		// Get the distance to the center from the closest point to the center on the axis dir.
+		// This is calculated by projecting vector_to onto dir and then we get the distance between vector_to and this projection
+		v_to_proj := dot(vector_to, dir) * dir
+		dist_to_center_sqrd := distance_squared(vector_to, v_to_proj)
+		// Distance to center is larger than radius, meaning no collision
+		if dist_to_center_sqrd > s.radius * s.radius {
+			return -1
+		}
+
+		// edge_to_closest_point is the distance between a point on the edge of the circle and the closest point to the center both which are on the axis, dir
+		edge_to_closest_point := math.sqrt(s.radius * s.radius - dist_to_center_sqrd)
+
+		// distance from ray to edge = distance from ray to center - distance from edge to center
+		return length(v_to_proj) - edge_to_closest_point
+	case Polygon:
+		return -1
+	case Rectangle:
+		return -1
+	}
+	return -1
+}
+
 check_collision_shape_point :: proc(shape: Shape, pos: Vec2, point: Vec2) -> bool {
 	return check_collision_shapes(shape, pos, Circle{}, point)
 }
