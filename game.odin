@@ -642,7 +642,7 @@ player_move :: proc(e: ^Player, delta: f32) {
 }
 
 enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
-	max_speed: f32 = 60.0
+	max_speed: f32 = 80.0
 	acceleration: f32 = 400.0
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0

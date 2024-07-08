@@ -346,7 +346,33 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
 		}
 		return min_t
 	case Rectangle:
-		return -1
+		// Step 1: Collisions with all 4 sides
+		t_values: [4]f32
+
+		// Top left to right segment
+		t_values[0] = cast_ray_segment(start, dir, {s.x, s.y}, {s.width, 0})
+		// Top left to bottom segment
+		t_values[1] = cast_ray_segment(start, dir, {s.x, s.y}, {0, s.height})
+		// Bottom left to right segment
+		t_values[2] = cast_ray_segment(start, dir, {s.x, s.y + s.height}, {s.width, 0})
+		// Top right to bottom segment
+		t_values[3] = cast_ray_segment(start, dir, {s.x + s.width, s.y}, {0, s.height})
+
+		// Step 2: Get the smallest t value AKA where the ray first hits the rectangle
+		min_t: f32 = -1
+
+		for t in t_values {
+			if t == -1 { 	// Skip if t is -1 AKA no collision for that side
+				continue
+			}
+
+			if t < min_t || min_t == -1 {
+				min_t = t
+			}
+		}
+
+
+		return min_t
 	}
 	return -1
 }

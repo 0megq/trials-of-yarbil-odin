@@ -4,9 +4,11 @@ wishlist
 	- responds to physics
 	- colliding fast will damage entity
 - better enemy ai
-	- better pathfinding
-	- account for walls
+	- account for walls when detecting player
 	- ranged enemy
+		- raycast to player to check visibility
+			- geometry -> line segments
+		- find point along path that player is visible
 - player vision cone
 - environment and items
 - level editor
