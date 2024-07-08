@@ -45,8 +45,9 @@ proj :: proc(axis: Vec2, v: Vec2) -> Vec2 {
 }
 
 // Returns positive if rotating from v1 to v2 moves in a clockwise direction (right). Returns negative for counter-clockwise (left)
+// Defined as v1.x * -v2.y + v1.y * v2.x
 cross :: proc(v1: Vec2, v2: Vec2) -> f32 {
-	return dot(v1, perpindicular(v2))
+	return v1.x * -v2.y + v1.y * v2.x
 }
 
 // Rotates vector by +90 degrees (CCW)

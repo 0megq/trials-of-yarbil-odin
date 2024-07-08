@@ -322,11 +322,69 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
 		// distance from ray to edge = distance from ray to center - distance from edge to center
 		return length(v_to_proj) - edge_to_closest_point
 	case Polygon:
-		return -1
+		min_t: f32 = -1
+
+		points := polygon_to_points(s)
+		for s_start, i in points {
+			// Step 1: Get line segment
+
+			// Segment delta. s_start + s_delta = end point of segment
+			s_delta := points[(i + 1) % len(points)] - s_start
+
+			// Step 2: Ray segment collision
+			t := cast_ray_segment(start, dir, s_start, s_delta)
+			// Continue if there is no collision
+			if t == -1 {
+				continue
+			}
+
+			// There is a collision!
+			// Step 3: Check to see if collision is the earliest collision. Smallest t value
+			if t < min_t || min_t == -1 {
+				min_t = t
+			}
+		}
+		return min_t
 	case Rectangle:
 		return -1
 	}
 	return -1
+}
+
+// Returns the length of the ray in order to collide with the segment defined by s_start + s_delta * t where t is an element of [0, 1]
+// Returns -1 if no collision
+cast_ray_segment :: proc(r_start: Vec2, r_dir: Vec2, s_start: Vec2, s_delta: Vec2) -> f32 {
+	// Long hand version
+	// t_ray :=
+	// 	(s_dir.x * (start.y - s_start.y) - s_dir.y * (start.x - s_start.x)) /
+	// 	(dir.x * s_dir.y - dir.y * s_dir.x)
+
+	// Short hand written with cross products
+	numerator := cross(r_start - s_start, s_delta)
+	denominator := cross(s_delta, r_dir)
+	if denominator == 0 {
+		if numerator == 0 {
+			// Colinear AKA parallel and on the same line
+			// TODO: Provide a check here to see if lines are disjoint or overlapping
+			return -1
+		} else {
+			// Parallel and not intersecting
+			return -1
+		}
+	}
+
+	// t_ray is the length of the ray where it hits the segment
+	t_ray := numerator / denominator
+	if t_ray < 0 { 	// No collision. Segment is behind ray
+		return -1
+	}
+
+	t_seg := (r_start.x + t_ray * r_dir.x - s_start.x) / s_delta.x
+	if t_seg < 0 || t_seg > 1 { 	// No collision. Ray is out of segment bounds
+		return -1
+	}
+
+	return t_ray
 }
 
 check_collision_shape_point :: proc(shape: Shape, pos: Vec2, point: Vec2) -> bool {
