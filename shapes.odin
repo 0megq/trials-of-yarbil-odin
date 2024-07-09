@@ -302,14 +302,15 @@ resolve_collision_polygons :: proc(
 }
 
 // Returns the distance of the ray intersection. Returns -1 if there is no collision. Dir must be normalized
-cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
+cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 	switch s in shape {
 	case Circle:
 		// The vector from start to center of circle
-		vector_to := s.pos - start
+		vector_to := s.pos + shape_pos - start
 		// Get the distance to the center from the closest point to the center on the axis dir.
 		// This is calculated by projecting vector_to onto dir and then we get the distance between vector_to and this projection
-		v_to_proj := dot(vector_to, dir) * dir
+		v_to_dir_dot := dot(vector_to, dir)
+		v_to_proj := v_to_dir_dot * dir
 		dist_to_center_sqrd := distance_squared(vector_to, v_to_proj)
 		// Distance to center is larger than radius, meaning no collision
 		if dist_to_center_sqrd > s.radius * s.radius {
@@ -319,8 +320,17 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
 		// edge_to_closest_point is the distance between a point on the edge of the circle and the closest point to the center both which are on the axis, dir
 		edge_to_closest_point := math.sqrt(s.radius * s.radius - dist_to_center_sqrd)
 
-		// distance from ray to edge = distance from ray to center - distance from edge to center
-		return length(v_to_proj) - edge_to_closest_point
+		// distance from ray to edge = distance from ray to center (v_to_dir_dot, includes direction) - distance from edge to center
+		p0 := v_to_dir_dot - edge_to_closest_point
+		p1 := v_to_dir_dot + edge_to_closest_point
+		if p0 < 0 {
+			if p1 < 0 {
+				return -1
+			}
+			return p1
+		} else {
+			return p0
+		}
 	case Polygon:
 		min_t: f32 = -1
 
@@ -332,7 +342,7 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
 			s_delta := points[(i + 1) % len(points)] - s_start
 
 			// Step 2: Ray segment collision
-			t := cast_ray_segment(start, dir, s_start, s_delta)
+			t := cast_ray_segment(start, dir, s_start + shape_pos, s_delta)
 			// Continue if there is no collision
 			if t == -1 {
 				continue
@@ -350,13 +360,13 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape) -> f32 {
 		t_values: [4]f32
 
 		// Top left to right segment
-		t_values[0] = cast_ray_segment(start, dir, {s.x, s.y}, {s.width, 0})
+		t_values[0] = cast_ray_segment(start, dir, {s.x, s.y} + shape_pos, {s.width, 0})
 		// Top left to bottom segment
-		t_values[1] = cast_ray_segment(start, dir, {s.x, s.y}, {0, s.height})
+		t_values[1] = cast_ray_segment(start, dir, {s.x, s.y} + shape_pos, {0, s.height})
 		// Bottom left to right segment
-		t_values[2] = cast_ray_segment(start, dir, {s.x, s.y + s.height}, {s.width, 0})
+		t_values[2] = cast_ray_segment(start, dir, {s.x, s.y + s.height} + shape_pos, {s.width, 0})
 		// Top right to bottom segment
-		t_values[3] = cast_ray_segment(start, dir, {s.x + s.width, s.y}, {0, s.height})
+		t_values[3] = cast_ray_segment(start, dir, {s.x + s.width, s.y} + shape_pos, {0, s.height})
 
 		// Step 2: Get the smallest t value AKA where the ray first hits the rectangle
 		min_t: f32 = -1
@@ -404,13 +414,35 @@ cast_ray_segment :: proc(r_start: Vec2, r_dir: Vec2, s_start: Vec2, s_delta: Vec
 	if t_ray < 0 { 	// No collision. Segment is behind ray
 		return -1
 	}
-
 	t_seg := (r_start.x + t_ray * r_dir.x - s_start.x) / s_delta.x
+	if s_delta.x == 0 {
+		t_seg = (r_start.y + t_ray * r_dir.y - s_start.y) / s_delta.y
+	}
 	if t_seg < 0 || t_seg > 1 { 	// No collision. Ray is out of segment bounds
 		return -1
 	}
 
 	return t_ray
+}
+
+// Circular concave polygon means that the polygon is constructed about a center point
+// and a line can be drawn from each point in the polygon to that center
+check_collsion_circular_concave_circle :: proc(
+	points: []Vec2,
+	center: Vec2,
+	circle: Circle,
+) -> bool {
+	// Go through each point. Separate that point and the next point into a separate polygon and collide with circle
+	for p, i in points {
+		poly: Polygon = {
+			points = {p, points[(i + 1) % len(points)], center},
+		}
+
+		if check_collision_polygon_circle(poly, circle) {
+			return true
+		}
+	}
+	return false
 }
 
 check_collision_shape_point :: proc(shape: Shape, pos: Vec2, point: Vec2) -> bool {
@@ -602,7 +634,6 @@ check_collision_triangle_point :: proc(tri: [3]Vec2, point: Vec2) -> bool {
 
 	return area1 + area2 + area3 - area_original <= COL_TRIANGLE_POINT_EPSILON
 }
-
 
 // Gets the index of the closest point on the polygon to pos
 get_closest_polygon_point :: proc(poly: Polygon, pos: Vec2) -> int {

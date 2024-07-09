@@ -75,3 +75,7 @@ angle_between :: proc(v1: Vec2, v2: Vec2) -> f32 {
 	}
 	return math.acos(dot(v1, v2) / (length(v1) * length(v2))) * math.DEG_PER_RAD
 }
+
+vector_from_angle :: proc(deg: f32) -> Vec2 {
+	return {math.cos(deg * math.RAD_PER_DEG), math.sin(deg * math.RAD_PER_DEG)}
+}

@@ -281,20 +281,30 @@ main :: proc() {
 
 		// Move enemies and track player if in range
 		for &enemy in enemies {
+
+			// Update detection points
+			for &p, i in enemy.detection_points {
+				dir := vector_from_angle(f32(i) * 360 / f32(len(enemy.detection_points)))
+				t := cast_ray_through_level(level.walls[:], enemy.pos, dir)
+				if t < enemy.detection_range {
+					p = enemy.pos + t * dir
+				} else {
+					p = enemy.pos + enemy.detection_range * dir
+				}
+			}
+
 			if enemy.player_in_range &&
-			   !check_collision_shapes(
-					   Circle{{}, enemy.detection_range},
+			   !check_collsion_circular_concave_circle(
+					   enemy.detection_points[:],
 					   enemy.pos,
-					   player.shape,
-					   player.pos,
+					   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
 				   ) {
 				enemy.player_in_range = false
 			} else if !enemy.player_in_range &&
-			   check_collision_shapes(
-				   Circle{{}, enemy.detection_range},
+			   check_collsion_circular_concave_circle(
+				   enemy.detection_points[:],
 				   enemy.pos,
-				   player.shape,
-				   player.pos,
+				   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
 			   ) {
 				enemy.player_in_range = true
 				if enemy.current_path != nil {
@@ -332,8 +342,8 @@ main :: proc() {
 				}
 			}
 
-
 			enemy_move(&enemy, delta, target)
+
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
 					enemy.shape,
@@ -390,6 +400,13 @@ main :: proc() {
 				enemy.current_charge_time = enemy.start_charge_time
 			}
 		}
+
+		// Raycast test
+		// ray_min_t: [18]f32
+		// for &min_t, i in ray_min_t {
+		// 	dir := vector_from_angle(f32(i) * 360 / f32(len(ray_min_t)))
+		// 	min_t = cast_ray_through_level(level.walls[:], player.pos, dir)
+		// }
 
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
@@ -490,7 +507,6 @@ main :: proc() {
 
 		for enemy in enemies {
 			draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-			rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 			health_bar_length: f32 = 20
 			health_bar_height: f32 = 5
 			health_bar_base_rec := get_centered_rect(
@@ -509,6 +525,16 @@ main :: proc() {
 			if enemy.charging || enemy.just_attacked {
 				draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
 			}
+
+			// Draw detection area
+			// rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+			// for p, i in enemy.detection_points {
+			// 	rl.DrawLineV(
+			// 		p,
+			// 		enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+			// 		rl.YELLOW,
+			// 	)
+			// }
 
 			if enemy.current_path != nil {
 				for point in enemy.current_path {
@@ -540,6 +566,14 @@ main :: proc() {
 			punch_area_color = rl.Color{255, 0, 0, 120}
 		}
 		draw_shape(attack_poly, player.pos, punch_area_color)
+
+		// Raycast test
+		// for min_t, i in ray_min_t {
+		// 	dir := vector_from_angle(f32(i) * 360 / f32(len(ray_min_t)))
+		// 	rl.DrawCircleV(player.pos, 2, rl.MAGENTA)
+		// 	rl.DrawCircleV(player.pos + dir * min_t, 2, rl.MAGENTA)
+		// 	rl.DrawLineV(player.pos, player.pos + dir * min_t, rl.PURPLE)
+		// }
 
 		#partial switch editor_mode {
 		case .Level:
@@ -692,29 +726,44 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	e.pos += e.vel * delta
 }
 
-move :: proc(e: ^MovingEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
-	e.vel += normalize(input) * acceleration * delta
+cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -> f32 {
+	min_t := math.INF_F32
+	for wall in walls {
+		t := cast_ray(start, dir, wall.shape, wall.pos)
+		if t == -1 {
+			continue
+		}
 
-	friction_vector: Vec2
-	if input.x == 0 {
-		friction_vector.x = -math.sign(e.vel.x)
+		if t < min_t {
+			min_t = t
+		}
 	}
-	if input.y == 0 {
-		friction_vector.y = -math.sign(e.vel.y)
-	}
-
-	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
-	// Prevent friction overshooting
-	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
-	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
-
-	speed := length(e.vel)
-	if speed > max_speed {
-		e.vel = normalize(e.vel) * max_speed
-	}
-
-	e.pos += e.vel * delta
+	return min_t
 }
+
+// move :: proc(e: ^MovingEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
+// 	e.vel += normalize(input) * acceleration * delta
+
+// 	friction_vector: Vec2
+// 	if input.x == 0 {
+// 		friction_vector.x = -math.sign(e.vel.x)
+// 	}
+// 	if input.y == 0 {
+// 		friction_vector.y = -math.sign(e.vel.y)
+// 	}
+
+// 	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
+// 	// Prevent friction overshooting
+// 	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
+// 	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
+
+// 	speed := length(e.vel)
+// 	if speed > max_speed {
+// 		e.vel = normalize(e.vel) * max_speed
+// 	}
+
+// 	e.pos += e.vel * delta
+// }
 
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
