@@ -2,3 +2,4 @@
 	- addendum: it's not the language. it's you, honey
 - you can edit the source code
 	- I edited the unmarshal_object proc in unmarshal.odin so that it would disallow missing fields when unmarshaling a struct
+- don't forget why you're doing the things that you do

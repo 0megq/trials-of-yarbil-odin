@@ -49,16 +49,41 @@ Level :: struct {
 	nav_mesh: NavMesh,
 }
 
+Control :: union {
+	rl.KeyboardKey,
+	rl.MouseButton,
+}
+
+Controls :: struct {
+	fire:             Control,
+	alt_fire:         Control,
+	drop_item:        Control,
+	// switch between sword and item being active
+	switch_active:    Control,
+	pickup_item:      Control,
+	movement_ability: Control,
+}
+
+controls: Controls = {
+	fire             = rl.MouseButton.LEFT,
+	alt_fire         = rl.MouseButton.RIGHT,
+	drop_item        = rl.KeyboardKey.Q,
+	switch_active    = rl.KeyboardKey.X,
+	pickup_item      = rl.KeyboardKey.E,
+	movement_ability = rl.KeyboardKey.SPACE,
+}
+
 punching: bool
 punch_timer: f32
 can_punch: bool
 punch_rate_timer: f32
-holding_sword: bool
 surfing: bool
 current_ability: MovementAbility
 editor_mode: EditorMode = .None
 can_fire_dash: bool
 fire_dash_timer: f32
+player: Player
+camera: rl.Camera2D
 
 main :: proc() {
 	track: mem.Tracking_Allocator
@@ -81,12 +106,15 @@ main :: proc() {
 	load_textures()
 	load_navmesh()
 
-	player: Player = {
-		pos          = {32, 32},
-		shape        = Circle{{}, 8},
-		pickup_range = 16,
-		health       = 100,
-		max_health   = 100,
+	player = {
+		pos                 = {32, 32},
+		shape               = Circle{{}, 8},
+		pickup_range        = 16,
+		health              = 100,
+		max_health          = 100,
+		weapon_active       = true,
+		selected_weapon_idx = -1,
+		selected_item_idx   = -1,
 	}
 
 	current_ability = .FIRE
@@ -101,7 +129,7 @@ main :: proc() {
 	append(&timers, Timer{0.5, toggle_text_cursor, 0.5})
 
 	items := make([dynamic]Item, context.allocator)
-	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, item_id = .Sword})
+	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, data = {.Sword, 10, 10}})
 
 	level: Level
 
@@ -139,20 +167,20 @@ main :: proc() {
 		PLAYER_PUNCH_SIZE.y,
 	}
 	punch_points := rect_to_points(punch_rect)
-	sword_points: []Vec2 = {
-		{player_radius, -12},
-		{player_radius + 10, -5},
-		{player_radius + 12, 0},
-		{player_radius + 10, 5},
-		{player_radius, 12},
-	}
+	// sword_points: []Vec2 = {
+	// 	{player_radius, -12},
+	// 	{player_radius + 10, -5},
+	// 	{player_radius + 12, 0},
+	// 	{player_radius + 10, 5},
+	// 	{player_radius, 12},
+	// }
 	attack_poly: Polygon
 	attack_poly.points = punch_points[:]
 
 	hit_enemies: [dynamic]bool = make([dynamic]bool, context.allocator)
 	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
 
-	camera := rl.Camera2D {
+	camera = rl.Camera2D {
 		target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2,
 		zoom   = WINDOW_TO_GAME,
 	}
@@ -174,7 +202,7 @@ main :: proc() {
 			}
 		}
 
-		if rl.IsKeyPressed(.E) {
+		if rl.IsKeyPressed(.H) {
 			editor_mode = EditorMode((int(editor_mode) + 1) % 3)
 		}
 
@@ -199,7 +227,7 @@ main :: proc() {
 			}
 		}
 
-		if rl.IsKeyPressed(.SPACE) {
+		if is_control_pressed(controls.movement_ability) {
 			switch current_ability {
 			case .FIRE:
 				if can_fire_dash {
@@ -410,63 +438,99 @@ main :: proc() {
 
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
-		if rl.IsMouseButtonPressed(.LEFT) && can_punch {
-			punching = true
-			punch_timer = PUNCH_TIME
-			can_punch = false
-			for i in 0 ..< len(hit_enemies) {
-				hit_enemies[i] = false
-			}
-		} else if punching {
-			if punch_timer <= 0 {
-				punching = false
-				punch_rate_timer = TIME_BETWEEN_PUNCH
-			} else {
-				punch_timer -= delta
-				for &enemy, i in enemies {
-					if !hit_enemies[i] &&
-					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
-						enemies[i].vel +=
-							normalize(mouse_world_pos - player.pos) *
-							(SWORD_POWER if holding_sword else PUNCH_POWER)
-						hit_enemies[i] = true
-						damage_enemy(&enemy, 10)
-						if enemy.health <= 0 {
-							unordered_remove(&enemies, i)
-						}
-					}
-				}
-			}
-		} else if !can_punch { 	// If right after punch finished then tick punch rate timer until done
-			if punch_rate_timer <= 0 {
-				can_punch = true
-			}
-			punch_rate_timer -= delta
+		if is_control_pressed(controls.switch_active) {
+			player.weapon_active = !player.weapon_active
+			fmt.printfln("weapon active: %v", player.weapon_active)
 		}
 
-		// Item pickup and drop
-		if rl.IsKeyPressed(.LEFT_SHIFT) {
-			if holding_sword {
-				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, item_id = .Sword})
-				holding_sword = false
-				attack_poly.points = punch_points[:]
-			} else {
-				for item, i in items {
-					if check_collision_shapes(
-						Circle{{}, player.pickup_range},
-						player.pos,
-						item.shape,
-						item.pos,
-					) {
-						fmt.printfln("picked up %v", item.item_id)
-						if item.item_id == .Sword {
-							holding_sword = true
-							attack_poly.points = sword_points
-						}
-						unordered_remove(&items, i)
+
+		// if is_control_pressed(controls.fire) && can_punch {
+		// 	punching = true
+		// 	punch_timer = PUNCH_TIME
+		// 	can_punch = false
+		// 	for i in 0 ..< len(hit_enemies) {
+		// 		hit_enemies[i] = false
+		// 	}
+		// } else if punching {
+		// 	if punch_timer <= 0 {
+		// 		punching = false
+		// 		punch_rate_timer = TIME_BETWEEN_PUNCH
+		// 	} else {
+		// 		punch_timer -= delta
+		// 		for &enemy, i in enemies {
+		// 			if !hit_enemies[i] &&
+		// 			   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
+		// 				enemies[i].vel +=
+		// 					normalize(mouse_world_pos - player.pos) *
+		// 					(SWORD_POWER if holding_sword else PUNCH_POWER)
+		// 				hit_enemies[i] = true
+		// 				damage_enemy(&enemy, 10)
+		// 				if enemy.health <= 0 {
+		// 					unordered_remove(&enemies, i)
+		// 				}
+		// 			}
+		// 		}
+		// 	}
+		// } else if !can_punch { 	// If right after punch finished then tick punch rate timer until done
+		// 	if punch_rate_timer <= 0 {
+		// 		can_punch = true
+		// 	}
+		// 	punch_rate_timer -= delta
+		// }
+
+		if is_control_pressed(controls.fire) {
+
+		} else if is_control_pressed(controls.alt_fire) {
+
+		}
+
+		// Item pickup
+		if is_control_pressed(controls.pickup_item) {
+			closest_item_idx := -1
+			closest_item_dist_sqrd := math.INF_F32
+			for item, i in items {
+				if check_collision_shapes(
+					Circle{{}, player.pickup_range},
+					player.pos,
+					item.shape,
+					item.pos,
+				) {
+					dist_sqrd := distance_squared(item.pos, player.pos)
+					if closest_item_idx == -1 || dist_sqrd < closest_item_dist_sqrd {
+						closest_item_idx = i
+						closest_item_dist_sqrd = dist_sqrd
 					}
 				}
 			}
+			if closest_item_idx != -1 {
+				item := items[closest_item_idx]
+				if pickup_item(item.data) {
+					unordered_remove(&items, closest_item_idx)
+				}
+			}
+			fmt.printfln(
+				"weapons: %v, items: %v, weapon_active: %v, selected_weapon: %v, selected_item: %v",
+				player.weapons,
+				player.items,
+				player.weapon_active,
+				player.selected_weapon_idx,
+				player.selected_item_idx,
+			)
+		}
+
+		// Item drop
+		if is_control_pressed(controls.drop_item) {
+			if item_data := drop_item(); item_data.id != .Empty {
+				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
+			}
+			// fmt.printfln(
+			// 	"weapons: %v, items: %v, weapon_active: %v, selected_weapon: %v, selected_item: %v",
+			// 	player.weapons,
+			// 	player.items,
+			// 	player.weapon_active,
+			// 	player.selected_weapon_idx,
+			// 	player.selected_item_idx,
+			// )
 		}
 
 		rl.BeginDrawing()
@@ -798,7 +862,6 @@ damage_enemy :: proc(enemy: ^Enemy, amount: f32) {
 	enemy.current_flinch_time = enemy.start_flinch_time
 }
 
-
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
 	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
@@ -823,4 +886,91 @@ turn_off_surf :: proc() {
 
 world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
 	return (point - camera.target) * camera.zoom
+}
+
+fire :: proc(item: ItemId, mouse_pos: Vec2) {
+
+}
+
+alt_fire :: proc(item: ItemId, mouse_pos: Vec2) {
+
+}
+
+draw_weapon :: proc(weapon: ItemId, mouse_pos: Vec2) {
+
+}
+
+draw_item :: proc(item: ItemId, mouse_pos: Vec2) {
+
+}
+
+// Returns true if the item was succesfully picked up
+pickup_item :: proc(data: ItemData) -> bool {
+	if data.id < ItemId(100) { 	// Not a weapon
+		for &item, i in player.items {
+			if item.id == .Empty {
+				item = data
+				// Select item if currently selected nothing
+				if player.selected_item_idx == -1 {
+					player.selected_item_idx = i
+					// If no weapon selected then make item active
+					if player.selected_weapon_idx == -1 {
+						player.weapon_active = false
+					}
+				}
+				return true
+			}
+		}
+	} else { 	// Is a weapon. Confirmed.
+		for &weapon, i in player.weapons {
+			if weapon.id == .Empty {
+				// Select weapon if currently selected nothing
+				if player.selected_weapon_idx == -1 {
+					player.selected_weapon_idx = i
+					// If no item selected then make weapon active
+					if player.selected_item_idx == -1 {
+						player.weapon_active = true
+					}
+				}
+				weapon = data
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Removes the currently selective and active item/weapon from player's inventory and returns its ItemData
+drop_item :: proc() -> ItemData {
+	if player.weapon_active {
+		// If a weapon is selected and it is not empty
+		if player.selected_weapon_idx != -1 &&
+		   player.weapons[player.selected_weapon_idx].id != .Empty {
+			weapon_data := player.weapons[player.selected_weapon_idx]
+			// Set the weapon to empty and deselect it
+			player.weapons[player.selected_weapon_idx].id = .Empty
+			player.selected_weapon_idx = -1
+			return weapon_data
+		}
+	} else {
+		// If a item is selected and it is not empty
+		if player.selected_item_idx != -1 && player.items[player.selected_item_idx].id != .Empty {
+			item_data := player.items[player.selected_item_idx]
+			// Set the item to empty and deselect it
+			player.items[player.selected_item_idx].id = .Empty
+			player.selected_item_idx = -1
+			return item_data
+		}
+	}
+	return {}
+}
+
+is_control_pressed :: proc(c: Control) -> bool {
+	switch v in c {
+	case rl.KeyboardKey:
+		return rl.IsKeyPressed(v)
+	case rl.MouseButton:
+		return rl.IsMouseButtonPressed(v)
+	}
+	return false
 }

@@ -14,10 +14,15 @@ environment
 - enemies themselves
 - fog and darkness
 - burnable grass and trees
+- items
+	- rocks
+	- weapons
+	- bombs, smoke bombs, firecrackers
 
 
 items
-- weapons (provide alternate fighting style - slightly more damage)
+- weapons (provide alternate fighting style - slightly more damage), durability
+	- branch
 	- kunai
 	- katana
 	- dagger
@@ -28,15 +33,17 @@ items
 	- spear
 	- boomerang
 	- bow
-- healing
-- temporary powerups
+- food
+	- healing
 	- speed
 	- damage
 	- knockback
 - other items
 	- smoke bombs
 	- firecrackers
-	-
+	- bombs
+	- sticks
+	- rocks
 
 enemy
 - follow player

@@ -1,15 +1,15 @@
 wishlist
-- test level
-- better enemy ai
-	- account for walls when detecting player
-	- ranged enemy
-		- shoot player if in shoot ranged
-		- walk towards player and run away if too close
-- player vision cone
 - environment and dynamic items
 - health system
 	- responds to physics
 	- colliding fast will damage entity
+- test level
+- better enemy ai
+	- ranged enemy
+		- shoot player if in shoot ranged
+		- walk towards player and run away if too close
+	- refine pathfinding near walls
+- player vision cone
 - level editor
 	- polygon points
 	- scaling rectangle from center
@@ -23,8 +23,6 @@ wishlist
 - game object editor
 - sweeping rectangle collisions
 - movement abilities
-	- allow movement above max speed
-	- deaccelerate back down to max speed
 - overhaul physics
 	- list of all physics objects
 	- static, rigid, and kinematic bodies

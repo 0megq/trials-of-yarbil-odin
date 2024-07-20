@@ -43,7 +43,7 @@ Enemy :: struct {
 
 Item :: struct {
 	using moving_entity: MovingEntity,
-	item_id:             ItemId,
+	data: ItemData,
 }
 
 Player :: struct {
@@ -51,6 +51,11 @@ Player :: struct {
 	pickup_range:        f32,
 	health:              f32,
 	max_health:          f32,
+	weapons:             [2]ItemData,
+	items:               [6]ItemData,
+	weapon_active: bool,
+	selected_weapon_idx: int,
+	selected_item_idx: int,
 }
 
 Fire :: struct {
