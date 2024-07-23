@@ -84,6 +84,10 @@ can_fire_dash: bool
 fire_dash_timer: f32
 player: Player
 camera: rl.Camera2D
+z_entities: [dynamic]ZEntity
+bombs: [dynamic]Bomb
+fires: [dynamic]Fire
+enemies: [dynamic]Enemy
 
 main :: proc() {
 	track: mem.Tracking_Allocator
@@ -116,13 +120,25 @@ main :: proc() {
 		selected_weapon_idx = -1,
 		selected_item_idx   = -1,
 	}
+	player.weapons[0] = {
+		id = .Sword,
+	}
+	player.selected_weapon_idx = 0
+
+	player.items[0] = {
+		id = .Bomb,
+	}
+	player.selected_item_idx = 0
 
 	current_ability = .FIRE
 	can_fire_dash = true
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
-	fires := make([dynamic]Fire, context.allocator)
+	fires = make([dynamic]Fire, context.allocator)
+
+	z_entities = make([dynamic]ZEntity, context.allocator)
+	bombs = make([dynamic]Bomb, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -149,7 +165,7 @@ main :: proc() {
 		append(&level.walls, wall1)
 	}
 
-	enemies := make([dynamic]Enemy, context.allocator)
+	enemies = make([dynamic]Enemy, context.allocator)
 	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
 	append(&enemies, new_enemy({300, 80}, enemy_attack_poly))
 	append(&enemies, new_enemy({200, 200}, enemy_attack_poly))
@@ -244,10 +260,7 @@ main :: proc() {
 								FIRE_DASH_RADIUS
 							power_scale = max(power_scale, 0.6) // TODO use a map function
 							enemy.vel -= normalize(fire.pos - enemy.pos) * 400 * power_scale
-							damage_enemy(&enemy, 20)
-							if enemy.health <= 0 {
-								unordered_remove(&enemies, i)
-							}
+							damage_enemy(i, 20)
 						}
 					}
 				}
@@ -274,10 +287,7 @@ main :: proc() {
 			for &enemy, i in enemies {
 				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
 					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
-					damage_enemy(&enemy, 5)
-					if enemy.health <= 0 {
-						unordered_remove(&enemies, i)
-					}
+					damage_enemy(i, 5)
 				}
 			}
 		}
@@ -429,6 +439,70 @@ main :: proc() {
 			}
 		}
 
+		for &entity in z_entities {
+			zentity_move(&entity, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					entity.shape,
+					entity.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					entity.pos -= normal * depth
+					entity.vel = slide(entity.vel, normal)
+				}
+			}
+		}
+
+		for &bomb, i in bombs {
+			zentity_move(&bomb, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					bomb.shape,
+					bomb.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					bomb.pos -= normal * depth
+					bomb.vel = slide(bomb.vel, normal)
+				}
+			}
+			for enemy in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					bomb.shape,
+					bomb.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					bomb.pos -= normal * depth
+					bomb.vel = slide(bomb.vel, normal)
+				}
+			}
+			if bomb.z <= 0 {
+				bomb.time_left -= delta
+				if bomb.time_left <= 0 {
+					bomb_explosion(bomb.pos, 8)
+					for &enemy, j in enemies {
+						if check_collision_shapes(
+							Circle{{}, 8},
+							bomb.pos,
+							enemy.shape,
+							enemy.pos,
+						) {
+							damage_enemy(j, 6)
+						}
+					}
+					unordered_remove(&bombs, i)
+				}
+			}
+		}
+
 		// Raycast test
 		// ray_min_t: [18]f32
 		// for &min_t, i in ray_min_t {
@@ -443,43 +517,12 @@ main :: proc() {
 			fmt.printfln("weapon active: %v", player.weapon_active)
 		}
 
-
-		// if is_control_pressed(controls.fire) && can_punch {
-		// 	punching = true
-		// 	punch_timer = PUNCH_TIME
-		// 	can_punch = false
-		// 	for i in 0 ..< len(hit_enemies) {
-		// 		hit_enemies[i] = false
-		// 	}
-		// } else if punching {
-		// 	if punch_timer <= 0 {
-		// 		punching = false
-		// 		punch_rate_timer = TIME_BETWEEN_PUNCH
-		// 	} else {
-		// 		punch_timer -= delta
-		// 		for &enemy, i in enemies {
-		// 			if !hit_enemies[i] &&
-		// 			   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
-		// 				enemies[i].vel +=
-		// 					normalize(mouse_world_pos - player.pos) *
-		// 					(SWORD_POWER if holding_sword else PUNCH_POWER)
-		// 				hit_enemies[i] = true
-		// 				damage_enemy(&enemy, 10)
-		// 				if enemy.health <= 0 {
-		// 					unordered_remove(&enemies, i)
-		// 				}
-		// 			}
-		// 		}
-		// 	}
-		// } else if !can_punch { 	// If right after punch finished then tick punch rate timer until done
-		// 	if punch_rate_timer <= 0 {
-		// 		can_punch = true
-		// 	}
-		// 	punch_rate_timer -= delta
-		// }
-
 		if is_control_pressed(controls.fire) {
-
+			if player.weapon_active && player.selected_weapon_idx != -1 {
+				fire(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
+			} else if player.selected_item_idx != -1 {
+				fire(player.items[player.selected_item_idx].id, mouse_world_pos)
+			}
 		} else if is_control_pressed(controls.alt_fire) {
 
 		}
@@ -533,144 +576,172 @@ main :: proc() {
 			// )
 		}
 
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.DARKGRAY)
+		// Drawing
+		{
+			rl.BeginDrawing()
+			rl.ClearBackground(rl.DARKGRAY)
 
-		if editor_mode == .None {
-			camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
-			camera.zoom = WINDOW_TO_GAME
-		} else {
-			if rl.IsMouseButtonDown(.MIDDLE) {
-				camera.target -= mouse_world_delta
-			}
-			world_center :=
-				camera.target + {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
-			camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
-			camera.zoom = max(0.1, camera.zoom)
-			camera.target =
-				world_center - {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
-		}
-
-		rl.BeginMode2D(camera)
-
-		if surfing {
-			draw_polygon(surf_poly, rl.DARKGREEN)
-		}
-
-		for fire in fires {
-			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
-		}
-
-		for item in items {
-			draw_shape(item.shape, item.pos, rl.PURPLE)
-		}
-
-		for wall in level.walls {
-			draw_shape(wall.shape, wall.pos, rl.GRAY)
-		}
-
-		for enemy in enemies {
-			draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-			health_bar_length: f32 = 20
-			health_bar_height: f32 = 5
-			health_bar_base_rec := get_centered_rect(
-				{enemy.pos.x, enemy.pos.y - 20},
-				{health_bar_length, health_bar_height},
-			)
-			rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-			health_bar_filled_rec := health_bar_base_rec
-			health_bar_filled_rec.width *= enemy.health / enemy.max_health
-			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-
-			attack_area_color := rl.Color{255, 255, 255, 120}
-			if enemy.just_attacked {
-				attack_area_color = rl.Color{255, 0, 0, 120}
-			}
-			if enemy.charging || enemy.just_attacked {
-				draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
-			}
-
-			// Draw detection area
-			// rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-			// for p, i in enemy.detection_points {
-			// 	rl.DrawLineV(
-			// 		p,
-			// 		enemy.detection_points[(i + 1) % len(enemy.detection_points)],
-			// 		rl.YELLOW,
-			// 	)
-			// }
-
-			if enemy.current_path != nil {
-				for point in enemy.current_path {
-					rl.DrawCircleV(point, 2, rl.RED)
+			// Zooming
+			{
+				if editor_mode == .None {
+					camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
+					camera.zoom = WINDOW_TO_GAME
+				} else {
+					if rl.IsMouseButtonDown(.MIDDLE) {
+						camera.target -= mouse_world_delta
+					}
+					world_center :=
+						camera.target + {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
+					camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
+					camera.zoom = max(0.1, camera.zoom)
+					camera.target =
+						world_center - {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
 				}
 			}
-		}
 
-		// Player collision shape
-		// draw_shape(player.shape, player.pos, rl.RED)
-		draw_sprite(player_sprite, player.pos)
-		// Player pickup range
-		// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
-		/* Health Bar */
-		health_bar_length: f32 = 20
-		health_bar_height: f32 = 5
-		health_bar_base_rec := get_centered_rect(
-			{player.pos.x, player.pos.y - 20},
-			{health_bar_length, health_bar_height},
-		)
-		rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-		health_bar_filled_rec := health_bar_base_rec
-		health_bar_filled_rec.width *= player.health / player.max_health
-		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-		/* End of Health Bar */
+			rl.BeginMode2D(camera)
 
-		punch_area_color := rl.Color{255, 255, 255, 120}
-		if punching {
-			punch_area_color = rl.Color{255, 0, 0, 120}
-		}
-		draw_shape(attack_poly, player.pos, punch_area_color)
-
-		// Raycast test
-		// for min_t, i in ray_min_t {
-		// 	dir := vector_from_angle(f32(i) * 360 / f32(len(ray_min_t)))
-		// 	rl.DrawCircleV(player.pos, 2, rl.MAGENTA)
-		// 	rl.DrawCircleV(player.pos + dir * min_t, 2, rl.MAGENTA)
-		// 	rl.DrawLineV(player.pos, player.pos + dir * min_t, rl.PURPLE)
-		// }
-
-		#partial switch editor_mode {
-		case .Level:
-			draw_editor_world()
-		case .NavMesh:
-			draw_navmesh_editor_world(mouse_world_pos)
-		}
-
-		rl.EndMode2D()
-
-		// Display Fire Dash Status
-		if current_ability == .FIRE {
-			if can_fire_dash {
-				rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
-			} else {
-				rl.DrawText(
-					fmt.ctprintf("On Cooldown: %f", fire_dash_timer),
-					1000,
-					16,
-					20,
-					rl.WHITE,
-				)
+			if surfing {
+				draw_polygon(surf_poly, rl.DARKGREEN)
 			}
-		}
 
-		#partial switch editor_mode {
-		case .Level:
-			draw_editor_ui()
-		case .NavMesh:
-			draw_navmesh_editor_ui(mouse_world_pos, camera)
-		}
+			for fire in fires {
+				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
+			}
 
-		rl.EndDrawing()
+			for item in items {
+				draw_shape(item.shape, item.pos, rl.PURPLE)
+			}
+
+			for wall in level.walls {
+				draw_shape(wall.shape, wall.pos, rl.GRAY)
+			}
+
+			for enemy in enemies {
+				draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+				health_bar_length: f32 = 20
+				health_bar_height: f32 = 5
+				health_bar_base_rec := get_centered_rect(
+					{enemy.pos.x, enemy.pos.y - 20},
+					{health_bar_length, health_bar_height},
+				)
+				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+				health_bar_filled_rec := health_bar_base_rec
+				health_bar_filled_rec.width *= enemy.health / enemy.max_health
+				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+				attack_area_color := rl.Color{255, 255, 255, 120}
+				if enemy.just_attacked {
+					attack_area_color = rl.Color{255, 0, 0, 120}
+				}
+				if enemy.charging || enemy.just_attacked {
+					draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
+				}
+
+				// Draw detection area
+				// rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+				// for p, i in enemy.detection_points {
+				// 	rl.DrawLineV(
+				// 		p,
+				// 		enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+				// 		rl.YELLOW,
+				// 	)
+				// }
+
+				if enemy.current_path != nil {
+					for point in enemy.current_path {
+						rl.DrawCircleV(point, 2, rl.RED)
+					}
+				}
+			}
+
+			// Draw Z Entities
+			for &entity in z_entities {
+				entity.sprite.scale = entity.z + 1
+				draw_sprite(entity.sprite, entity.pos)
+			}
+
+			for &entity in bombs {
+				entity.sprite.scale = entity.z + 1
+				draw_sprite(entity.sprite, entity.pos)
+			}
+
+			// Draw Player
+			{
+				// Player Sprite
+				draw_sprite(player_sprite, player.pos)
+
+				// Draw Item
+				if player.selected_item_idx != -1 &&
+				   player.items[player.selected_item_idx].id != .Empty {
+					draw_item(player.items[player.selected_item_idx].id, mouse_world_pos)
+				}
+
+				// Draw Weapon
+				if player.selected_weapon_idx != -1 &&
+				   player.weapons[player.selected_weapon_idx].id != .Empty {
+					draw_item(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
+				}
+
+
+				/* Health Bar */
+				health_bar_length: f32 = 20
+				health_bar_height: f32 = 5
+				health_bar_base_rec := get_centered_rect(
+					{player.pos.x, player.pos.y - 20},
+					{health_bar_length, health_bar_height},
+				)
+				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+				health_bar_filled_rec := health_bar_base_rec
+				health_bar_filled_rec.width *= player.health / player.max_health
+				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+				/* End of Health Bar */
+
+				punch_area_color := rl.Color{255, 255, 255, 120}
+				if punching {
+					punch_area_color = rl.Color{255, 0, 0, 120}
+				}
+				draw_shape(attack_poly, player.pos, punch_area_color)
+
+				// Player pickup range
+				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+				// Collision shape
+				// draw_shape(player.shape, player.pos, rl.RED)
+			}
+
+			#partial switch editor_mode {
+			case .Level:
+				draw_editor_world()
+			case .NavMesh:
+				draw_navmesh_editor_world(mouse_world_pos)
+			}
+
+			rl.EndMode2D()
+
+			// Display Fire Dash Status
+			if current_ability == .FIRE {
+				if can_fire_dash {
+					rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
+				} else {
+					rl.DrawText(
+						fmt.ctprintf("On Cooldown: %f", fire_dash_timer),
+						1000,
+						16,
+						20,
+						rl.WHITE,
+					)
+				}
+			}
+
+			#partial switch editor_mode {
+			case .Level:
+				draw_editor_ui()
+			case .NavMesh:
+				draw_navmesh_editor_ui(mouse_world_pos, camera)
+			}
+
+			rl.EndDrawing()
+		}
 		free_all(context.temp_allocator)
 	}
 
@@ -688,6 +759,51 @@ main :: proc() {
 
 	unload_textures()
 	rl.CloseWindow()
+}
+
+bomb_explosion :: proc(pos: Vec2, radius: f32) {
+	append(&fires, Fire{Circle{pos, radius}, 0.5})
+}
+
+zentity_move :: proc(e: ^ZEntity, delta: f32) {
+	friction: f32 = 300
+	gravity: f32 = 50
+
+	// Z movement
+	{
+		// Apply gravity
+		if e.vel_z > 0 || e.z > 0 {
+			e.vel_z -= gravity * delta
+			e.z += e.vel_z * delta
+		}
+		// Snap to ground
+		if e.z < 0 {
+			e.z = 0
+			if e.vel_z < 0 {
+				e.vel_z = 0
+			}
+		}
+	}
+
+	// 2D Movement
+	{
+		// Apply friction if on ground
+		if e.z <= 0 {
+			friction_dir: Vec2 = -normalize(e.vel)
+			friction_v := friction_dir * friction * delta
+
+			e.vel += friction_v
+			// Account for friction overshooting when slowing down
+			if math.sign(e.vel.x) == math.sign(friction_v.x) {
+				e.vel.x = 0
+			}
+			if math.sign(e.vel.y) == math.sign(friction_v.y) {
+				e.vel.y = 0
+			}
+		}
+
+		e.pos += e.vel * delta
+	}
 }
 
 player_move :: proc(e: ^Player, delta: f32) {
@@ -805,30 +921,6 @@ cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -
 	return min_t
 }
 
-// move :: proc(e: ^MovingEntity, input: Vec2, acceleration: f32, max_speed: f32, delta: f32) {
-// 	e.vel += normalize(input) * acceleration * delta
-
-// 	friction_vector: Vec2
-// 	if input.x == 0 {
-// 		friction_vector.x = -math.sign(e.vel.x)
-// 	}
-// 	if input.y == 0 {
-// 		friction_vector.y = -math.sign(e.vel.y)
-// 	}
-
-// 	e.vel += normalize(friction_vector) * acceleration * 0.5 * delta
-// 	// Prevent friction overshooting
-// 	if math.sign(e.vel.x) == friction_vector.x {e.vel.x = 0}
-// 	if math.sign(e.vel.y) == friction_vector.y {e.vel.y = 0}
-
-// 	speed := length(e.vel)
-// 	if speed > max_speed {
-// 		e.vel = normalize(e.vel) * max_speed
-// 	}
-
-// 	e.pos += e.vel * delta
-// }
-
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
 	dst_rec := Rectangle {
@@ -855,11 +947,15 @@ draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	)
 }
 
-damage_enemy :: proc(enemy: ^Enemy, amount: f32) {
+damage_enemy :: proc(enemy_idx: int, amount: f32) {
+	enemy := &enemies[enemy_idx]
 	enemy.charging = false
 	enemy.health -= amount
 	enemy.flinching = true
 	enemy.current_flinch_time = enemy.start_flinch_time
+	if enemy.health <= 0 {
+		unordered_remove(&enemies, enemy_idx)
+	}
 }
 
 get_directional_input :: proc() -> Vec2 {
@@ -888,11 +984,55 @@ world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
 	return (point - camera.target) * camera.zoom
 }
 
-fire :: proc(item: ItemId, mouse_pos: Vec2) {
+// Returns the count of item used. If the item was not used then this is zero
+fire_pressed :: proc(item: ItemId, mouse_pos: Vec2) -> int {
+	to_mouse := normalize(mouse_pos - player.pos)
+	#partial switch item {
+	case .Bomb:
+		tex := loaded_textures[.Bomb]
+		sprite: Sprite = {
+			.Bomb,
+			{0, 0, f32(tex.width), f32(tex.height)},
+			{1, 1},
+			{1, 2},
+			0,
+			rl.WHITE,
+		}
+		append(
+			&bombs,
+			Bomb {
+				pos = player.pos,
+				shape = Rectangle{-1, 0, 3, 3},
+				vel = to_mouse * 64,
+				z = 0,
+				vel_z = 15,
+				sprite = sprite,
+				time_left = 1,
+			},
+		)
+	case .Sword:
+
+	}
+}
+
+// Returns the count of item used. If the item was not used then this is zero
+fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
+	to_mouse := normalize(mouse_pos - player.pos)
+	#partial switch item {
+	case .Bomb:
+
+	case .Sword:
+
+	}
+}
+
+// Returns the count of item used. If the item was not used then this is zero
+alt_fire :: proc(item: ItemId, mouse_pos: Vec2) -> int {
 
 }
 
-alt_fire :: proc(item: ItemId, mouse_pos: Vec2) {
+// Returns the count of item used. If the item was not used then this is zero
+alt_fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
 
 }
 
@@ -901,7 +1041,10 @@ draw_weapon :: proc(weapon: ItemId, mouse_pos: Vec2) {
 }
 
 draw_item :: proc(item: ItemId, mouse_pos: Vec2) {
-
+	tex_id := item_to_texture[item]
+	tex := loaded_textures[tex_id]
+	sprite: Sprite = {tex_id, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {}, 0, rl.WHITE}
+	draw_sprite(sprite, player.pos)
 }
 
 // Returns true if the item was succesfully picked up
@@ -921,7 +1064,7 @@ pickup_item :: proc(data: ItemData) -> bool {
 				return true
 			}
 		}
-	} else { 	// Is a weapon. Confirmed.
+	} else { 	// Is a weapon
 		for &weapon, i in player.weapons {
 			if weapon.id == .Empty {
 				// Select weapon if currently selected nothing
@@ -949,7 +1092,7 @@ drop_item :: proc() -> ItemData {
 			weapon_data := player.weapons[player.selected_weapon_idx]
 			// Set the weapon to empty and deselect it
 			player.weapons[player.selected_weapon_idx].id = .Empty
-			player.selected_weapon_idx = -1
+			player.selected_weapon_idx = -1 // TODO: make the weapons inLook for ontory tor select
 			return weapon_data
 		}
 	} else {
@@ -957,7 +1100,7 @@ drop_item :: proc() -> ItemData {
 		if player.selected_item_idx != -1 && player.items[player.selected_item_idx].id != .Empty {
 			item_data := player.items[player.selected_item_idx]
 			// Set the item to empty and deselect it
-			player.items[player.selected_item_idx].id = .Empty
+			player.items[player.selected_item_idx].id = .Empty // TODO: Look for other items in inventory to select
 			player.selected_item_idx = -1
 			return item_data
 		}
@@ -971,6 +1114,16 @@ is_control_pressed :: proc(c: Control) -> bool {
 		return rl.IsKeyPressed(v)
 	case rl.MouseButton:
 		return rl.IsMouseButtonPressed(v)
+	}
+	return false
+}
+
+is_control_released :: proc(c: Control) -> bool {
+	switch v in c {
+	case rl.KeyboardKey:
+		return rl.IsKeyReleased(v)
+	case rl.MouseButton:
+		return rl.IsMouseButtonReleased(v)
 	}
 	return false
 }

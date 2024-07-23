@@ -1,5 +1,9 @@
 wishlist
 - environment and dynamic items
+	- inventory
+		- items
+		- weapons
+		- 
 - health system
 	- responds to physics
 	- colliding fast will damage entity
