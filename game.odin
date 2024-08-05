@@ -16,13 +16,16 @@ PLAYER_BASE_FRICTION :: 750
 PLAYER_BASE_HARSH_FRICTION :: 2000
 PLAYER_PUNCH_SIZE :: Vec2{12, 16}
 ENEMY_PATHFINDING_TIME :: 0.5
-PUNCH_TIME :: 0.2
-TIME_BETWEEN_PUNCH :: 0.4
-PUNCH_POWER :: 150
-SWORD_POWER :: 250
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
+
+// weapon/attack related constants
+ATTACK_DURATION :: 0.2
+ATTACK_INTERVAL :: 0.4
+SWORD_DAMAGE :: 10
+SWORD_KNOCKBACK :: 250
+SWORD_HITBOX_OFFSET :: 4
 
 EditorMode :: enum {
 	None,
@@ -57,26 +60,34 @@ Control :: union {
 Controls :: struct {
 	fire:             Control,
 	alt_fire:         Control,
-	drop_item:        Control,
-	// switch between sword and item being active
-	switch_active:    Control,
-	pickup_item:      Control,
+	use_item:         Control,
+	drop:             Control,
+	pickup:           Control,
+	cancel:           Control,
 	movement_ability: Control,
 }
 
 controls: Controls = {
 	fire             = rl.MouseButton.LEFT,
 	alt_fire         = rl.MouseButton.RIGHT,
-	drop_item        = rl.KeyboardKey.Q,
-	switch_active    = rl.KeyboardKey.X,
-	pickup_item      = rl.KeyboardKey.E,
+	use_item         = rl.KeyboardKey.LEFT_SHIFT,
+	drop             = rl.KeyboardKey.Q,
+	pickup           = rl.KeyboardKey.E,
+	cancel           = rl.KeyboardKey.LEFT_CONTROL,
 	movement_ability = rl.KeyboardKey.SPACE,
 }
 
-punching: bool
-punch_timer: f32
-can_punch: bool
-punch_rate_timer: f32
+// weapon-related variables
+attacking: bool
+attack_duration_timer: f32
+can_attack: bool
+attack_interval_timer: f32
+attack_damage: f32
+attack_knockback: f32
+attack_poly: Polygon
+
+sword_hitbox_points: []Vec2
+
 surfing: bool
 current_ability: MovementAbility
 editor_mode: EditorMode = .None
@@ -88,6 +99,11 @@ z_entities: [dynamic]ZEntity
 bombs: [dynamic]Bomb
 fires: [dynamic]Fire
 enemies: [dynamic]Enemy
+hit_enemies: [dynamic]bool
+
+delta: f32
+mouse_world_pos: Vec2
+mouse_world_delta: Vec2
 
 main :: proc() {
 	track: mem.Tracking_Allocator
@@ -116,19 +132,21 @@ main :: proc() {
 		pickup_range        = 16,
 		health              = 100,
 		max_health          = 100,
-		weapon_active       = true,
 		selected_weapon_idx = -1,
 		selected_item_idx   = -1,
 	}
-	player.weapons[0] = {
-		id = .Sword,
-	}
-	player.selected_weapon_idx = 0
 
-	player.items[0] = {
-		id = .Bomb,
+	// Attack hitbox points
+	sword_hitbox_points = {
+		{SWORD_HITBOX_OFFSET, -12},
+		{SWORD_HITBOX_OFFSET + 10, -5},
+		{SWORD_HITBOX_OFFSET + 12, 0},
+		{SWORD_HITBOX_OFFSET + 10, 5},
+		{SWORD_HITBOX_OFFSET, 12},
 	}
-	player.selected_item_idx = 0
+
+	pickup_item({.Sword, 1, 1})
+	pickup_item({.Bomb, 3, 16})
 
 	current_ability = .FIRE
 	can_fire_dash = true
@@ -175,25 +193,17 @@ main :: proc() {
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
-	player_radius: f32 = 8
-	punch_rect: Rectangle = {
-		player_radius,
-		PLAYER_PUNCH_SIZE.y * -0.5,
-		PLAYER_PUNCH_SIZE.x,
-		PLAYER_PUNCH_SIZE.y,
-	}
-	punch_points := rect_to_points(punch_rect)
-	// sword_points: []Vec2 = {
-	// 	{player_radius, -12},
-	// 	{player_radius + 10, -5},
-	// 	{player_radius + 12, 0},
-	// 	{player_radius + 10, 5},
-	// 	{player_radius, 12},
+	// punch_rect: Rectangle = {
+	// 	8,
+	// 	PLAYER_PUNCH_SIZE.y * -0.5,
+	// 	PLAYER_PUNCH_SIZE.x,
+	// 	PLAYER_PUNCH_SIZE.y,
 	// }
-	attack_poly: Polygon
-	attack_poly.points = punch_points[:]
+	// punch_points := rect_to_points(punch_rect)
 
-	hit_enemies: [dynamic]bool = make([dynamic]bool, context.allocator)
+	// attack_poly.points = punch_points[:]
+
+	hit_enemies = make([dynamic]bool, context.allocator)
 	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
 
 	camera = rl.Camera2D {
@@ -202,9 +212,9 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
-		delta := rl.GetFrameTime()
-		mouse_world_pos := rl.GetMousePosition() / camera.zoom + camera.target
-		mouse_world_delta := rl.GetMouseDelta() / camera.zoom
+		delta = rl.GetFrameTime()
+		mouse_world_pos = rl.GetMousePosition() / camera.zoom + camera.target
+		mouse_world_delta = rl.GetMouseDelta() / camera.zoom
 
 		for &timer, i in timers {
 			timer.time_left -= delta
@@ -512,23 +522,67 @@ main :: proc() {
 
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
-		if is_control_pressed(controls.switch_active) {
-			player.weapon_active = !player.weapon_active
-			fmt.printfln("weapon active: %v", player.weapon_active)
-		}
-
 		if is_control_pressed(controls.fire) {
-			if player.weapon_active && player.selected_weapon_idx != -1 {
-				fire(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
-			} else if player.selected_item_idx != -1 {
-				fire(player.items[player.selected_item_idx].id, mouse_world_pos)
+			if player.selected_weapon_idx != -1 {
+				fire_pressed(player.weapons[player.selected_weapon_idx].id)
 			}
 		} else if is_control_pressed(controls.alt_fire) {
 
 		}
 
+		if player.holding_item {
+			switch true {
+			case is_control_released(controls.use_item):
+				use_selected_item()
+				player.holding_item = false
+			case is_control_pressed(controls.drop):
+				//drop item
+				player.holding_item = false
+			case is_control_pressed(controls.cancel):
+				player.holding_item = false
+			}
+			player.item_hold_time += delta
+		}
+		if is_control_pressed(controls.use_item) {
+			player.holding_item = true
+			player.item_hold_time = 0
+		}
+
+		// Item drop
+		if is_control_pressed(controls.drop) {
+			if item_data := drop_item(); item_data.id != .Empty {
+				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
+			}
+		}
+
+		if attacking {
+			if attack_duration_timer <= 0 {
+				attacking = false
+				attack_interval_timer = ATTACK_INTERVAL
+			} else {
+				attack_duration_timer -= delta
+				for enemy, i in enemies {
+					if !hit_enemies[i] &&
+					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
+						enemies[i].vel +=
+							normalize(mouse_world_pos - player.pos) * attack_knockback
+						hit_enemies[i] = true
+						damage_enemy(i, attack_damage)
+						if enemy.health <= 0 {
+							unordered_remove(&enemies, i)
+						}
+					}
+				}
+			}
+		} else if !can_attack { 	// If right after punch finished then tick punch rate timer until done
+			if attack_interval_timer <= 0 {
+				can_attack = true
+			}
+			attack_interval_timer -= delta
+		}
+
 		// Item pickup
-		if is_control_pressed(controls.pickup_item) {
+		if is_control_pressed(controls.pickup) {
 			closest_item_idx := -1
 			closest_item_dist_sqrd := math.INF_F32
 			for item, i in items {
@@ -552,28 +606,12 @@ main :: proc() {
 				}
 			}
 			fmt.printfln(
-				"weapons: %v, items: %v, weapon_active: %v, selected_weapon: %v, selected_item: %v",
+				"weapons: %v, items: %v, selected_weapon: %v, selected_item: %v",
 				player.weapons,
 				player.items,
-				player.weapon_active,
 				player.selected_weapon_idx,
 				player.selected_item_idx,
 			)
-		}
-
-		// Item drop
-		if is_control_pressed(controls.drop_item) {
-			if item_data := drop_item(); item_data.id != .Empty {
-				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
-			}
-			// fmt.printfln(
-			// 	"weapons: %v, items: %v, weapon_active: %v, selected_weapon: %v, selected_item: %v",
-			// 	player.weapons,
-			// 	player.items,
-			// 	player.weapon_active,
-			// 	player.selected_weapon_idx,
-			// 	player.selected_item_idx,
-			// )
 		}
 
 		// Drawing
@@ -697,11 +735,13 @@ main :: proc() {
 				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 				/* End of Health Bar */
 
-				punch_area_color := rl.Color{255, 255, 255, 120}
-				if punching {
-					punch_area_color = rl.Color{255, 0, 0, 120}
+				if !player.holding_item && player.selected_weapon_idx != -1 {
+					attack_hitbox_color := rl.Color{255, 255, 255, 120}
+					if attacking {
+						attack_hitbox_color = rl.Color{255, 0, 0, 120}
+					}
+					draw_shape(attack_poly, player.pos, attack_hitbox_color)
 				}
-				draw_shape(attack_poly, player.pos, punch_area_color)
 
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
@@ -984,10 +1024,18 @@ world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
 	return (point - camera.target) * camera.zoom
 }
 
-// Returns the count of item used. If the item was not used then this is zero
-fire_pressed :: proc(item: ItemId, mouse_pos: Vec2) -> int {
-	to_mouse := normalize(mouse_pos - player.pos)
-	#partial switch item {
+use_selected_item :: proc() {
+	// get selected item ItemId
+	if player.selected_item_idx == -1 {return}
+	item_data := player.items[player.selected_item_idx]
+	if item_data.id == .Empty || item_data.id >= .Sword {
+		assert(false, "can't use item with empty or weapon id")
+	}
+
+	to_mouse := normalize(mouse_world_pos - player.pos)
+
+	// use item
+	#partial switch item_data.id {
 	case .Bomb:
 		tex := loaded_textures[.Bomb]
 		sprite: Sprite = {
@@ -1010,30 +1058,77 @@ fire_pressed :: proc(item: ItemId, mouse_pos: Vec2) -> int {
 				time_left = 1,
 			},
 		)
-	case .Sword:
-
+		add_to_selected_item_count(-1)
 	}
+	// subtract from the count of item in the inventory. if no item is left then
+}
+
+// Adds to the count of selected item. If the count is less than then it removes the item from the player and deselects it
+// Excess will return a positive int if adding to the count exceeds the max_count. excess will be negative if count goes below 0
+add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
+	if player.selected_item_idx == -1 {return} 	// No item is selected
+
+	item_data := &player.items[player.selected_item_idx]
+	if item_data.id == .Empty ||
+	   item_data.id >= .Sword ||
+	   item_data.count <= 0 ||
+	   item_data.count > item_data.max_count {
+		assert(false, "invalid item data")
+	}
+	item_data.count += to_add
+	if item_data.count <= 0 {
+		// Deselect item if count <= 0
+		excess = item_data.count
+		item_data.count = 0
+		player.selected_item_idx = -1
+	} else if item_data.count > item_data.max_count {
+		excess = item_data.count - item_data.max_count
+		item_data.count = item_data.max_count
+	}
+	return
+}
+
+// Returns the count of item used. If the item was not used then this is zero
+fire_pressed :: proc(item: ItemId) -> int {
+	// to_mouse := normalize(mouse_world_pos - player.pos)
+	#partial switch item {
+	case .Sword:
+		// play sword attack animation
+		if can_attack {
+			// Attack
+			attack_duration_timer = ATTACK_DURATION
+			attacking = true
+			attack_damage = SWORD_DAMAGE
+			attack_knockback = SWORD_KNOCKBACK
+			can_attack = false
+			for i in 0 ..< len(hit_enemies) {
+				hit_enemies[i] = false
+			}
+		}
+	}
+	return 0
 }
 
 // Returns the count of item used. If the item was not used then this is zero
 fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
-	to_mouse := normalize(mouse_pos - player.pos)
+	// to_mouse := normalize(mouse_pos - player.pos)
 	#partial switch item {
-	case .Bomb:
-
 	case .Sword:
 
 	}
+	return 0
 }
 
 // Returns the count of item used. If the item was not used then this is zero
 alt_fire :: proc(item: ItemId, mouse_pos: Vec2) -> int {
 
+	return 0
 }
 
 // Returns the count of item used. If the item was not used then this is zero
 alt_fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
 
+	return 0
 }
 
 draw_weapon :: proc(weapon: ItemId, mouse_pos: Vec2) {
@@ -1056,10 +1151,6 @@ pickup_item :: proc(data: ItemData) -> bool {
 				// Select item if currently selected nothing
 				if player.selected_item_idx == -1 {
 					player.selected_item_idx = i
-					// If no weapon selected then make item active
-					if player.selected_weapon_idx == -1 {
-						player.weapon_active = false
-					}
 				}
 				return true
 			}
@@ -1067,15 +1158,11 @@ pickup_item :: proc(data: ItemData) -> bool {
 	} else { 	// Is a weapon
 		for &weapon, i in player.weapons {
 			if weapon.id == .Empty {
+				weapon = data
 				// Select weapon if currently selected nothing
 				if player.selected_weapon_idx == -1 {
-					player.selected_weapon_idx = i
-					// If no item selected then make weapon active
-					if player.selected_item_idx == -1 {
-						player.weapon_active = true
-					}
+					select_weapon(i)
 				}
-				weapon = data
 				return true
 			}
 		}
@@ -1083,16 +1170,25 @@ pickup_item :: proc(data: ItemData) -> bool {
 	return false
 }
 
-// Removes the currently selective and active item/weapon from player's inventory and returns its ItemData
+select_weapon :: proc(idx: int) {
+	player.selected_weapon_idx = idx
+	#partial switch player.weapons[idx].id {
+	case .Sword:
+		fmt.println("setting points")
+		attack_poly.points = sword_hitbox_points
+	}
+}
+
+// Removes the currently selected and active item/weapon from player's inventory and returns its ItemData
 drop_item :: proc() -> ItemData {
-	if player.weapon_active {
+	if !player.holding_item {
 		// If a weapon is selected and it is not empty
 		if player.selected_weapon_idx != -1 &&
 		   player.weapons[player.selected_weapon_idx].id != .Empty {
 			weapon_data := player.weapons[player.selected_weapon_idx]
 			// Set the weapon to empty and deselect it
 			player.weapons[player.selected_weapon_idx].id = .Empty
-			player.selected_weapon_idx = -1 // TODO: make the weapons inLook for ontory tor select
+			player.selected_weapon_idx = -1 // TODO: Look for other weapons to select
 			return weapon_data
 		}
 	} else {

@@ -53,9 +53,10 @@ Player :: struct {
 	max_health:          f32,
 	weapons:             [2]ItemData,
 	items:               [6]ItemData,
-	weapon_active:       bool,
 	selected_weapon_idx: int,
 	selected_item_idx:   int,
+	holding_item:        bool,
+	item_hold_time:      f32,
 }
 
 ZEntity :: struct {

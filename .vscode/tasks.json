@@ -4,26 +4,10 @@
 	"args": [],
 	"tasks": [
 		{
-			"label": "mkdir",
-			"type": "shell",
-			"command": "cmd",
-			"args": [
-				"/C",
-				"if not exist .\\build mkdir .\\build"
-			]
-		},
-		{
-			"label": "build",
+			"label": "Build",
 			"type": "shell",
 			"command": "odin build . -debug -out:build/debug.exe -vet -strict-style",
 			"group": "build"
 		},
-		{
-			"label": "Build",
-			"dependsOn": [
-				"mkdir",
-				"build"
-			]
-		}
 	]
 }
