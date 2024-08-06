@@ -58,23 +58,25 @@ Control :: union {
 }
 
 Controls :: struct {
-	fire:             Control,
-	alt_fire:         Control,
-	use_item:         Control,
-	drop:             Control,
-	pickup:           Control,
-	cancel:           Control,
-	movement_ability: Control,
+	fire:                   Control,
+	alt_fire:               Control,
+	use_item:               Control,
+	switch_selected_weapon: Control,
+	drop:                   Control,
+	pickup:                 Control,
+	cancel:                 Control,
+	movement_ability:       Control,
 }
 
 controls: Controls = {
-	fire             = rl.MouseButton.LEFT,
-	alt_fire         = rl.MouseButton.RIGHT,
-	use_item         = rl.MouseButton.MIDDLE,
-	drop             = rl.KeyboardKey.Q,
-	pickup           = rl.KeyboardKey.E,
-	cancel           = rl.KeyboardKey.LEFT_CONTROL,
-	movement_ability = rl.KeyboardKey.SPACE,
+	fire                   = rl.MouseButton.LEFT,
+	alt_fire               = rl.MouseButton.RIGHT,
+	use_item               = rl.MouseButton.MIDDLE,
+	switch_selected_weapon = rl.KeyboardKey.X,
+	drop                   = rl.KeyboardKey.Q,
+	pickup                 = rl.KeyboardKey.E,
+	cancel                 = rl.KeyboardKey.LEFT_CONTROL,
+	movement_ability       = rl.KeyboardKey.SPACE,
 }
 
 // weapon-related variables
@@ -127,13 +129,12 @@ main :: proc() {
 	load_navmesh()
 
 	player = {
-		pos                 = {32, 32},
-		shape               = Circle{{}, 8},
-		pickup_range        = 16,
-		health              = 100,
-		max_health          = 100,
-		selected_weapon_idx = -1,
-		selected_item_idx   = -1,
+		pos               = {32, 32},
+		shape             = Circle{{}, 8},
+		pickup_range      = 16,
+		health            = 100,
+		max_health        = 100,
+		selected_item_idx = -1,
 	}
 
 	// Attack hitbox points
@@ -523,7 +524,7 @@ main :: proc() {
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
 		if is_control_pressed(controls.fire) {
-			if player.selected_weapon_idx != -1 {
+			if player.weapons[player.selected_weapon_idx].id >= .Sword {
 				fire_pressed(player.weapons[player.selected_weapon_idx].id)
 			}
 		} else if is_control_pressed(controls.alt_fire) {
@@ -550,6 +551,12 @@ main :: proc() {
 			if item_data := drop_item(); item_data.id != .Empty {
 				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
 			}
+		}
+
+		// Weapon switching
+		if is_control_pressed(controls.switch_selected_weapon) {
+			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
+			fmt.println("switchted to weapon", player.selected_weapon_idx)
 		}
 
 		if attacking {
@@ -713,8 +720,7 @@ main :: proc() {
 				}
 
 				// Draw Weapon
-				if player.selected_weapon_idx != -1 &&
-				   player.weapons[player.selected_weapon_idx].id != .Empty {
+				if player.weapons[player.selected_weapon_idx].id != .Empty {
 					draw_item(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
 				}
 
@@ -732,7 +738,8 @@ main :: proc() {
 				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 				/* End of Health Bar */
 
-				if !player.holding_item && player.selected_weapon_idx != -1 {
+				if !player.holding_item &&
+				   player.weapons[player.selected_weapon_idx].id >= .Sword {
 					attack_hitbox_color := rl.Color{255, 255, 255, 120}
 					if attacking {
 						attack_hitbox_color = rl.Color{255, 0, 0, 120}
@@ -1156,10 +1163,13 @@ pickup_item :: proc(data: ItemData) -> bool {
 		for &weapon, i in player.weapons {
 			if weapon.id == .Empty {
 				weapon = data
+
 				// Select weapon if currently selected nothing
-				if player.selected_weapon_idx == -1 {
+				if player.weapons[player.selected_weapon_idx].id == .Empty ||
+				   player.selected_weapon_idx == i {
 					select_weapon(i)
 				}
+
 				return true
 			}
 		}
@@ -1179,12 +1189,10 @@ select_weapon :: proc(idx: int) {
 drop_item :: proc() -> ItemData {
 	if !player.holding_item {
 		// If a weapon is selected and it is not empty
-		if player.selected_weapon_idx != -1 &&
-		   player.weapons[player.selected_weapon_idx].id != .Empty {
+		if player.weapons[player.selected_weapon_idx].id != .Empty {
 			weapon_data := player.weapons[player.selected_weapon_idx]
 			// Set the weapon to empty and deselect it
 			player.weapons[player.selected_weapon_idx].id = .Empty
-			player.selected_weapon_idx = -1 // TODO: Look for other weapons to select
 			return weapon_data
 		}
 	} else {
