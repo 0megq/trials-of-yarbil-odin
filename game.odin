@@ -70,7 +70,7 @@ Controls :: struct {
 controls: Controls = {
 	fire             = rl.MouseButton.LEFT,
 	alt_fire         = rl.MouseButton.RIGHT,
-	use_item         = rl.KeyboardKey.LEFT_SHIFT,
+	use_item         = rl.MouseButton.MIDDLE,
 	drop             = rl.KeyboardKey.Q,
 	pickup           = rl.KeyboardKey.E,
 	cancel           = rl.KeyboardKey.LEFT_CONTROL,
@@ -531,16 +531,13 @@ main :: proc() {
 		}
 
 		if player.holding_item {
-			switch true {
-			case is_control_released(controls.use_item):
+			if is_control_pressed(controls.cancel) {
+				player.holding_item = false
+			} else if is_control_released(controls.use_item) {
 				use_selected_item()
 				player.holding_item = false
-			case is_control_pressed(controls.drop):
-				//drop item
-				player.holding_item = false
-			case is_control_pressed(controls.cancel):
-				player.holding_item = false
 			}
+
 			player.item_hold_time += delta
 		}
 		if is_control_pressed(controls.use_item) {
@@ -605,13 +602,13 @@ main :: proc() {
 					unordered_remove(&items, closest_item_idx)
 				}
 			}
-			fmt.printfln(
-				"weapons: %v, items: %v, selected_weapon: %v, selected_item: %v",
-				player.weapons,
-				player.items,
-				player.selected_weapon_idx,
-				player.selected_item_idx,
-			)
+			// fmt.printfln(
+			// 	"weapons: %v, items: %v, selected_weapon: %v, selected_item: %v",
+			// 	player.weapons,
+			// 	player.items,
+			// 	player.selected_weapon_idx,
+			// 	player.selected_item_idx,
+			// )
 		}
 
 		// Drawing
@@ -1174,7 +1171,6 @@ select_weapon :: proc(idx: int) {
 	player.selected_weapon_idx = idx
 	#partial switch player.weapons[idx].id {
 	case .Sword:
-		fmt.println("setting points")
 		attack_poly.points = sword_hitbox_points
 	}
 }
@@ -1198,6 +1194,7 @@ drop_item :: proc() -> ItemData {
 			// Set the item to empty and deselect it
 			player.items[player.selected_item_idx].id = .Empty // TODO: Look for other items in inventory to select
 			player.selected_item_idx = -1
+			player.holding_item = false
 			return item_data
 		}
 	}
