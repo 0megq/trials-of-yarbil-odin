@@ -129,12 +129,11 @@ main :: proc() {
 	load_navmesh()
 
 	player = {
-		pos               = {32, 32},
-		shape             = Circle{{}, 8},
-		pickup_range      = 16,
-		health            = 100,
-		max_health        = 100,
-		selected_item_idx = -1,
+		pos          = {32, 32},
+		shape        = Circle{{}, 8},
+		pickup_range = 16,
+		health       = 100,
+		max_health   = 100,
 	}
 
 	// Attack hitbox points
@@ -165,6 +164,8 @@ main :: proc() {
 
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, data = {.Sword, 10, 10}})
+	append(&items, Item{pos = {200, 50}, shape = Circle{{}, 4}, data = {.Bomb, 1, 16}})
+	append(&items, Item{pos = {100, 50}, shape = Circle{{}, 4}, data = {.Bomb, 5, 16}})
 
 	level: Level
 
@@ -541,7 +542,8 @@ main :: proc() {
 
 			player.item_hold_time += delta
 		}
-		if is_control_pressed(controls.use_item) {
+		if is_control_pressed(controls.use_item) &&
+		   player.items[player.selected_item_idx].id != .Empty {
 			player.holding_item = true
 			player.item_hold_time = 0
 		}
@@ -551,6 +553,14 @@ main :: proc() {
 			if item_data := drop_item(); item_data.id != .Empty {
 				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
 			}
+		}
+
+		// Item switching
+		if y := int(rl.GetMouseWheelMove()); y != 0 {
+			if player.item_count > 1 {
+				player.selected_item_idx = (player.selected_item_idx - y) %% player.item_count
+			}
+			fmt.println(player.selected_item_idx)
 		}
 
 		// Weapon switching
@@ -714,8 +724,7 @@ main :: proc() {
 				draw_sprite(player_sprite, player.pos)
 
 				// Draw Item
-				if player.selected_item_idx != -1 &&
-				   player.items[player.selected_item_idx].id != .Empty {
+				if player.items[player.selected_item_idx].id != .Empty {
 					draw_item(player.items[player.selected_item_idx].id, mouse_world_pos)
 				}
 
@@ -1030,7 +1039,6 @@ world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
 
 use_selected_item :: proc() {
 	// get selected item ItemId
-	if player.selected_item_idx == -1 {return}
 	item_data := player.items[player.selected_item_idx]
 	if item_data.id == .Empty || item_data.id >= .Sword {
 		assert(false, "can't use item with empty or weapon id")
@@ -1070,8 +1078,6 @@ use_selected_item :: proc() {
 // Adds to the count of selected item. If the count is less than then it removes the item from the player and deselects it
 // Excess will return a positive int if adding to the count exceeds the max_count. excess will be negative if count goes below 0
 add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
-	if player.selected_item_idx == -1 {return} 	// No item is selected
-
 	item_data := &player.items[player.selected_item_idx]
 	if item_data.id == .Empty ||
 	   item_data.id >= .Sword ||
@@ -1084,7 +1090,7 @@ add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
 		// Deselect item if count <= 0
 		excess = item_data.count
 		item_data.count = 0
-		player.selected_item_idx = -1
+		remove_selected_item()
 	} else if item_data.count > item_data.max_count {
 		excess = item_data.count - item_data.max_count
 		item_data.count = item_data.max_count
@@ -1146,16 +1152,33 @@ draw_item :: proc(item: ItemId, mouse_pos: Vec2) {
 	draw_sprite(sprite, player.pos)
 }
 
+remove_selected_item :: proc() {
+	player.item_count -= 1
+	// If there is no empty in the next slot (last idx in items array or if next idx has Empty)
+	if player.selected_item_idx == len(player.items) - 1 ||
+	   player.items[player.selected_item_idx + 1].id == .Empty {
+		player.items[player.selected_item_idx].id = .Empty
+		player.selected_item_idx = 0
+	} else {
+		// This is not the most efficient way to do this, but it works fine
+		for i := player.selected_item_idx + 1; i < len(player.items); i += 1 {
+			// Copy value to prev index
+			player.items[i - 1] = player.items[i]
+		}
+		// Set last item to empty
+		player.items[len(player.items) - 1].id = .Empty
+	}
+	fmt.println(player.selected_item_idx, player.items)
+}
+
 // Returns true if the item was succesfully picked up
 pickup_item :: proc(data: ItemData) -> bool {
 	if data.id < ItemId(100) { 	// Not a weapon
-		for &item, i in player.items {
+		for &item in player.items {
 			if item.id == .Empty {
 				item = data
-				// Select item if currently selected nothing
-				if player.selected_item_idx == -1 {
-					player.selected_item_idx = i
-				}
+				player.item_count += 1
+				fmt.println(player.selected_item_idx, player.items)
 				return true
 			}
 		}
@@ -1197,11 +1220,9 @@ drop_item :: proc() -> ItemData {
 		}
 	} else {
 		// If a item is selected and it is not empty
-		if player.selected_item_idx != -1 && player.items[player.selected_item_idx].id != .Empty {
+		if player.items[player.selected_item_idx].id != .Empty {
 			item_data := player.items[player.selected_item_idx]
-			// Set the item to empty and deselect it
-			player.items[player.selected_item_idx].id = .Empty // TODO: Look for other items in inventory to select
-			player.selected_item_idx = -1
+			remove_selected_item()
 			player.holding_item = false
 			return item_data
 		}

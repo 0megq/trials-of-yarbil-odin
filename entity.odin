@@ -55,6 +55,7 @@ Player :: struct {
 	items:               [6]ItemData,
 	selected_weapon_idx: int,
 	selected_item_idx:   int,
+	item_count:          int,
 	holding_item:        bool,
 	item_hold_time:      f32,
 }
