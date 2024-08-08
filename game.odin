@@ -165,7 +165,7 @@ main :: proc() {
 	items := make([dynamic]Item, context.allocator)
 	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, data = {.Sword, 10, 10}})
 	append(&items, Item{pos = {200, 50}, shape = Circle{{}, 4}, data = {.Bomb, 1, 16}})
-	append(&items, Item{pos = {100, 50}, shape = Circle{{}, 4}, data = {.Bomb, 5, 16}})
+	append(&items, Item{pos = {100, 50}, shape = Circle{{}, 4}, data = {.Apple, 5, 16}})
 
 	level: Level
 
@@ -560,13 +560,12 @@ main :: proc() {
 			if player.item_count > 1 {
 				player.selected_item_idx = (player.selected_item_idx - y) %% player.item_count
 			}
-			fmt.println(player.selected_item_idx)
 		}
 
 		// Weapon switching
 		if is_control_pressed(controls.switch_selected_weapon) {
 			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
-			fmt.println("switchted to weapon", player.selected_weapon_idx)
+			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
 
 		if attacking {
@@ -771,20 +770,8 @@ main :: proc() {
 
 			rl.EndMode2D()
 
-			// Display Fire Dash Status
-			if current_ability == .FIRE {
-				if can_fire_dash {
-					rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
-				} else {
-					rl.DrawText(
-						fmt.ctprintf("On Cooldown: %f", fire_dash_timer),
-						1000,
-						16,
-						20,
-						rl.WHITE,
-					)
-				}
-			}
+			draw_hud()
+
 
 			#partial switch editor_mode {
 			case .Level:
@@ -1168,7 +1155,6 @@ remove_selected_item :: proc() {
 		// Set last item to empty
 		player.items[len(player.items) - 1].id = .Empty
 	}
-	fmt.println(player.selected_item_idx, player.items)
 }
 
 // Returns true if the item was succesfully picked up
@@ -1178,7 +1164,6 @@ pickup_item :: proc(data: ItemData) -> bool {
 			if item.id == .Empty {
 				item = data
 				player.item_count += 1
-				fmt.println(player.selected_item_idx, player.items)
 				return true
 			}
 		}
