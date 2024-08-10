@@ -19,6 +19,7 @@ ENEMY_PATHFINDING_TIME :: 0.5
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
+ITEM_HOLD_DIVISOR :: 1
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.2
@@ -80,7 +81,6 @@ controls: Controls = {
 }
 
 // weapon-related variables
-attacking: bool
 attack_duration_timer: f32
 can_attack: bool
 attack_interval_timer: f32
@@ -584,9 +584,13 @@ main :: proc() {
 		if is_control_pressed(controls.fire) {
 			if player.weapons[player.selected_weapon_idx].id >= .Sword {
 				fire_selected_weapon()
+				player.holding_item = false // Cancel item hold
+				player.charging_weapon = false // cancel charge
 			}
 		} else if is_control_pressed(controls.alt_fire) &&
 		   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
+			player.attacking = false // Cancel attack if attacking
+			player.holding_item = false // Cancel item hold
 			player.charging_weapon = true
 			player.weapon_charge_time = 0
 		}
@@ -603,6 +607,8 @@ main :: proc() {
 		}
 		if is_control_pressed(controls.use_item) &&
 		   player.items[player.selected_item_idx].id != .Empty {
+			player.attacking = false // Cancel attack
+			player.charging_weapon = false // Cancel charge
 			player.holding_item = true
 			player.item_hold_time = 0
 		}
@@ -627,13 +633,14 @@ main :: proc() {
 		player.weapon_switched = false
 		if is_control_pressed(controls.switch_selected_weapon) {
 			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
+			player.attacking = false // Cancel attack if attacking
 			player.weapon_switched = true
 			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
 
-		if attacking {
+		if player.attacking {
 			if attack_duration_timer <= 0 {
-				attacking = false
+				player.attacking = false
 				attack_interval_timer = ATTACK_INTERVAL
 			} else {
 				attack_duration_timer -= delta
@@ -800,6 +807,23 @@ main :: proc() {
 					draw_item(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
 				}
 
+				/* Item hold bar */
+				if player.holding_item {
+					hold_bar_length: f32 = 2
+					hold_bar_height: f32 = 8
+					hold_bar_base_rec := get_centered_rect(
+						{player.pos.x, player.pos.y},
+						{hold_bar_length, hold_bar_height},
+					)
+					rl.DrawRectangleRec(hold_bar_base_rec, rl.BLACK)
+					hold_bar_filled_rec := hold_bar_base_rec
+
+					hold_bar_filled_rec.height *= get_item_hold_multiplier()
+					hold_bar_filled_rec.y =
+						hold_bar_base_rec.y + hold_bar_base_rec.height - hold_bar_filled_rec.height
+					rl.DrawRectangleRec(hold_bar_filled_rec, rl.GREEN)
+				}
+				/* End of Item hold bar */
 
 				/* Health Bar */
 				health_bar_length: f32 = 20
@@ -817,7 +841,7 @@ main :: proc() {
 				if !player.holding_item &&
 				   player.weapons[player.selected_weapon_idx].id >= .Sword {
 					attack_hitbox_color := rl.Color{255, 255, 255, 120}
-					if attacking {
+					if player.attacking {
 						attack_hitbox_color = rl.Color{255, 0, 0, 120}
 					}
 					draw_shape(attack_poly, player.pos, attack_hitbox_color)
@@ -1029,6 +1053,21 @@ cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -
 	return min_t
 }
 
+get_item_hold_multiplier :: proc() -> f32 {
+	// https://en.wikipedia.org/wiki/Triangle_wave
+	// 1/p * abs((x - p) % (2 * p) - p)
+	// p = HOLD_DIVISOR
+	// x = player.item_hold_time
+	// Returns a value between 0 and 1
+	return(
+		math.abs(
+			math.mod(player.item_hold_time + ITEM_HOLD_DIVISOR, 2 * ITEM_HOLD_DIVISOR) -
+			ITEM_HOLD_DIVISOR,
+		) /
+		ITEM_HOLD_DIVISOR \
+	)
+}
+
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
 	dst_rec := Rectangle {
@@ -1101,6 +1140,8 @@ use_selected_item :: proc() {
 
 	to_mouse := normalize(mouse_world_pos - player.pos)
 
+	hold_multiplier := get_item_hold_multiplier()
+
 	// use item
 	#partial switch item_data.id {
 	case .Bomb:
@@ -1113,8 +1154,8 @@ use_selected_item :: proc() {
 			0,
 			rl.WHITE,
 		}
-		// The coefficient here is an arbitrary multiplier. TODO: make a constant variable for it. Min is also picked arbitrarily
-		base_vel := min(player.item_hold_time * 30, 180)
+		// 180 is an arbitrary multiplier. TODO: make a constant variable for it
+		base_vel := hold_multiplier * 180
 		append(
 			&bombs,
 			Bomb {
@@ -1164,7 +1205,7 @@ fire_selected_weapon :: proc() -> int {
 		if can_attack {
 			// Attack
 			attack_duration_timer = ATTACK_DURATION
-			attacking = true
+			player.attacking = true
 			attack_damage = SWORD_DAMAGE
 			attack_knockback = SWORD_KNOCKBACK
 			can_attack = false
@@ -1299,6 +1340,8 @@ drop_item :: proc() -> ItemData {
 			weapon_data := player.weapons[player.selected_weapon_idx]
 			// Set the weapon to empty and deselect it
 			player.weapons[player.selected_weapon_idx].id = .Empty
+			player.charging_weapon = false // Stop charging
+			player.attacking = false // Cancel attack
 			return weapon_data
 		}
 	} else {

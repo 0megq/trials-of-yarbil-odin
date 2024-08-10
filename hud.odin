@@ -10,9 +10,11 @@ draw_hud :: proc() {
 	margin :: 16
 	// Show selected item
 	{
+		selected_item := player.items[player.selected_item_idx]
+
 		pos := Vec2{16, f32(WINDOW_SIZE.y) - slot_size * 2 - margin}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-		tex := loaded_textures[item_to_texture[player.items[player.selected_item_idx].id]]
+		tex := loaded_textures[item_to_texture[selected_item.id]]
 		src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
 		dst := Rectangle {
 			pos.x + slot_size / 2,
@@ -20,15 +22,17 @@ draw_hud :: proc() {
 			f32(tex.width) * 3,
 			f32(tex.height) * 3,
 		}
-		rl.DrawTexturePro(tex, src, dst, {f32(tex.width), f32(tex.height)} * 1.5, 0, rl.WHITE)
-		// Show count
-		rl.DrawText(
-			fmt.ctprintf("% 2d", player.items[player.selected_item_idx].count),
-			i32(pos.x) + slot_size / 2,
-			i32(pos.y) + slot_size / 2 - 12,
-			12,
-			rl.BLACK,
-		)
+		if selected_item.count != 0 && selected_item.id != .Empty {
+			rl.DrawTexturePro(tex, src, dst, {f32(tex.width), f32(tex.height)} * 1.5, 0, rl.WHITE)
+			// Show count
+			rl.DrawText(
+				fmt.ctprintf("% 2d", selected_item.count),
+				i32(pos.x) + slot_size / 2,
+				i32(pos.y) + slot_size / 2 - 12,
+				12,
+				rl.BLACK,
+			)
+		}
 	}
 
 	// Show next and prev item when holding item

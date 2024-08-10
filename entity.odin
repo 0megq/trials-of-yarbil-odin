@@ -62,6 +62,7 @@ Player :: struct {
 	weapon_charge_time:  f32,
 	weapon_switched:     bool, // Only true for 1 frame
 	item_switched:       bool,
+	attacking:           bool,
 }
 
 ZEntity :: struct {
