@@ -58,6 +58,10 @@ Player :: struct {
 	item_count:          int,
 	holding_item:        bool,
 	item_hold_time:      f32,
+	charging_weapon:     bool,
+	weapon_charge_time:  f32,
+	weapon_switched:     bool, // Only true for 1 frame
+	item_switched:       bool,
 }
 
 ZEntity :: struct {
@@ -65,6 +69,11 @@ ZEntity :: struct {
 	z:                   f32,
 	vel_z:               f32,
 	sprite:              Sprite,
+}
+
+ProjectileWeapon :: struct {
+	using zentity: ZEntity,
+	data:          ItemData,
 }
 
 Bomb :: struct {

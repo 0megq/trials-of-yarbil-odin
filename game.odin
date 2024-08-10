@@ -99,6 +99,7 @@ player: Player
 camera: rl.Camera2D
 z_entities: [dynamic]ZEntity
 bombs: [dynamic]Bomb
+projectile_weapons: [dynamic]ProjectileWeapon
 fires: [dynamic]Fire
 enemies: [dynamic]Enemy
 hit_enemies: [dynamic]bool
@@ -145,7 +146,7 @@ main :: proc() {
 		{SWORD_HITBOX_OFFSET, 12},
 	}
 
-	pickup_item({.Sword, 1, 1})
+	pickup_item({.Sword, 100, 100})
 	pickup_item({.Bomb, 3, 16})
 
 	current_ability = .FIRE
@@ -157,6 +158,7 @@ main :: proc() {
 
 	z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
+	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -515,6 +517,50 @@ main :: proc() {
 			}
 		}
 
+		for &weapon, i in projectile_weapons {
+			zentity_move(&weapon, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+					weapon.data.count -= 1
+					if weapon.data.count <= 0 {
+						unordered_remove(&projectile_weapons, i)
+					}
+				}
+			}
+			for enemy, j in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
+					if !hit_enemies[j] {
+						damage_enemy(j, 10)
+						hit_enemies[j] = true
+						weapon.data.count -= 1
+					}
+				}
+			}
+			if weapon.z <= 0 {
+				append(&items, Item{pos = weapon.pos, data = weapon.data, shape = Circle{{}, 4}})
+				unordered_remove(&projectile_weapons, i)
+			}
+		}
+
 		// Raycast test
 		// ray_min_t: [18]f32
 		// for &min_t, i in ray_min_t {
@@ -524,16 +570,29 @@ main :: proc() {
 
 		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
+		if player.charging_weapon {
+			if player.weapon_switched || is_control_pressed(controls.cancel) {
+				player.charging_weapon = false
+			} else if is_control_released(controls.alt_fire) {
+				alt_fire_selected_weapon()
+				player.charging_weapon = false
+			}
+
+			player.weapon_charge_time += delta
+		}
+
 		if is_control_pressed(controls.fire) {
 			if player.weapons[player.selected_weapon_idx].id >= .Sword {
-				fire_pressed(player.weapons[player.selected_weapon_idx].id)
+				fire_selected_weapon()
 			}
-		} else if is_control_pressed(controls.alt_fire) {
-
+		} else if is_control_pressed(controls.alt_fire) &&
+		   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
+			player.charging_weapon = true
+			player.weapon_charge_time = 0
 		}
 
 		if player.holding_item {
-			if is_control_pressed(controls.cancel) {
+			if player.item_switched || is_control_pressed(controls.cancel) {
 				player.holding_item = false
 			} else if is_control_released(controls.use_item) {
 				use_selected_item()
@@ -556,15 +615,19 @@ main :: proc() {
 		}
 
 		// Item switching
+		player.item_switched = false
 		if y := int(rl.GetMouseWheelMove()); y != 0 {
 			if player.item_count > 1 {
 				player.selected_item_idx = (player.selected_item_idx - y) %% player.item_count
 			}
+			player.item_switched = true
 		}
 
 		// Weapon switching
+		player.weapon_switched = false
 		if is_control_pressed(controls.switch_selected_weapon) {
 			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
+			player.weapon_switched = true
 			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
 
@@ -713,6 +776,11 @@ main :: proc() {
 			}
 
 			for &entity in bombs {
+				entity.sprite.scale = entity.z + 1
+				draw_sprite(entity.sprite, entity.pos)
+			}
+
+			for &entity in projectile_weapons {
 				entity.sprite.scale = entity.z + 1
 				draw_sprite(entity.sprite, entity.pos)
 			}
@@ -1045,14 +1113,16 @@ use_selected_item :: proc() {
 			0,
 			rl.WHITE,
 		}
+		// The coefficient here is an arbitrary multiplier. TODO: make a constant variable for it. Min is also picked arbitrarily
+		base_vel := min(player.item_hold_time * 30, 180)
 		append(
 			&bombs,
 			Bomb {
 				pos = player.pos,
 				shape = Rectangle{-1, 0, 3, 3},
-				vel = to_mouse * 64,
+				vel = to_mouse * base_vel,
 				z = 0,
-				vel_z = 15,
+				vel_z = 20,
 				sprite = sprite,
 				time_left = 1,
 			},
@@ -1063,13 +1133,10 @@ use_selected_item :: proc() {
 }
 
 // Adds to the count of selected item. If the count is less than then it removes the item from the player and deselects it
-// Excess will return a positive int if adding to the count exceeds the max_count. excess will be negative if count goes below 0
+// Excess will be negative if count goes below 0
 add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
 	item_data := &player.items[player.selected_item_idx]
-	if item_data.id == .Empty ||
-	   item_data.id >= .Sword ||
-	   item_data.count <= 0 ||
-	   item_data.count > item_data.max_count {
+	if item_data.id == .Empty || item_data.id >= .Sword || item_data.count <= 0 {
 		assert(false, "invalid item data")
 	}
 	item_data.count += to_add
@@ -1078,17 +1145,20 @@ add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
 		excess = item_data.count
 		item_data.count = 0
 		remove_selected_item()
-	} else if item_data.count > item_data.max_count {
-		excess = item_data.count - item_data.max_count
-		item_data.count = item_data.max_count
 	}
 	return
 }
 
-// Returns the count of item used. If the item was not used then this is zero
-fire_pressed :: proc(item: ItemId) -> int {
+fire_selected_weapon :: proc() -> int {
+	// get selected weapon ItemId
+	weapon_data := player.weapons[player.selected_weapon_idx]
+	if weapon_data.id < .Sword {
+		assert(false, "can't use weapon with empty or item id")
+	}
 	// to_mouse := normalize(mouse_world_pos - player.pos)
-	#partial switch item {
+
+	// Fire weapon
+	#partial switch weapon_data.id {
 	case .Sword:
 		// play sword attack animation
 		if can_attack {
@@ -1107,24 +1177,49 @@ fire_pressed :: proc(item: ItemId) -> int {
 }
 
 // Returns the count of item used. If the item was not used then this is zero
-fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
-	// to_mouse := normalize(mouse_pos - player.pos)
-	#partial switch item {
-	case .Sword:
-
+alt_fire_selected_weapon :: proc() -> int {
+	// get selected weapon ItemId
+	weapon_data := player.weapons[player.selected_weapon_idx]
+	if weapon_data.id < .Sword {
+		assert(false, "can't use weapon with empty or item id")
 	}
-	return 0
-}
+	to_mouse := normalize(mouse_world_pos - player.pos)
 
-// Returns the count of item used. If the item was not used then this is zero
-alt_fire :: proc(item: ItemId, mouse_pos: Vec2) -> int {
-
-	return 0
-}
-
-// Returns the count of item used. If the item was not used then this is zero
-alt_fire_released :: proc(item: ItemId, mouse_pos: Vec2) -> int {
-
+	// Alt fire weapon
+	#partial switch weapon_data.id {
+	case .Sword:
+		// Throw sword here
+		tex := loaded_textures[.Sword]
+		sprite: Sprite = {
+			.Sword,
+			{0, 0, f32(tex.width), f32(tex.height)},
+			{1, 1},
+			{f32(tex.width) / 2, f32(tex.height) / 2},
+			0,
+			rl.WHITE,
+		}
+		append(
+			&projectile_weapons,
+			ProjectileWeapon {
+				pos = player.pos,
+				shape = Rectangle {
+					-f32(tex.width) / 2,
+					-f32(tex.height) / 2,
+					f32(tex.width),
+					f32(tex.height),
+				},
+				vel = to_mouse * 150,
+				z = 0,
+				vel_z = 12,
+				sprite = sprite,
+				data = weapon_data,
+			},
+		)
+		for i in 0 ..< len(hit_enemies) {
+			hit_enemies[i] = false
+		}
+		player.weapons[player.selected_weapon_idx].id = .Empty
+	}
 	return 0
 }
 
@@ -1164,6 +1259,9 @@ pickup_item :: proc(data: ItemData) -> bool {
 			if item.id == .Empty {
 				item = data
 				player.item_count += 1
+				return true
+			} else if item.id == data.id {
+				item.count += data.count
 				return true
 			}
 		}

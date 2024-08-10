@@ -21,6 +21,14 @@ draw_hud :: proc() {
 			f32(tex.height) * 3,
 		}
 		rl.DrawTexturePro(tex, src, dst, {f32(tex.width), f32(tex.height)} * 1.5, 0, rl.WHITE)
+		// Show count
+		rl.DrawText(
+			fmt.ctprintf("% 2d", player.items[player.selected_item_idx].count),
+			i32(pos.x) + slot_size / 2,
+			i32(pos.y) + slot_size / 2 - 12,
+			12,
+			rl.BLACK,
+		)
 	}
 
 	// Show next and prev item when holding item
@@ -102,6 +110,24 @@ draw_hud :: proc() {
 			f32(WINDOW_SIZE.y) - slot_size * (1 + f32(player.selected_weapon_idx)) - margin,
 		}
 		rl.DrawRectangleLinesEx({pos.x, pos.y, slot_size, slot_size}, 3, rl.GOLD)
+		// Show durability
+
+		if weapon := player.weapons[player.selected_weapon_idx]; weapon.id != .Empty {
+			bar_margin :: 4
+
+			durability_bar_length: f32 = slot_size - bar_margin * 2
+			durability_bar_height: f32 = durability_bar_length / 4
+			durability_bar_base_rec := rl.Rectangle {
+				pos.x + bar_margin,
+				pos.y + slot_size - durability_bar_height - bar_margin,
+				durability_bar_length,
+				durability_bar_height,
+			}
+			rl.DrawRectangleRec(durability_bar_base_rec, rl.BLACK)
+			durability_bar_filled_rec := durability_bar_base_rec
+			durability_bar_filled_rec.width *= f32(weapon.count) / f32(weapon.max_count)
+			rl.DrawRectangleRec(durability_bar_filled_rec, rl.GREEN)
+		}
 	}
 
 
