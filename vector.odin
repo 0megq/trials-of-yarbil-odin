@@ -65,6 +65,11 @@ rotate_vector :: proc(v: Vec2, deg: f32) -> Vec2 {
 	return {v.x * math.cos(rad) - v.y * math.sin(rad), v.x * math.sin(rad) + v.y * math.cos(rad)}
 }
 
+rotate_about_origin :: proc(p: Vec2, origin: Vec2, deg: f32) -> Vec2 {
+	return rotate_vector(p - origin, deg) + origin
+}
+
+// In degrees
 angle :: proc(v: Vec2) -> f32 {
 	return math.atan2(v.y, v.x) * math.DEG_PER_RAD
 }

@@ -89,6 +89,7 @@ attack_knockback: f32
 attack_poly: Polygon
 
 sword_hitbox_points: []Vec2
+is_sword_on_top: bool = true
 
 surfing: bool
 current_ability: MovementAbility
@@ -568,7 +569,6 @@ main :: proc() {
 		// 	min_t = cast_ray_through_level(level.walls[:], player.pos, dir)
 		// }
 
-		attack_poly.rotation = angle(mouse_world_pos - player.pos)
 
 		if player.charging_weapon {
 			if player.weapon_switched || is_control_pressed(controls.cancel) {
@@ -798,13 +798,14 @@ main :: proc() {
 				draw_sprite(player_sprite, player.pos)
 
 				// Draw Item
-				if player.items[player.selected_item_idx].id != .Empty {
-					draw_item(player.items[player.selected_item_idx].id, mouse_world_pos)
+				if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
+					draw_item(player.items[player.selected_item_idx].id)
 				}
 
 				// Draw Weapon
-				if player.weapons[player.selected_weapon_idx].id != .Empty {
-					draw_item(player.weapons[player.selected_weapon_idx].id, mouse_world_pos)
+				if !player.holding_item &&
+				   player.weapons[player.selected_weapon_idx].id != .Empty {
+					draw_weapon(player.weapons[player.selected_weapon_idx].id)
 				}
 
 				/* Item hold bar */
@@ -1204,6 +1205,9 @@ fire_selected_weapon :: proc() -> int {
 		// play sword attack animation
 		if can_attack {
 			// Attack
+			is_sword_on_top = !is_sword_on_top
+
+			attack_poly.rotation = angle(mouse_world_pos - player.pos)
 			attack_duration_timer = ATTACK_DURATION
 			player.attacking = true
 			attack_damage = SWORD_DAMAGE
@@ -1264,15 +1268,35 @@ alt_fire_selected_weapon :: proc() -> int {
 	return 0
 }
 
-draw_weapon :: proc(weapon: ItemId, mouse_pos: Vec2) {
-
-}
-
-draw_item :: proc(item: ItemId, mouse_pos: Vec2) {
+draw_item :: proc(item: ItemId) {
 	tex_id := item_to_texture[item]
 	tex := loaded_textures[tex_id]
 	sprite: Sprite = {tex_id, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {}, 0, rl.WHITE}
 	draw_sprite(sprite, player.pos)
+}
+
+draw_weapon :: proc(weapon: ItemId) {
+	to_mouse := normalize(mouse_world_pos - player.pos)
+	tex_id := item_to_texture[weapon]
+	tex := loaded_textures[tex_id]
+	sprite: Sprite = {tex_id, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {}, 0, rl.WHITE}
+	#partial switch weapon {
+	case .Sword:
+		sprite.tex_origin = {0, 1}
+	}
+	// Set rotation and position based on if sword is on top or not
+	sprite_pos := player.pos + {2, 0} // Offset sprite_pos
+	if is_sword_on_top {
+		sprite.rotation = -150
+		sprite_pos += 4 * vector_from_angle(-70)
+	} else {
+		sprite.rotation = 160
+		sprite_pos += 4 * vector_from_angle(70)
+	}
+	// Rotate sprite and rotate its position to face mouse
+	sprite.rotation += angle(to_mouse)
+	sprite_pos = rotate_about_origin(sprite_pos, player.pos, angle(to_mouse))
+	draw_sprite(sprite, sprite_pos)
 }
 
 remove_selected_item :: proc() {
