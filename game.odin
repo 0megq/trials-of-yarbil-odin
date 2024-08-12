@@ -121,6 +121,7 @@ bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
 fires: [dynamic]Fire
 enemies: [dynamic]Enemy
+items: [dynamic]Item
 hit_enemies: [dynamic]bool
 
 delta: f32
@@ -183,10 +184,10 @@ main :: proc() {
 
 	append(&timers, Timer{0.5, toggle_text_cursor, 0.5})
 
-	items := make([dynamic]Item, context.allocator)
-	append(&items, Item{pos = {500, 300}, shape = Circle{{}, 4}, data = {.Sword, 10, 10}})
-	append(&items, Item{pos = {200, 50}, shape = Circle{{}, 4}, data = {.Bomb, 1, 16}})
-	append(&items, Item{pos = {100, 50}, shape = Circle{{}, 4}, data = {.Apple, 5, 16}})
+	items = make([dynamic]Item, context.allocator)
+	add_item_to_world({.Sword, 10, 10}, {500, 300})
+	add_item_to_world({.Bomb, 1, 16}, {200, 50})
+	add_item_to_world({.Apple, 5, 16}, {100, 50})
 
 	level: Level
 
@@ -277,9 +278,11 @@ main :: proc() {
 		}
 
 		if is_control_pressed(controls.movement_ability) {
+			move_successful := false
 			switch current_ability {
 			case .FIRE:
 				if can_fire_dash {
+					move_successful = true
 					can_fire_dash = false
 					fire_dash_timer = FIRE_DASH_COOLDOWN
 
@@ -298,6 +301,7 @@ main :: proc() {
 					}
 				}
 			case .WATER:
+				move_successful = true
 				surfing = true
 				append(&timers, Timer{0.5, turn_off_surf, 0})
 			// for &enemy in enemies {
@@ -310,6 +314,11 @@ main :: proc() {
 			case .GROUND:
 
 			case .AIR:
+			}
+			if move_successful {
+				player.attacking = false
+				player.charging_weapon = false
+				player.holding_item = false
 			}
 		}
 
@@ -575,7 +584,7 @@ main :: proc() {
 				}
 			}
 			if weapon.z <= 0 {
-				append(&items, Item{pos = weapon.pos, data = weapon.data, shape = Circle{{}, 4}})
+				add_item_to_world(weapon.data, weapon.pos)
 				unordered_remove(&projectile_weapons, i)
 			}
 		}
@@ -634,7 +643,7 @@ main :: proc() {
 		// Item drop
 		if is_control_pressed(controls.drop) {
 			if item_data := drop_item(); item_data.id != .Empty {
-				append(&items, Item{pos = player.pos, shape = Circle{{}, 4}, data = item_data})
+				add_item_to_world(item_data, player.pos)
 			}
 		}
 
@@ -666,13 +675,15 @@ main :: proc() {
 		}
 		// Stop Weapon animation
 		if sword_animation.pos_rotation_vel < 0 &&
-		   sword_animation.pos_cur_rotation <= sword_animation.cpos_top_rotation {
+		   (sword_animation.pos_cur_rotation <= sword_animation.cpos_top_rotation ||
+				   !player.attacking) {
 			// Animating to top finished
 			sword_animation.pos_cur_rotation = sword_animation.cpos_top_rotation
 			sword_animation.sprite_cur_rotation = sword_animation.csprite_top_rotation
 			sword_animation.pos_rotation_vel = 0
 		} else if sword_animation.pos_rotation_vel > 0 &&
-		   sword_animation.pos_cur_rotation >= sword_animation.cpos_bot_rotation {
+		   (sword_animation.pos_cur_rotation >= sword_animation.cpos_bot_rotation ||
+				   !player.attacking) {
 			// Animating to bottom finished
 			sword_animation.pos_cur_rotation = sword_animation.cpos_bot_rotation
 			sword_animation.sprite_cur_rotation = sword_animation.csprite_bot_rotation
@@ -682,7 +693,6 @@ main :: proc() {
 		if player.attacking {
 			if attack_duration_timer <= 0 {
 				player.attacking = false
-				attack_interval_timer = ATTACK_INTERVAL
 			} else {
 				attack_duration_timer -= delta
 				for enemy, i in enemies {
@@ -771,8 +781,21 @@ main :: proc() {
 				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
 			}
 
+			// Draw items with slight gray tint
 			for item in items {
-				draw_shape(item.shape, item.pos, rl.PURPLE)
+				tex_id := item_to_texture[item.data.id]
+				tex := loaded_textures[tex_id]
+				sprite: Sprite = {
+					tex_id,
+					{0, 0, f32(tex.width), f32(tex.height)},
+					{1, 1},
+					{f32(tex.width) / 2, f32(tex.height) / 2},
+					0,
+					rl.LIGHTGRAY, // Slight darker tint
+				}
+
+
+				draw_sprite(sprite, item.pos)
 			}
 
 			for wall in level.walls {
@@ -1284,6 +1307,7 @@ fire_selected_weapon :: proc() -> int {
 			// Attack
 			attack_poly.rotation = angle(mouse_world_pos - player.pos)
 			attack_duration_timer = ATTACK_DURATION
+			attack_interval_timer = ATTACK_INTERVAL
 			player.attacking = true
 			attack_damage = SWORD_DAMAGE
 			attack_knockback = SWORD_KNOCKBACK
@@ -1513,4 +1537,8 @@ is_control_released :: proc(c: Control) -> bool {
 		return rl.IsMouseButtonReleased(v)
 	}
 	return false
+}
+
+add_item_to_world :: proc(data: ItemData, pos: Vec2) {
+	append(&items, Item{pos = pos, shape = Circle{{}, 4}, data = data})
 }
