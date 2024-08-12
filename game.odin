@@ -999,6 +999,10 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 
 player_move :: proc(e: ^Player, delta: f32) {
 	max_speed: f32 = PLAYER_BASE_MAX_SPEED
+	// Slow down player
+	if player.holding_item || player.charging_weapon || player.attacking {
+		max_speed = PLAYER_BASE_MAX_SPEED / 2
+	}
 	acceleration: f32 = PLAYER_BASE_ACCELERATION
 	friction: f32 = PLAYER_BASE_FRICTION
 	harsh_friction: f32 = PLAYER_BASE_HARSH_FRICTION
