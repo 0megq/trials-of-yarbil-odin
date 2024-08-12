@@ -20,9 +20,10 @@ FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
 ITEM_HOLD_DIVISOR :: 1
+WEAPON_CHARGE_DIVISOR :: 1
 
 // weapon/attack related constants
-ATTACK_DURATION :: 0.2
+ATTACK_DURATION :: 0.15
 ATTACK_INTERVAL :: 0.4
 SWORD_DAMAGE :: 10
 SWORD_KNOCKBACK :: 250
@@ -89,7 +90,24 @@ attack_knockback: f32
 attack_poly: Polygon
 
 sword_hitbox_points: []Vec2
-is_sword_on_top: bool = true
+
+WeaponAnimation :: struct {
+	// Constants
+	cpos_top_rotation:    f32,
+	csprite_top_rotation: f32,
+	cpos_bot_rotation:    f32,
+	csprite_bot_rotation: f32,
+
+	// For animation purposes
+	pos_rotation_vel:     f32, // Simulates the rotation of the arc of the swing
+	sprite_rotation_vel:  f32, // Simulates the rotation of the sprite
+
+	// Weapon rotations
+	pos_cur_rotation:     f32,
+	sprite_cur_rotation:  f32,
+}
+sword_animation := WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
+
 
 surfing: bool
 current_ability: MovementAbility
@@ -638,6 +656,29 @@ main :: proc() {
 			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
 
+		// Weapon animation
+		if sword_animation.pos_rotation_vel == 0 {
+			// Do nothing. when vel is 0 that means we are not animating
+		} else {
+			// Animate
+			sword_animation.pos_cur_rotation += sword_animation.pos_rotation_vel * delta
+			sword_animation.sprite_cur_rotation += sword_animation.sprite_rotation_vel * delta
+		}
+		// Stop Weapon animation
+		if sword_animation.pos_rotation_vel < 0 &&
+		   sword_animation.pos_cur_rotation <= sword_animation.cpos_top_rotation {
+			// Animating to top finished
+			sword_animation.pos_cur_rotation = sword_animation.cpos_top_rotation
+			sword_animation.sprite_cur_rotation = sword_animation.csprite_top_rotation
+			sword_animation.pos_rotation_vel = 0
+		} else if sword_animation.pos_rotation_vel > 0 &&
+		   sword_animation.pos_cur_rotation >= sword_animation.cpos_bot_rotation {
+			// Animating to bottom finished
+			sword_animation.pos_cur_rotation = sword_animation.cpos_bot_rotation
+			sword_animation.sprite_cur_rotation = sword_animation.csprite_bot_rotation
+			sword_animation.pos_rotation_vel = 0
+		}
+
 		if player.attacking {
 			if attack_duration_timer <= 0 {
 				player.attacking = false
@@ -810,21 +851,38 @@ main :: proc() {
 
 				/* Item hold bar */
 				if player.holding_item {
-					hold_bar_length: f32 = 2
-					hold_bar_height: f32 = 8
-					hold_bar_base_rec := get_centered_rect(
+					bar_length: f32 = 2
+					bar_height: f32 = 8
+					bar_base_rec := get_centered_rect(
 						{player.pos.x, player.pos.y},
-						{hold_bar_length, hold_bar_height},
+						{bar_length, bar_height},
 					)
-					rl.DrawRectangleRec(hold_bar_base_rec, rl.BLACK)
-					hold_bar_filled_rec := hold_bar_base_rec
+					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+					bar_filled_rec := bar_base_rec
 
-					hold_bar_filled_rec.height *= get_item_hold_multiplier()
-					hold_bar_filled_rec.y =
-						hold_bar_base_rec.y + hold_bar_base_rec.height - hold_bar_filled_rec.height
-					rl.DrawRectangleRec(hold_bar_filled_rec, rl.GREEN)
+					bar_filled_rec.height *= get_item_hold_multiplier()
+					bar_filled_rec.y = bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+					rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
 				}
 				/* End of Item hold bar */
+
+				/* Weapon charge bar */
+				if player.charging_weapon {
+					bar_length: f32 = 2
+					bar_height: f32 = 8
+					bar_base_rec := get_centered_rect(
+						{player.pos.x, player.pos.y},
+						{bar_length, bar_height},
+					)
+					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+					bar_filled_rec := bar_base_rec
+
+					bar_filled_rec.height *= get_weapon_charge_multiplier()
+					bar_filled_rec.y = bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+					rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
+				}
+				/* End of Weapon charge bar */
+
 
 				/* Health Bar */
 				health_bar_length: f32 = 20
@@ -839,14 +897,14 @@ main :: proc() {
 				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 				/* End of Health Bar */
 
-				if !player.holding_item &&
-				   player.weapons[player.selected_weapon_idx].id >= .Sword {
-					attack_hitbox_color := rl.Color{255, 255, 255, 120}
-					if player.attacking {
-						attack_hitbox_color = rl.Color{255, 0, 0, 120}
-					}
-					draw_shape(attack_poly, player.pos, attack_hitbox_color)
-				}
+				// if !player.holding_item &&
+				//    player.weapons[player.selected_weapon_idx].id >= .Sword {
+				// 	attack_hitbox_color := rl.Color{255, 255, 255, 120}
+				// 	if player.attacking {
+				// 		attack_hitbox_color = rl.Color{255, 0, 0, 120}
+				// 	}
+				// 	draw_shape(attack_poly, player.pos, attack_hitbox_color)
+				// }
 
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
@@ -1069,6 +1127,19 @@ get_item_hold_multiplier :: proc() -> f32 {
 	)
 }
 
+get_weapon_charge_multiplier :: proc() -> f32 {
+	return(
+		math.abs(
+			math.mod(
+				player.weapon_charge_time + WEAPON_CHARGE_DIVISOR,
+				2 * WEAPON_CHARGE_DIVISOR,
+			) -
+			WEAPON_CHARGE_DIVISOR,
+		) /
+		WEAPON_CHARGE_DIVISOR \
+	)
+}
+
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
 	dst_rec := Rectangle {
@@ -1155,12 +1226,15 @@ use_selected_item :: proc() {
 			0,
 			rl.WHITE,
 		}
+
+		sprite.rotation += angle(to_mouse)
 		// 180 is an arbitrary multiplier. TODO: make a constant variable for it
 		base_vel := hold_multiplier * 180
 		append(
 			&bombs,
 			Bomb {
-				pos = player.pos,
+				pos = player.pos +
+				rotate_vector({-get_item_hold_multiplier() * 5, 3}, angle(to_mouse)),
 				shape = Rectangle{-1, 0, 3, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
@@ -1202,11 +1276,8 @@ fire_selected_weapon :: proc() -> int {
 	// Fire weapon
 	#partial switch weapon_data.id {
 	case .Sword:
-		// play sword attack animation
 		if can_attack {
 			// Attack
-			is_sword_on_top = !is_sword_on_top
-
 			attack_poly.rotation = angle(mouse_world_pos - player.pos)
 			attack_duration_timer = ATTACK_DURATION
 			player.attacking = true
@@ -1215,6 +1286,23 @@ fire_selected_weapon :: proc() -> int {
 			can_attack = false
 			for i in 0 ..< len(hit_enemies) {
 				hit_enemies[i] = false
+			}
+
+			// Animation
+			if sword_animation.pos_cur_rotation == sword_animation.cpos_top_rotation { 	// Animate down
+				sword_animation.pos_rotation_vel =
+					(sword_animation.cpos_bot_rotation - sword_animation.cpos_top_rotation) /
+					ATTACK_DURATION
+				sword_animation.sprite_rotation_vel =
+					(sword_animation.csprite_bot_rotation - sword_animation.csprite_top_rotation) /
+					ATTACK_DURATION
+			} else { 	// Animate up
+				sword_animation.pos_rotation_vel =
+					(sword_animation.cpos_top_rotation - sword_animation.cpos_bot_rotation) /
+					ATTACK_DURATION
+				sword_animation.sprite_rotation_vel =
+					(sword_animation.csprite_top_rotation - sword_animation.csprite_bot_rotation) /
+					ATTACK_DURATION
 			}
 		}
 	}
@@ -1243,17 +1331,23 @@ alt_fire_selected_weapon :: proc() -> int {
 			0,
 			rl.WHITE,
 		}
+		sprite.rotation = -140 - get_weapon_charge_multiplier() * 110
+		sprite.rotation += angle(to_mouse)
 		append(
 			&projectile_weapons,
 			ProjectileWeapon {
-				pos = player.pos,
+				pos = player.pos +
+				rotate_vector(
+					{-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
+					angle(to_mouse),
+				),
 				shape = Rectangle {
 					-f32(tex.width) / 2,
 					-f32(tex.height) / 2,
 					f32(tex.width),
 					f32(tex.height),
 				},
-				vel = to_mouse * 150,
+				vel = to_mouse * get_weapon_charge_multiplier() * 300,
 				z = 0,
 				vel_z = 12,
 				sprite = sprite,
@@ -1269,10 +1363,25 @@ alt_fire_selected_weapon :: proc() -> int {
 }
 
 draw_item :: proc(item: ItemId) {
+	to_mouse := normalize(mouse_world_pos - player.pos)
 	tex_id := item_to_texture[item]
 	tex := loaded_textures[tex_id]
-	sprite: Sprite = {tex_id, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {}, 0, rl.WHITE}
-	draw_sprite(sprite, player.pos)
+	sprite: Sprite = {
+		tex_id,
+		{0, 0, f32(tex.width), f32(tex.height)},
+		{1, 1},
+		{f32(tex.width) / 2, f32(tex.height) / 2},
+		0,
+		rl.WHITE,
+	}
+
+	sprite_pos := player.pos + {-get_item_hold_multiplier() * 5, 3}
+	sprite.scale = 1 + get_item_hold_multiplier() / 2
+
+
+	sprite.rotation += angle(to_mouse)
+	sprite_pos = rotate_about_origin(sprite_pos, player.pos, angle(to_mouse))
+	draw_sprite(sprite, sprite_pos)
 }
 
 draw_weapon :: proc(weapon: ItemId) {
@@ -1284,15 +1393,17 @@ draw_weapon :: proc(weapon: ItemId) {
 	case .Sword:
 		sprite.tex_origin = {0, 1}
 	}
-	// Set rotation and position based on if sword is on top or not
-	sprite_pos := player.pos + {2, 0} // Offset sprite_pos
-	if is_sword_on_top {
-		sprite.rotation = -150
-		sprite_pos += 4 * vector_from_angle(-70)
+
+	sprite_pos := player.pos
+	if player.charging_weapon {
+		sprite.rotation = -140 - get_weapon_charge_multiplier() * 110
+		sprite_pos += {-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50)
 	} else {
-		sprite.rotation = 160
-		sprite_pos += 4 * vector_from_angle(70)
+		// Set rotation and position based on if sword is on top or not
+		sprite.rotation = sword_animation.sprite_cur_rotation
+		sprite_pos += {2, 0} + 4 * vector_from_angle(sword_animation.pos_cur_rotation)
 	}
+
 	// Rotate sprite and rotate its position to face mouse
 	sprite.rotation += angle(to_mouse)
 	sprite_pos = rotate_about_origin(sprite_pos, player.pos, angle(to_mouse))
