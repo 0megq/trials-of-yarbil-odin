@@ -122,6 +122,7 @@ projectile_weapons: [dynamic]ProjectileWeapon
 fires: [dynamic]Fire
 enemies: [dynamic]Enemy
 items: [dynamic]Item
+exploding_barrels: [dynamic]ExplodingBarrel
 hit_enemies: [dynamic]bool
 
 delta: f32
@@ -178,6 +179,9 @@ main :: proc() {
 
 	z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
+	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
+	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 20})
+
 	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
@@ -530,7 +534,7 @@ main :: proc() {
 				bomb.time_left -= delta
 				if bomb.time_left <= 0 {
 					bomb_explosion(bomb.pos, 8)
-					for &enemy, j in enemies {
+					for enemy, j in enemies {
 						if check_collision_shapes(
 							Circle{{}, 8},
 							bomb.pos,
@@ -538,6 +542,17 @@ main :: proc() {
 							enemy.pos,
 						) {
 							damage_enemy(j, 6)
+						}
+					}
+					// Bomb damaging exploding barrel
+					for barrel, j in exploding_barrels {
+						if check_collision_shapes(
+							Circle{{}, 8},
+							bomb.pos,
+							barrel.shape,
+							barrel.pos,
+						) {
+							damage_exploding_barrel(j, 100)
 						}
 					}
 					unordered_remove(&bombs, i)
@@ -838,6 +853,10 @@ main :: proc() {
 						rl.DrawCircleV(point, 2, rl.RED)
 					}
 				}
+			}
+
+			for &barrel in exploding_barrels {
+				draw_shape(barrel.shape, barrel.pos, rl.RED)
 			}
 
 			// Draw Z Entities
@@ -1201,6 +1220,28 @@ damage_enemy :: proc(enemy_idx: int, amount: f32) {
 	enemy.current_flinch_time = enemy.start_flinch_time
 	if enemy.health <= 0 {
 		unordered_remove(&enemies, enemy_idx)
+	}
+}
+
+damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
+	barrel := &exploding_barrels[barrel_idx]
+	barrel.health -= amount
+	if barrel.health <= 0 {
+		// KABOOM!!!
+		// Visual
+		fire := Fire{Circle{barrel.pos, 24}, 2}
+		append(&fires, fire)
+		for enemy, i in enemies {
+			if check_collision_shapes(enemy.shape, enemy.pos, fire.circle, barrel.pos) {
+				// Knockback
+				power_scale := (fire.radius - length(enemy.pos - fire.pos)) / fire.radius
+				power_scale = max(power_scale, 0.6) // TODO use a map function
+				enemies[i].vel -= normalize(fire.pos - enemy.pos) * 400 * power_scale
+				// Damge
+				damage_enemy(i, 20)
+			}
+		}
+		unordered_remove(&exploding_barrels, barrel_idx)
 	}
 }
 

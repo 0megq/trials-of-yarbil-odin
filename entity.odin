@@ -19,6 +19,12 @@ MovingEntity :: struct {
 	vel:                  Vec2,
 }
 
+ExplodingBarrel :: struct {
+	using moving_entity: MovingEntity,
+	health:              f32, // When health reaches 0
+	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
+}
+
 Enemy :: struct {
 	using moving_entity:    MovingEntity,
 	detection_range:        f32,
