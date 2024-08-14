@@ -764,7 +764,11 @@ rect_to_points :: proc(rect: Rectangle) -> [4]Vec2 {
 }
 
 // Allocates polygon.points using temp allocator by default
-rect_to_polygon :: proc(rect: Rectangle, allocator := context.temp_allocator) -> Polygon {
+rect_to_polygon :: proc(
+	rect: Rectangle,
+	rotation := f32(0),
+	allocator := context.temp_allocator,
+) -> Polygon {
 	tl := Vec2{rect.width, rect.height} * -0.5
 	tr := tl * {-1, 1}
 	br := tl * {-1, -1}
@@ -776,5 +780,5 @@ rect_to_polygon :: proc(rect: Rectangle, allocator := context.temp_allocator) ->
 	points[2] = br
 	points[3] = bl
 
-	return {get_center(rect), points, 0}
+	return {get_center(rect), points, rotation}
 }

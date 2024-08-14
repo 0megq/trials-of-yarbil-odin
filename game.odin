@@ -575,6 +575,7 @@ main :: proc() {
 					weapon.vel = slide(weapon.vel, normal)
 					weapon.data.count -= 1
 					if weapon.data.count <= 0 {
+						delete(weapon.shape.(Polygon).points)
 						unordered_remove(&projectile_weapons, i)
 					}
 				}
@@ -595,11 +596,16 @@ main :: proc() {
 						damage_enemy(j, 10)
 						hit_enemies[j] = true
 						weapon.data.count -= 1
+						if weapon.data.count <= 0 {
+							delete(weapon.shape.(Polygon).points)
+							unordered_remove(&projectile_weapons, i)
+						}
 					}
 				}
 			}
 			if weapon.z <= 0 {
 				add_item_to_world(weapon.data, weapon.pos)
+				delete(weapon.shape.(Polygon).points)
 				unordered_remove(&projectile_weapons, i)
 			}
 		}
@@ -1036,7 +1042,14 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 		}
 
 		e.pos += e.vel * delta
+		e.rot += e.rot_vel * delta
 	}
+	// Update collision shape and sprite to match new rotation
+	#partial switch &s in e.shape {
+	case Polygon:
+		s.rotation = e.rot
+	}
+	e.sprite.rotation = e.rot
 }
 
 player_move :: proc(e: ^Player, delta: f32) {
@@ -1400,8 +1413,6 @@ alt_fire_selected_weapon :: proc() -> int {
 			0,
 			rl.WHITE,
 		}
-		sprite.rotation = -140 - get_weapon_charge_multiplier() * 110
-		sprite.rotation += angle(to_mouse)
 		append(
 			&projectile_weapons,
 			ProjectileWeapon {
@@ -1410,15 +1421,20 @@ alt_fire_selected_weapon :: proc() -> int {
 					{-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
 					angle(to_mouse),
 				),
-				shape = Rectangle {
-					-f32(tex.width) / 2,
-					-f32(tex.height) / 2,
-					f32(tex.width),
-					f32(tex.height),
-				},
+				shape = rect_to_polygon(
+					Rectangle {
+						-f32(tex.width) / 2,
+						-f32(tex.height) / 2,
+						f32(tex.width),
+						f32(tex.height),
+					},
+					allocator = context.allocator,
+				),
 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
 				z = 0,
 				vel_z = 12,
+				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
+				rot_vel = 1200 * get_weapon_charge_multiplier(),
 				sprite = sprite,
 				data = weapon_data,
 			},

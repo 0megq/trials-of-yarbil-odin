@@ -75,6 +75,8 @@ ZEntity :: struct {
 	using moving_entity: MovingEntity,
 	z:                   f32,
 	vel_z:               f32,
+	rot:                 f32,
+	rot_vel:             f32,
 	sprite:              Sprite,
 }
 
