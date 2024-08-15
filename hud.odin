@@ -116,9 +116,8 @@ draw_hud :: proc() {
 			f32(WINDOW_SIZE.x) - slot_size - margin,
 			f32(WINDOW_SIZE.y) - slot_size * (1 + f32(player.selected_weapon_idx)) - margin,
 		}
-		rl.DrawRectangleLinesEx({pos.x, pos.y, slot_size, slot_size}, 2, rl.GOLD)
-		// Show durability
 
+		// Show durability
 		if weapon := player.weapons[player.selected_weapon_idx]; weapon.id != .Empty {
 			bar_margin :: 4
 
@@ -135,6 +134,25 @@ draw_hud :: proc() {
 			durability_bar_filled_rec.width *= f32(weapon.count) / f32(weapon.max_count)
 			rl.DrawRectangleRec(durability_bar_filled_rec, rl.GREEN)
 		}
+
+		if player.attacking {
+			rl.DrawRectangleRec({pos.x, pos.y, slot_size, slot_size}, Color{0, 0, 0, 70})
+		} else if !can_attack {
+			// Value from 0 to 1. Starts at 1 then decreases
+			cooldown_ratio := attack_interval_timer / ATTACK_INTERVAL
+			// Display
+			rl.DrawRectangleRec(
+				{
+					pos.x + slot_size * (1 - cooldown_ratio),
+					pos.y,
+					slot_size * cooldown_ratio,
+					slot_size,
+				},
+				Color{0, 0, 0, 70},
+			)
+		}
+
+		rl.DrawRectangleLinesEx({pos.x, pos.y, slot_size, slot_size}, 2, rl.GOLD)
 	}
 
 

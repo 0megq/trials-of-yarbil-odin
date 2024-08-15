@@ -22,6 +22,7 @@ MovingEntity :: struct {
 ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
+	just_hit:            bool,
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
@@ -45,6 +46,7 @@ Enemy :: struct {
 	current_path_point:     int,
 	pathfinding_timer:      f32,
 	player_in_range:        bool,
+	just_hit:               bool,
 }
 
 Item :: struct {
@@ -78,6 +80,7 @@ ZEntity :: struct {
 	rot:                 f32,
 	rot_vel:             f32,
 	sprite:              Sprite,
+	just_hit:            bool,
 }
 
 ProjectileWeapon :: struct {

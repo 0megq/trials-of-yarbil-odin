@@ -26,7 +26,7 @@ WEAPON_CHARGE_DIVISOR :: 1
 ATTACK_DURATION :: 0.15
 ATTACK_INTERVAL :: 0.4
 SWORD_DAMAGE :: 10
-SWORD_KNOCKBACK :: 250
+SWORD_KNOCKBACK :: 150
 SWORD_HITBOX_OFFSET :: 4
 
 EditorMode :: enum {
@@ -72,8 +72,8 @@ Controls :: struct {
 
 controls: Controls = {
 	fire                   = rl.MouseButton.LEFT,
-	alt_fire               = rl.MouseButton.RIGHT,
-	use_item               = rl.MouseButton.MIDDLE,
+	alt_fire               = rl.MouseButton.MIDDLE,
+	use_item               = rl.MouseButton.RIGHT,
 	switch_selected_weapon = rl.KeyboardKey.X,
 	drop                   = rl.KeyboardKey.Q,
 	pickup                 = rl.KeyboardKey.E,
@@ -123,7 +123,6 @@ fires: [dynamic]Fire
 enemies: [dynamic]Enemy
 items: [dynamic]Item
 exploding_barrels: [dynamic]ExplodingBarrel
-hit_enemies: [dynamic]bool
 
 delta: f32
 mouse_world_pos: Vec2
@@ -170,7 +169,7 @@ main :: proc() {
 	pickup_item({.Sword, 100, 100})
 	pickup_item({.Bomb, 3, 16})
 
-	current_ability = .FIRE
+	current_ability = .WATER
 	can_fire_dash = true
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
@@ -180,7 +179,7 @@ main :: proc() {
 	z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
 	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
-	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 20})
+	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 50})
 
 	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 
@@ -230,9 +229,6 @@ main :: proc() {
 	// punch_points := rect_to_points(punch_rect)
 
 	// attack_poly.points = punch_points[:]
-
-	hit_enemies = make([dynamic]bool, context.allocator)
-	for i := 0; i < len(enemies); i += 1 {append(&hit_enemies, false)}
 
 	camera = rl.Camera2D {
 		target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2,
@@ -303,11 +299,29 @@ main :: proc() {
 							damage_enemy(i, 20)
 						}
 					}
+					for &barrel, i in exploding_barrels {
+						if check_collision_shapes(fire.circle, {}, barrel.shape, barrel.pos) {
+							power_scale :=
+								(FIRE_DASH_RADIUS - length(barrel.pos - fire.pos)) /
+								FIRE_DASH_RADIUS
+							power_scale = max(power_scale, 0.6) // TODO use a map function
+							barrel.vel -= normalize(fire.pos - barrel.pos) * 400 * power_scale
+							damage_exploding_barrel(i, 20)
+						}
+					}
+					for &bomb in bombs {
+						if check_collision_shapes(fire.circle, {}, bomb.shape, bomb.pos) {
+							power_scale :=
+								(FIRE_DASH_RADIUS - length(bomb.pos - fire.pos)) / FIRE_DASH_RADIUS
+							power_scale = max(power_scale, 0.6) // TODO use a map function
+							bomb.vel -= normalize(fire.pos - bomb.pos) * 400 * power_scale
+						}
+					}
 				}
 			case .WATER:
 				move_successful = true
 				surfing = true
-				append(&timers, Timer{0.5, turn_off_surf, 0})
+				append(&timers, Timer{0.3, turn_off_surf, 0})
 			// for &enemy in enemies {
 			// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 			// 		enemy.vel -= normalize(get_directional_input()) * 200
@@ -333,7 +347,18 @@ main :: proc() {
 			for &enemy, i in enemies {
 				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
 					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
-					damage_enemy(i, 5)
+					damage_enemy(i, 40 * delta)
+				}
+			}
+			for &barrel, i in exploding_barrels {
+				if check_collision_shapes(surf_poly, {}, barrel.shape, barrel.pos) {
+					barrel.vel = normalize(barrel.pos - (surf_poly.pos + {10, 0})) * 250
+					damage_exploding_barrel(i, 40 * delta)
+				}
+			}
+			for &bomb in bombs {
+				if check_collision_shapes(surf_poly, {}, bomb.shape, bomb.pos) {
+					bomb.vel = normalize(bomb.pos - (surf_poly.pos + {10, 0})) * 250
 				}
 			}
 		}
@@ -485,6 +510,23 @@ main :: proc() {
 			}
 		}
 
+		for &entity in exploding_barrels {
+			generic_move(&entity, 1000, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					entity.shape,
+					entity.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					entity.pos -= normal * depth
+					entity.vel = slide(entity.vel, normal)
+				}
+			}
+		}
+
 		for &entity in z_entities {
 			zentity_move(&entity, delta)
 			for wall in level.walls {
@@ -562,24 +604,31 @@ main :: proc() {
 
 		for &weapon, i in projectile_weapons {
 			zentity_move(&weapon, delta)
-			for wall in level.walls {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					wall.shape,
-					wall.pos,
-				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-					weapon.data.count -= 1
-					if weapon.data.count <= 0 {
-						delete(weapon.shape.(Polygon).points)
-						unordered_remove(&projectile_weapons, i)
+			if !weapon.just_hit {
+				for wall in level.walls {
+					_, normal, depth := resolve_collision_shapes(
+						weapon.shape,
+						weapon.pos,
+						wall.shape,
+						wall.pos,
+					)
+					// fmt.printfln("%v, %v, %v", collide, normal, depth)
+					if depth > 0 {
+						weapon.pos -= normal * depth
+						weapon.vel = slide(weapon.vel, normal)
+						// TODO: Scale the damge done on durability (count) to the velocity of the impact
+						// Higher velocity hit wall should take more durability
+						weapon.data.count -= 5
+						if weapon.data.count <= 0 {
+							delete(weapon.shape.(Polygon).points)
+							unordered_remove(&projectile_weapons, i)
+						}
+						weapon.just_hit = true
+						break
 					}
 				}
 			}
+
 			for enemy, j in enemies {
 				_, normal, depth := resolve_collision_shapes(
 					weapon.shape,
@@ -592,9 +641,9 @@ main :: proc() {
 					weapon.pos -= normal * depth
 					weapon.vel = slide(weapon.vel, normal)
 					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
-					if !hit_enemies[j] {
+					if !enemy.just_hit {
 						damage_enemy(j, 10)
-						hit_enemies[j] = true
+						enemies[j].just_hit = true
 						weapon.data.count -= 1
 						if weapon.data.count <= 0 {
 							delete(weapon.shape.(Polygon).points)
@@ -716,16 +765,28 @@ main :: proc() {
 				player.attacking = false
 			} else {
 				attack_duration_timer -= delta
-				for enemy, i in enemies {
-					if !hit_enemies[i] &&
+				for &enemy, i in enemies {
+					if !enemy.just_hit &&
 					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
-						enemies[i].vel +=
-							normalize(mouse_world_pos - player.pos) * attack_knockback
-						hit_enemies[i] = true
+						enemy.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
+						enemy.just_hit = true
 						damage_enemy(i, attack_damage)
-						if enemy.health <= 0 {
-							unordered_remove(&enemies, i)
-						}
+					}
+				}
+				// Other sword interactions go here
+				for &barrel, i in exploding_barrels {
+					if !barrel.just_hit &&
+					   check_collision_shapes(barrel.shape, barrel.pos, attack_poly, player.pos) {
+						barrel.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
+						barrel.just_hit = true
+						damage_exploding_barrel(i, attack_damage)
+					}
+				}
+				for &bomb in bombs {
+					if !bomb.just_hit &&
+					   check_collision_shapes(bomb.shape, bomb.pos, attack_poly, player.pos) {
+						bomb.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
+						bomb.just_hit = true
 					}
 				}
 			}
@@ -1004,9 +1065,25 @@ bomb_explosion :: proc(pos: Vec2, radius: f32) {
 	append(&fires, Fire{Circle{pos, radius}, 0.5})
 }
 
+// Moves entity with current velocity and slows down with friction. no max speed
+generic_move :: proc(e: ^MovingEntity, friction: f32, delta: f32) {
+	friction_dir: Vec2 = -normalize(e.vel)
+	friction_v := friction_dir * friction * delta
+
+	e.vel += friction_v
+	// Account for friction overshooting when slowing down
+	if math.sign(e.vel.x) == math.sign(friction_v.x) {
+		e.vel.x = 0
+	}
+	if math.sign(e.vel.y) == math.sign(friction_v.y) {
+		e.vel.y = 0
+	}
+	e.pos += e.vel * delta
+}
+
 zentity_move :: proc(e: ^ZEntity, delta: f32) {
-	friction: f32 = 300
-	gravity: f32 = 50
+	friction :: 300
+	gravity :: 50
 
 	// Z movement
 	{
@@ -1366,9 +1443,7 @@ fire_selected_weapon :: proc() -> int {
 			attack_damage = SWORD_DAMAGE
 			attack_knockback = SWORD_KNOCKBACK
 			can_attack = false
-			for i in 0 ..< len(hit_enemies) {
-				hit_enemies[i] = false
-			}
+			reset_hit_states()
 
 			// Animation
 			if sword_animation.pos_cur_rotation == sword_animation.cpos_top_rotation { 	// Animate down
@@ -1439,9 +1514,7 @@ alt_fire_selected_weapon :: proc() -> int {
 				data = weapon_data,
 			},
 		)
-		for i in 0 ..< len(hit_enemies) {
-			hit_enemies[i] = false
-		}
+		reset_hit_states()
 		player.weapons[player.selected_weapon_idx].id = .Empty
 	}
 	return 0
@@ -1594,6 +1667,18 @@ is_control_released :: proc(c: Control) -> bool {
 		return rl.IsMouseButtonReleased(v)
 	}
 	return false
+}
+
+reset_hit_states :: proc() {
+	for &enemy in enemies {
+		enemy.just_hit = false
+	}
+	for &barrel in exploding_barrels {
+		barrel.just_hit = false
+	}
+	for &bomb in bombs {
+		bomb.just_hit = false
+	}
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
