@@ -642,8 +642,31 @@ main :: proc() {
 					weapon.vel = slide(weapon.vel, normal)
 					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
 					if !enemy.just_hit {
-						damage_enemy(j, 10)
 						enemies[j].just_hit = true
+						damage_enemy(j, 10)
+						weapon.data.count -= 1
+						if weapon.data.count <= 0 {
+							delete(weapon.shape.(Polygon).points)
+							unordered_remove(&projectile_weapons, i)
+						}
+					}
+				}
+			}
+			for barrel, j in exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
+					if !barrel.just_hit {
+						exploding_barrels[j].just_hit = true
+						damage_exploding_barrel(j, 10)
 						weapon.data.count -= 1
 						if weapon.data.count <= 0 {
 							delete(weapon.shape.(Polygon).points)
@@ -771,6 +794,10 @@ main :: proc() {
 						enemy.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
 						enemy.just_hit = true
 						damage_enemy(i, attack_damage)
+						player.weapons[player.selected_weapon_idx].count -= 1
+						if player.weapons[player.selected_weapon_idx].count <= 0 {
+							player.weapons[player.selected_item_idx].id = .Empty
+						}
 					}
 				}
 				// Other sword interactions go here
@@ -780,6 +807,10 @@ main :: proc() {
 						barrel.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
 						barrel.just_hit = true
 						damage_exploding_barrel(i, attack_damage)
+						player.weapons[player.selected_weapon_idx].count -= 1
+						if player.weapons[player.selected_weapon_idx].count <= 0 {
+							player.weapons[player.selected_item_idx].id = .Empty
+						}
 					}
 				}
 				for &bomb in bombs {
@@ -787,6 +818,10 @@ main :: proc() {
 					   check_collision_shapes(bomb.shape, bomb.pos, attack_poly, player.pos) {
 						bomb.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
 						bomb.just_hit = true
+						player.weapons[player.selected_weapon_idx].count -= 1
+						if player.weapons[player.selected_weapon_idx].count <= 0 {
+							player.weapons[player.selected_item_idx].id = .Empty
+						}
 					}
 				}
 			}
@@ -1254,6 +1289,10 @@ get_item_hold_multiplier :: proc() -> f32 {
 	// p = HOLD_DIVISOR
 	// x = player.item_hold_time
 	// Returns a value between 0 and 1
+	if player.items[player.selected_item_idx].id == .Apple {
+		// 1.0 are supposed to be same number. it requires 1.0 seconds to eat an apple
+		return min(player.item_hold_time / 1.0, 1.0)
+	}
 	return(
 		math.abs(
 			math.mod(player.item_hold_time + ITEM_HOLD_DIVISOR, 2 * ITEM_HOLD_DIVISOR) -
@@ -1391,8 +1430,7 @@ use_selected_item :: proc() {
 		append(
 			&bombs,
 			Bomb {
-				pos = player.pos +
-				rotate_vector({-get_item_hold_multiplier() * 5, 3}, angle(to_mouse)),
+				pos = player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
 				shape = Rectangle{-1, 0, 3, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
@@ -1402,6 +1440,12 @@ use_selected_item :: proc() {
 			},
 		)
 		add_to_selected_item_count(-1)
+	case .Apple:
+		// Restore 5 health
+		if player.item_hold_time >= 1 {
+			player.health += 5
+			add_to_selected_item_count(-1)
+		}
 	}
 	// subtract from the count of item in the inventory. if no item is left then
 }
