@@ -344,7 +344,7 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 			// Step 2: Ray segment collision
 			t := cast_ray_segment(start, dir, s_start + shape_pos, s_delta)
 			// Continue if there is no collision
-			if t == -1 {
+			if t < 0 {
 				continue
 			}
 
@@ -372,7 +372,7 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 		min_t: f32 = -1
 
 		for t in t_values {
-			if t == -1 { 	// Skip if t is -1 AKA no collision for that side
+			if t < 0 { 	// Skip if t is negative AKA no collision for that side
 				continue
 			}
 
@@ -388,12 +388,12 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 }
 
 // Returns the length of the ray in order to collide with the segment defined by s_start + s_delta * t where t is an element of [0, 1]
-// Returns -1 if no collision
+// Returns negative if collision happens -r_dir. Returns math.NEG_INF_F32 if the ray will never (not even behind it) intersect the segment
 cast_ray_segment :: proc(r_start: Vec2, r_dir: Vec2, s_start: Vec2, s_delta: Vec2) -> f32 {
-	// Long hand version
+	// Long hand version (this can be derived by hand with a system of equations)
 	// t_ray :=
-	// 	(s_dir.x * (start.y - s_start.y) - s_dir.y * (start.x - s_start.x)) /
-	// 	(dir.x * s_dir.y - dir.y * s_dir.x)
+	// 	(s_dir.x * (r_start.y - s_start.y) - s_dir.y * (r_start.x - s_start.x)) /
+	// 	(r_dir.x * s_dir.y - r_dir.y * s_dir.x)
 
 	// Short hand written with cross products
 	numerator := cross(r_start - s_start, s_delta)
@@ -401,25 +401,49 @@ cast_ray_segment :: proc(r_start: Vec2, r_dir: Vec2, s_start: Vec2, s_delta: Vec
 	if denominator == 0 {
 		if numerator == 0 {
 			// Colinear AKA parallel and on the same line
-			// TODO: Provide a check here to see if lines are disjoint or overlapping
-			return -1
+
+			// We only need to care about 1 axis since we know that the lines are colinear
+			seg_start := s_start.x
+			seg_delta := s_delta.x
+			ray_start := r_start.x
+			ray_dir := r_start.x
+			if r_dir.x == 0 {
+				seg_start = s_start.y
+				seg_delta = s_delta.y
+				ray_start = r_start.y
+				ray_dir = r_start.y
+			}
+
+
+			seg_end: f32 = seg_start + seg_start
+			// If end is before start then flip them
+			if seg_delta < 0 {
+				seg_end = seg_start
+				seg_start += seg_delta
+			}
+
+			// Returns negative if disjoint
+			if ray_start > seg_end { 	// If ray is after the end of the segment		
+				return (seg_end - ray_start) / ray_dir
+			} else if ray_start < seg_start { 	// If ray is before the start of the segment	
+				return (seg_start - ray_start) / ray_dir
+			} else { 	// Ray is not before or after segment, therefore it is inside the segment
+				return 0
+			}
 		} else {
-			// Parallel and not intersecting
-			return -1
+			// Parallel and not intersecting.
+			return math.NEG_INF_F32
 		}
 	}
 
 	// t_ray is the length of the ray where it hits the segment
 	t_ray := numerator / denominator
-	if t_ray < 0 { 	// No collision. Segment is behind ray
-		return -1
-	}
 	t_seg := (r_start.x + t_ray * r_dir.x - s_start.x) / s_delta.x
 	if s_delta.x == 0 {
 		t_seg = (r_start.y + t_ray * r_dir.y - s_start.y) / s_delta.y
 	}
 	if t_seg < 0 || t_seg > 1 { 	// No collision. Ray is out of segment bounds
-		return -1
+		return math.NEG_INF_F32
 	}
 
 	return t_ray
