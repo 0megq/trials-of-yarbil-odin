@@ -55,7 +55,7 @@ perpindicular :: proc(v: Vec2) -> Vec2 {
 	return v.yx * {-1, 1}
 }
 
-// Returns the component of the vector along the given plane, specificed by its normal vector
+// Returns the component of the vector along the given axis, specificed by its normal vector
 slide :: proc(v: Vec2, normal: Vec2) -> Vec2 {
 	return v - normal * dot(v, normal)
 }

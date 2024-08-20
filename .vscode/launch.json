@@ -15,6 +15,12 @@
 			"request": "launch",
 			"name": "Run",
 			"command": "odin run . -out:build/build.exe -vet -strict-style",
+		},
+		{
+			"type": "f5anything",
+			"request": "launch",
+			"name": "Test",
+			"command": "test.bat",
 		}
 	]
 }

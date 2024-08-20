@@ -321,7 +321,7 @@ main :: proc() {
 			case .WATER:
 				move_successful = true
 				surfing = true
-				append(&timers, Timer{0.3, turn_off_surf, 0})
+				append(&timers, Timer{1, turn_off_surf, 0})
 			// for &enemy in enemies {
 			// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 			// 		enemy.vel -= normalize(get_directional_input()) * 200
@@ -364,19 +364,43 @@ main :: proc() {
 		}
 
 		if editor_mode == .None {
-			player_move(&player, delta)
-
-			for wall in level.walls {
-				_, normal, depth := resolve_collision_shapes(
-					player.shape,
-					player.pos,
-					wall.shape,
-					wall.pos,
-				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					player.pos -= normal * depth
-					player.vel = slide(player.vel, normal)
+			player_update_velocity(&player, delta)
+			fmt.println("bef: ", player.vel)
+			remaining_delta := delta
+			for sweeps := 0; remaining_delta > 0 && sweeps < 10; sweeps += 1 {
+				min_col_delta: f32 = -1
+				min_normal: Vec2 = {}
+				for wall in level.walls {
+					col_delta, normal := sweep_collision_shapes(
+						player.shape,
+						player.pos,
+						wall.shape,
+						wall.pos,
+						player.vel,
+					)
+					if col_delta >= 0 {
+						if col_delta < min_col_delta || min_col_delta == -1 {
+							min_col_delta = col_delta
+							min_normal = -normal
+						} else if col_delta == min_col_delta {
+							min_normal -= normal
+							min_normal /= 2
+						}
+					}
+				}
+				if min_col_delta < 0 || min_col_delta > remaining_delta {
+					player.pos += player.vel * remaining_delta
+					remaining_delta = 0
+				} else {
+					speed := length(player.vel)
+					vel_dir := player.vel / speed
+					// Separate speed and direction so we can substract 0.001 from speed and then apply vel_dir
+					// Prevents player going through wall
+					player.pos += max(speed * min_col_delta - 0.001, 0) * vel_dir
+					remaining_delta -= min_col_delta
+					player.vel = slide(player.vel, min_normal)
+					he := player.pos.x >= 81.7
+					fmt.println("aft: ", player.vel, he)
 				}
 			}
 		}
@@ -389,126 +413,130 @@ main :: proc() {
 		}
 
 		// Move enemies and track player if in range
-		for &enemy in enemies {
+		if false {
+			for &enemy in enemies {
 
-			// Update detection points
-			for &p, i in enemy.detection_points {
-				dir := vector_from_angle(f32(i) * 360 / f32(len(enemy.detection_points)))
-				t := cast_ray_through_level(level.walls[:], enemy.pos, dir)
-				if t < enemy.detection_range {
-					p = enemy.pos + t * dir
-				} else {
-					p = enemy.pos + enemy.detection_range * dir
+				// Update detection points
+				for &p, i in enemy.detection_points {
+					dir := vector_from_angle(f32(i) * 360 / f32(len(enemy.detection_points)))
+					t := cast_ray_through_level(level.walls[:], enemy.pos, dir)
+					if t < enemy.detection_range {
+						p = enemy.pos + t * dir
+					} else {
+						p = enemy.pos + enemy.detection_range * dir
+					}
 				}
-			}
 
-			if enemy.player_in_range &&
-			   !check_collsion_circular_concave_circle(
+				if enemy.player_in_range &&
+				   !check_collsion_circular_concave_circle(
+						   enemy.detection_points[:],
+						   enemy.pos,
+						   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
+					   ) {
+					enemy.player_in_range = false
+				} else if !enemy.player_in_range &&
+				   check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
 					   enemy.pos,
 					   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
 				   ) {
-				enemy.player_in_range = false
-			} else if !enemy.player_in_range &&
-			   check_collsion_circular_concave_circle(
-				   enemy.detection_points[:],
-				   enemy.pos,
-				   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
-			   ) {
-				enemy.player_in_range = true
-				if enemy.current_path != nil {
-					delete(enemy.current_path)
-				}
-				enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
-				enemy.current_path_point = 1
-				enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
-			}
-
-			// Recalculate path based on timer or if the enemy is at the end of the path already
-			if enemy.player_in_range {
-				enemy.pathfinding_timer -= delta
-				if enemy.pathfinding_timer < 0 {
-					// Reset timer
+					enemy.player_in_range = true
+					if enemy.current_path != nil {
+						delete(enemy.current_path)
+					}
+					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+					enemy.current_path_point = 1
 					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
-					// Find new path
-					delete(enemy.current_path)
-					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
-					enemy.current_path_point = 1
 				}
-				if enemy.current_path_point >= len(enemy.current_path) {
-					delete(enemy.current_path)
-					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
-					enemy.current_path_point = 1
-				}
-			}
-			// Follow path if there exists one and the enemy is not already at the end of it
-			target := enemy.pos
-			if enemy.current_path != nil && enemy.current_path_point < len(enemy.current_path) {
-				target = enemy.current_path[enemy.current_path_point]
-				if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) <
-				   10 { 	// Enemy is at the point
-					enemy.current_path_point += 1
-				}
-			}
 
-			enemy_move(&enemy, delta, target)
-
-			for wall in level.walls {
-				_, normal, depth := resolve_collision_shapes(
-					enemy.shape,
-					enemy.pos,
-					wall.shape,
-					wall.pos,
-				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					enemy.pos -= normal * depth
-					enemy.vel = slide(enemy.vel, normal)
+				// Recalculate path based on timer or if the enemy is at the end of the path already
+				if enemy.player_in_range {
+					enemy.pathfinding_timer -= delta
+					if enemy.pathfinding_timer < 0 {
+						// Reset timer
+						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
+						// Find new path
+						delete(enemy.current_path)
+						enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+						enemy.current_path_point = 1
+					}
+					if enemy.current_path_point >= len(enemy.current_path) {
+						delete(enemy.current_path)
+						enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+						enemy.current_path_point = 1
+					}
 				}
-			}
-
-			if enemy.flinching {
-				enemy.current_flinch_time -= delta
-				if enemy.current_flinch_time <= 0 {
-					enemy.flinching = false
+				// Follow path if there exists one and the enemy is not already at the end of it
+				target := enemy.pos
+				if enemy.current_path != nil &&
+				   enemy.current_path_point < len(enemy.current_path) {
+					target = enemy.current_path[enemy.current_path_point]
+					if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) <
+					   10 { 	// Enemy is at the point
+						enemy.current_path_point += 1
+					}
 				}
-			}
 
-			enemy.just_attacked = false
-			if enemy.charging {
-				enemy.current_charge_time -= delta
-				if enemy.current_charge_time <= 0 {
-					enemy.just_attacked = true
-					enemy.charging = false
-					if check_collision_shapes(
-						enemy.attack_poly,
+				enemy_move(&enemy, delta, target)
+
+				for wall in level.walls {
+					_, normal, depth := resolve_collision_shapes(
+						enemy.shape,
 						enemy.pos,
-						player.shape,
-						player.pos,
-					) {
-						fmt.println("damaged")
-						player.health -= 5
-						if player.health <= 0 {
-							fmt.println("player is dead")
+						wall.shape,
+						wall.pos,
+					)
+					// fmt.printfln("%v, %v, %v", collide, normal, depth)
+					if depth > 0 {
+						enemy.pos -= normal * depth
+						enemy.vel = slide(enemy.vel, normal)
+					}
+				}
+
+				if enemy.flinching {
+					enemy.current_flinch_time -= delta
+					if enemy.current_flinch_time <= 0 {
+						enemy.flinching = false
+					}
+				}
+
+				enemy.just_attacked = false
+				if enemy.charging {
+					enemy.current_charge_time -= delta
+					if enemy.current_charge_time <= 0 {
+						enemy.just_attacked = true
+						enemy.charging = false
+						if check_collision_shapes(
+							enemy.attack_poly,
+							enemy.pos,
+							player.shape,
+							player.pos,
+						) {
+							fmt.println("damaged")
+							player.health -= 5
+							if player.health <= 0 {
+								fmt.println("player is dead")
+							}
 						}
 					}
 				}
-			}
 
-			// If player in attack trigger range
-			if !enemy.flinching &&
-			   !enemy.charging &&
-			   check_collision_shapes(
-				   Circle{{}, enemy.attack_charge_range},
-				   enemy.pos,
-				   player.shape,
-				   player.pos,
-			   ) {
-				enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
-				enemy.charging = true
-				enemy.current_charge_time = enemy.start_charge_time
+				// If player in attack trigger range
+				if !enemy.flinching &&
+				   !enemy.charging &&
+				   check_collision_shapes(
+					   Circle{{}, enemy.attack_charge_range},
+					   enemy.pos,
+					   player.shape,
+					   player.pos,
+				   ) {
+					enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
+					enemy.charging = true
+					enemy.current_charge_time = enemy.start_charge_time
+				}
 			}
 		}
+
 
 		for &entity in exploding_barrels {
 			generic_move(&entity, 1000, delta)
@@ -1053,7 +1081,7 @@ main :: proc() {
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 				// Collision shape
-				// draw_shape(player.shape, player.pos, rl.RED)
+				draw_shape(player.shape, player.pos, rl.RED)
 			}
 
 			#partial switch editor_mode {
@@ -1065,6 +1093,7 @@ main :: proc() {
 
 			rl.EndMode2D()
 
+			rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
 			draw_hud()
 
 
@@ -1164,7 +1193,7 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 	e.sprite.rotation = e.rot
 }
 
-player_move :: proc(e: ^Player, delta: f32) {
+player_update_velocity :: proc(e: ^Player, delta: f32) {
 	max_speed: f32 = PLAYER_BASE_MAX_SPEED
 	// Slow down player
 	if player.holding_item || player.charging_weapon || player.attacking {
@@ -1213,8 +1242,6 @@ player_move :: proc(e: ^Player, delta: f32) {
 	// 	acceleration_v,
 	// 	length(acceleration_v),
 	// )
-
-	e.pos += e.vel * delta
 }
 
 enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {

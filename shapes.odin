@@ -22,13 +22,283 @@ Circle :: struct {
 Polygon :: struct {
 	pos:      Vec2,
 	points:   []Vec2,
-	rotation: f32, // in degrees
+	// in degrees
+	rotation: f32,
+}
+
+// Returns the normal and delta of the collision. Moving shape A by delta * rel_vel will result in the shapes being close to colliding
+// If delta is -1 and normal is {0,0}, no collision will happen
+// Normal points from a to b
+sweep_collision_shapes :: proc(
+	shape_a: Shape,
+	a_pos: Vec2,
+	shape_b: Shape,
+	b_pos: Vec2,
+	rel_vel: Vec2,
+) -> (
+	delta: f32,
+	normal: Vec2,
+) {
+	EPSILON :: 0.0001
+	switch a in shape_a {
+	case Circle:
+		// Expand the circle slightly
+		// a := ta
+		// a.radius += EPSILON
+		switch b in shape_b {
+		case Circle:
+			// Minowski sum circle collision
+
+			// Ray starts at center of circle a
+			ray_start := a.pos + a_pos
+			vel_length := length(rel_vel)
+			vel_dir := rel_vel / vel_length
+			// Circle with radius of both centered around circle b
+			padded_circle := Circle{b.pos + b_pos, b.radius + a.radius}
+			t := cast_ray_circle(ray_start, vel_dir, padded_circle)
+			if t < 0 {
+				return -1, {}
+			}
+
+			// t * vel_dir = delta * rel_vel
+			// delta = t * vel_dir / rel_vel
+			// vel_dir / rel_vel = 1 / vel_length
+			delta = t / vel_length
+
+			// Calculate normal
+			contact_point := ray_start + t * vel_dir
+			normal = normalize(padded_circle.pos - contact_point)
+			return delta, normal
+		case Polygon:
+			delta, normal = sweep_polygon_circle(
+				{b.pos + b_pos, b.points, b.rotation},
+				{a.pos + a_pos, a.radius},
+				-rel_vel,
+			)
+			// Flip normal
+			normal *= -1
+			return delta, normal
+		case Rectangle:
+			// Rectangle to polygon
+			b_points := rect_to_points(b)
+			delta, normal = sweep_polygon_circle(
+				{b_pos, b_points[:], 0},
+				{a.pos + a_pos, a.radius},
+				-rel_vel,
+			)
+			// Flip normal
+			normal *= -1
+			return delta, normal
+		}
+	case Polygon:
+		// a := ta
+		// center := get_polygon_center(a)
+		// for &p in a.points {
+		// 	p = normalize(p - center) * EPSILON
+		// }
+		switch b in shape_b {
+		case Circle:
+			return sweep_polygon_circle(
+				{a.pos + a_pos, a.points, a.rotation},
+				{b.pos + b_pos, b.radius},
+				rel_vel,
+			)
+		case Polygon:
+			return sweep_polygons(
+				{a.pos + a_pos, a.points, a.rotation},
+				{b.pos + b_pos, b.points, b.rotation},
+				rel_vel,
+			)
+		case Rectangle:
+			b_points := rect_to_points(b)
+			return sweep_polygons(
+				{a.pos + a_pos, a.points, a.rotation},
+				{b_pos, b_points[:], 0},
+				rel_vel,
+			)
+		}
+	case Rectangle:
+		// a := ta
+		// a.x -= EPSILON
+		// a.y -= EPSILON
+		// a.width += 2 * EPSILON
+		// a.height += 2 * EPSILON
+		switch b in shape_b {
+		case Circle:
+			// Rectangle to polygon
+			a_points := rect_to_points(a)
+			return sweep_polygon_circle(
+				{a_pos, a_points[:], 0},
+				{b.pos + b_pos, b.radius},
+				rel_vel,
+			)
+		case Polygon:
+			// Convert rect to a polygon and to do polygon to polygon
+			a_points := rect_to_points(a)
+			return sweep_polygons(
+				{a_pos, a_points[:], 0},
+				{b.pos + b_pos, b.points, b.rotation},
+				rel_vel,
+			)
+		case Rectangle:
+			// Convert both rects to a polygon and to do above steps. (Yes we could do minowski sum, but we dont need to optimize for that unless it becomes an issue)
+			a_points := rect_to_points(a)
+			b_points := rect_to_points(b)
+			return sweep_polygons({a_pos, a_points[:], 0}, {b_pos, b_points[:], 0}, rel_vel)
+		}
+	}
+	return -1, {}
+}
+
+// Normal points from polygon to circle. Rel vel is the velocity of the polygon from the reference point of the circle. Moving the polygon by delta * rel_vel will result in the shapes almost colliding
+sweep_polygon_circle :: proc(
+	poly: Polygon,
+	circle: Circle,
+	rel_vel: Vec2,
+) -> (
+	delta: f32,
+	normal: Vec2,
+) {
+	vel_magnitude := length(rel_vel)
+	vel_dir := rel_vel / vel_magnitude
+	min_t: f32 = -1
+	min_normal: Vec2 = {}
+
+	// First, cast ray from polygon points towards circle
+	poly_points := polygon_to_points(poly)
+	for sweep_point in poly_points {
+		t := cast_ray_circle(sweep_point, vel_dir, circle)
+
+		if t < 0 {
+			continue
+		}
+
+		// There is a collision!
+		// Step 3: Check to see if collision is the earliest collision. Smallest t value
+		if t < min_t || min_t == -1 {
+			min_t = t
+			// Calculate normal
+			contact_point := sweep_point + t * vel_dir
+			min_normal = normalize(circle.pos - contact_point)
+
+			// test_contact_point = contact_point
+			// test_sweep_point = sweep_point
+		}
+	}
+
+	// Second, cast rays from circle center to extruded segments
+	poly_center := get_polygon_center(poly)
+	for point, i in poly_points {
+		// Segment delta. prev_point - point. Vector to get from point to prev_point
+		seg_delta := poly_points[(i + 1) % len(poly_points)] - point
+
+		// Get the segment normal. We use this to extrude the segments away from the polygon
+		seg_normal := normalize(seg_delta.yx * {-1, 1})
+		// Make sure normal faces away from polygon
+		if dot(seg_normal, point - poly_center) < 0 {
+			seg_normal *= -1
+		}
+		// Extrude the segment
+		seg_start := point + seg_normal * circle.radius
+
+		// Negate vel_dir to make it the velocity of the circle relative to the polygon.
+		t := cast_ray_segment(circle.pos, -vel_dir, seg_start, seg_delta)
+
+		// Continue if there is no collision
+		if t < 0 {
+			continue
+		}
+
+		// There is a collision!
+		// Step 3: Check to see if collision is the earliest collision. Smallest t value
+		if t < min_t || min_t == -1 {
+			min_t = t
+			min_normal = seg_normal
+			// We extrude these test points with the normal again for a better visual
+			// test_contact_point = circle.pos - t * vel_dir - seg_normal * circle.radius
+			// test_sweep_point = circle.pos - seg_normal * circle.radius
+		}
+	}
+
+	// Since we used vel_dir in our calculations, we have to divide min_t by vel_magnitude to make it delta * rel_vel instead of min_t * vel_dir
+	delta = min_t / vel_magnitude
+	normal = min_normal
+	return
+}
+
+// Normal points from a to b. Rel vel is the velocity of A from the reference point of B. Moving shape A by delta * rel_vel will result in the shapes being close to colliding
+sweep_polygons :: proc(a: Polygon, b: Polygon, rel_vel: Vec2) -> (delta: f32, normal: Vec2) {
+	vel_magnitude := length(rel_vel)
+	vel_dir := rel_vel / vel_magnitude
+	min_t: f32 = -1
+	min_normal: Vec2 = {}
+
+	// Sweep points of A against segments of B
+	a_points := polygon_to_points(a)
+	b_points := polygon_to_points(b)
+	for sweep_point in a_points {
+		for seg_start, i in b_points {
+			// Step 1: Get line segment
+
+			// Segment delta. s_start + s_delta = end point of segment
+			seg_delta := b_points[(i + 1) % len(b_points)] - seg_start
+
+			// Step 2: Ray segment collision
+			t := cast_ray_segment(sweep_point, vel_dir, seg_start, seg_delta)
+			// Continue if there is no collision
+			if t < 0 {
+				continue
+			}
+
+			// There is a collision!
+			// Step 3: Check to see if collision is the earliest collision. Smallest t value
+			if t < min_t || min_t == -1 {
+				min_t = t
+				min_normal = seg_delta.yx * {-1, 1}
+			}
+		}
+	}
+
+	// Sweep points of B against segments of A
+	for sweep_point in b_points {
+		for seg_start, i in a_points {
+			// Step 1: Get line segment
+
+			// Segment delta. s_start + s_delta = end point of segment
+			seg_delta := a_points[(i + 1) % len(a_points)] - seg_start
+
+			// Step 2: Ray segment collision. We also flip vel_dir
+			t := cast_ray_segment(sweep_point, -vel_dir, seg_start, seg_delta)
+			// Continue if there is no collision
+			if t < 0 {
+				continue
+			}
+
+			// There is a collision!
+			// Step 3: Check to see if collision is the earliest collision. Smallest t value
+			if t < min_t || min_t == -1 {
+				min_t = t
+				min_normal = seg_delta.yx * {-1, 1}
+			}
+		}
+	}
+
+	// Flip normal if it faces from b to a, so that it faces from a to b
+	a_to_b := get_polygon_center(b) - get_polygon_center(a)
+	if dot(min_normal, a_to_b) < 0 {
+		min_normal *= -1
+	}
+
+	// Since we used vel_dir in our calculations, we have to divide min_t by vel_magnitude to make it delta * rel_vel instead of min_t * vel_dir
+	delta = min_t / vel_magnitude
+	normal = min_normal
+	return
 }
 
 // Returns the normal of the collision. The normal is {0, 0} if there is no collision.
-// The normal is relative to shape_a. Normal points from a to b.
+// Normal points from a to b.
 // depth is the scalar value when that represents the minimum separation needed so that shape_a will not collide with shape_b.
-// min_sep is 0 if the shapes are touching on edges, negative if shapes are not colliding at all, positive if colliding
+// depth is 0 if the shapes are touching on edges, negative if shapes are not colliding at all, positive if colliding
 resolve_collision_shapes :: proc(
 	shape_a: Shape,
 	a_pos: Vec2,
@@ -112,7 +382,7 @@ resolve_collision_shapes :: proc(
 	return false, {}, {}
 }
 
-// normal is relative to circle a
+// normal points from a to b
 resolve_collision_circles :: proc(
 	a: Circle,
 	b: Circle,
@@ -132,7 +402,7 @@ resolve_collision_circles :: proc(
 	return
 }
 
-// Normal is relative to polygon
+// Normal points from polygon to circle
 resolve_collision_polygon_circle :: proc(
 	poly: Polygon,
 	circle: Circle,
@@ -236,7 +506,7 @@ resolve_collision_polygon_circle :: proc(
 	return true, normal, depth
 }
 
-// normal is relative to polygon a
+// Normal points from a to b
 resolve_collision_polygons :: proc(
 	a: Polygon,
 	b: Polygon,
@@ -301,36 +571,40 @@ resolve_collision_polygons :: proc(
 	return true, normal, depth
 }
 
+get_closest_point_on_circle_to_segment :: proc(
+	seg_start: Vec2,
+	seg_delta: Vec2,
+	circle: Circle,
+) -> Vec2 {
+	seg_length := length(seg_delta)
+	seg_dir := seg_delta / seg_length
+	// The vector from start to center of circle
+	vector_to := circle.pos - seg_start
+	// Dot product between the vector_to and the seg_dir is the distance from seg_start to the center of the circle on seg_dir
+	v_to_dir_dot := dot(vector_to, seg_dir)
+
+	t := v_to_dir_dot / seg_length
+
+	closest_point_on_line: Vec2
+	if t >= 1 {
+		closest_point_on_line = seg_start + seg_delta
+	} else if t <= 0 {
+		closest_point_on_line = seg_start
+	} else {
+		closest_point_on_line = seg_start + seg_delta * t
+	}
+
+	center_to_closest_point_on_line := closest_point_on_line - circle.pos
+
+	return normalize(center_to_closest_point_on_line) * circle.radius + circle.pos
+}
+
+
 // Returns the distance of the ray intersection. Returns -1 if there is no collision. Dir must be normalized
 cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 	switch s in shape {
 	case Circle:
-		// The vector from start to center of circle
-		vector_to := s.pos + shape_pos - start
-		// Get the distance to the center from the closest point to the center on the axis dir.
-		// This is calculated by projecting vector_to onto dir and then we get the distance between vector_to and this projection
-		v_to_dir_dot := dot(vector_to, dir)
-		v_to_proj := v_to_dir_dot * dir
-		dist_to_center_sqrd := distance_squared(vector_to, v_to_proj)
-		// Distance to center is larger than radius, meaning no collision
-		if dist_to_center_sqrd > s.radius * s.radius {
-			return -1
-		}
-
-		// edge_to_closest_point is the distance between a point on the edge of the circle and the closest point to the center both which are on the axis, dir
-		edge_to_closest_point := math.sqrt(s.radius * s.radius - dist_to_center_sqrd)
-
-		// distance from ray to edge = distance from ray to center (v_to_dir_dot, includes direction) - distance from edge to center
-		p0 := v_to_dir_dot - edge_to_closest_point
-		p1 := v_to_dir_dot + edge_to_closest_point
-		if p0 < 0 {
-			if p1 < 0 {
-				return -1
-			}
-			return p1
-		} else {
-			return p0
-		}
+		return cast_ray_circle(start, dir, {s.pos + shape_pos, s.radius})
 	case Polygon:
 		min_t: f32 = -1
 
@@ -387,8 +661,39 @@ cast_ray :: proc(start: Vec2, dir: Vec2, shape: Shape, shape_pos: Vec2) -> f32 {
 	return -1
 }
 
+
+// Returns the distance of the ray intersection. Returns -1 if there is no collision. Dir must be normalized
+cast_ray_circle :: proc(start: Vec2, dir: Vec2, circle: Circle) -> f32 {
+	// The vector from start to center of circle
+	vector_to := circle.pos - start
+	// Get the distance to the center from the closest point to the center on the axis dir.
+	// This is calculated by projecting vector_to onto dir and then we get the distance between vector_to and this projection
+	v_to_dir_dot := dot(vector_to, dir)
+	v_to_proj := v_to_dir_dot * dir
+	dist_to_center_sqrd := distance_squared(vector_to, v_to_proj)
+	// Distance to center is larger than radius, meaning the ray never enters the circle
+	if dist_to_center_sqrd > circle.radius * circle.radius {
+		return -1
+	}
+
+	// edge_to_closest_point is the distance between a point on the edge of the circle and the closest point to the center both which are on the axis, dir
+	dist_edge_to_closest_point := math.sqrt(circle.radius * circle.radius - dist_to_center_sqrd)
+
+	// distance from ray to edge = distance from ray to center (v_to_dir_dot, includes direction) - distance from edge to center
+	p0 := v_to_dir_dot - dist_edge_to_closest_point
+	p1 := v_to_dir_dot + dist_edge_to_closest_point
+	if p0 < 0 {
+		if p1 < 0 {
+			return -1
+		}
+		return p1
+	} else {
+		return p0
+	}
+}
+
 // Returns the length of the ray in order to collide with the segment defined by s_start + s_delta * t where t is an element of [0, 1]
-// Returns negative if collision happens -r_dir. Returns math.NEG_INF_F32 if the ray will never (not even behind it) intersect the segment
+// Returns negative if collision happens behind ray. Returns math.NEG_INF_F32 if the ray will never (not even behind it) intersect the segment
 cast_ray_segment :: proc(r_start: Vec2, r_dir: Vec2, s_start: Vec2, s_delta: Vec2) -> f32 {
 	// Long hand version (this can be derived by hand with a system of equations)
 	// t_ray :=
@@ -462,6 +767,7 @@ check_collsion_circular_concave_circle :: proc(
 			points = {p, points[(i + 1) % len(points)], center},
 		}
 
+		// fmt.println(circle)
 		if check_collision_polygon_circle(poly, circle) {
 			return true
 		}
@@ -474,6 +780,7 @@ check_collision_shape_point :: proc(shape: Shape, pos: Vec2, point: Vec2) -> boo
 }
 
 check_collision_shapes :: proc(shape_a: Shape, a_pos: Vec2, shape_b: Shape, b_pos: Vec2) -> bool {
+
 	switch a in shape_a {
 	case Circle:
 		switch b in shape_b {
@@ -663,12 +970,12 @@ check_collision_triangle_point :: proc(tri: [3]Vec2, point: Vec2) -> bool {
 get_closest_polygon_point :: proc(poly: Polygon, pos: Vec2) -> int {
 	points := polygon_to_points(poly)
 	closest_point_index := -1
-	closest_distance := math.INF_F32
+	closest_dist_squared := math.INF_F32
 	for i in 0 ..< len(points) {
-		dist := length(points[i] - pos)
+		dist_squared := length_squared(points[i] - pos)
 
-		if (dist < closest_distance) {
-			closest_distance = dist
+		if (dist_squared < closest_dist_squared) {
+			closest_dist_squared = dist_squared
 			closest_point_index = i
 		}
 	}
