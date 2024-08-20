@@ -534,90 +534,100 @@ main :: proc() {
 				enemy.current_charge_time = enemy.start_charge_time
 			}
 		}
-	}
-
-
-	for &entity in exploding_barrels {
-		generic_move(&entity, 1000, delta)
-		for wall in level.walls {
-			_, normal, depth := resolve_collision_shapes(
-				entity.shape,
-				entity.pos,
-				wall.shape,
-				wall.pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				entity.pos -= normal * depth
-				entity.vel = slide(entity.vel, normal)
-			}
-		}
-	}
-
-	for &entity in z_entities {
-		zentity_move(&entity, delta)
-		for wall in level.walls {
-			_, normal, depth := resolve_collision_shapes(
-				entity.shape,
-				entity.pos,
-				wall.shape,
-				wall.pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				entity.pos -= normal * depth
-				entity.vel = slide(entity.vel, normal)
-			}
-		}
-	}
-
-	for &bomb, i in bombs {
-		zentity_move(&bomb, delta)
-		for wall in level.walls {
-			_, normal, depth := resolve_collision_shapes(
-				bomb.shape,
-				bomb.pos,
-				wall.shape,
-				wall.pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				bomb.pos -= normal * depth
-				bomb.vel = slide(bomb.vel, normal)
-			}
-		}
-		for enemy in enemies {
-			_, normal, depth := resolve_collision_shapes(
-				bomb.shape,
-				bomb.pos,
-				enemy.shape,
-				enemy.pos,
-			)
-			// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			if depth > 0 {
-				bomb.pos -= normal * depth
-				bomb.vel = slide(bomb.vel, normal)
-			}
-		}
-		if bomb.z <= 0 {
-			bomb.time_left -= delta
-			if bomb.time_left <= 0 {
-				bomb_explosion(bomb.pos, 8)
-				for enemy, j in enemies {
-					if check_collision_shapes(Circle{{}, 8}, bomb.pos, enemy.shape, enemy.pos) {
-						damage_enemy(j, 6)
-					}
-				}
-				// Bomb damaging exploding barrel
-				for barrel, j in exploding_barrels {
-					if check_collision_shapes(Circle{{}, 8}, bomb.pos, barrel.shape, barrel.pos) {
-						damage_exploding_barrel(j, 100)
-					}
-				}
-				unordered_remove(&bombs, i)
-			}
-		}
 		// }
+
+
+		for &entity in exploding_barrels {
+			generic_move(&entity, 1000, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					entity.shape,
+					entity.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					entity.pos -= normal * depth
+					entity.vel = slide(entity.vel, normal)
+				}
+			}
+		}
+
+		for &entity in z_entities {
+			zentity_move(&entity, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					entity.shape,
+					entity.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					entity.pos -= normal * depth
+					entity.vel = slide(entity.vel, normal)
+				}
+			}
+		}
+
+		for &bomb, i in bombs {
+			zentity_move(&bomb, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					bomb.shape,
+					bomb.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					bomb.pos -= normal * depth
+					bomb.vel = slide(bomb.vel, normal)
+				}
+			}
+			for enemy in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					bomb.shape,
+					bomb.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					bomb.pos -= normal * depth
+					bomb.vel = slide(bomb.vel, normal)
+				}
+			}
+			if bomb.z <= 0 {
+				bomb.time_left -= delta
+				if bomb.time_left <= 0 {
+					bomb_explosion(bomb.pos, 8)
+					for enemy, j in enemies {
+						if check_collision_shapes(
+							Circle{{}, 8},
+							bomb.pos,
+							enemy.shape,
+							enemy.pos,
+						) {
+							damage_enemy(j, 6)
+						}
+					}
+					// Bomb damaging exploding barrel
+					for barrel, j in exploding_barrels {
+						if check_collision_shapes(
+							Circle{{}, 8},
+							bomb.pos,
+							barrel.shape,
+							barrel.pos,
+						) {
+							damage_exploding_barrel(j, 100)
+						}
+					}
+					unordered_remove(&bombs, i)
+				}
+			}
+		}
 
 		for &weapon, i in projectile_weapons {
 			zentity_move(&weapon, delta)
@@ -1070,7 +1080,7 @@ main :: proc() {
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 				// Collision shape
-				draw_shape(player.shape, player.pos, rl.RED)
+				// draw_shape(player.shape, player.pos, rl.RED)
 			}
 
 			#partial switch editor_mode {
