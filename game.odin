@@ -151,7 +151,7 @@ main :: proc() {
 
 	player = {
 		pos          = {32, 32},
-		shape        = Circle{{}, 8},
+		shape        = get_centered_rect({}, {12, 12}),
 		pickup_range = 16,
 		health       = 100,
 		max_health   = 100,
@@ -427,18 +427,19 @@ main :: proc() {
 				}
 			}
 
+			// This collisiond detection does NOT use the player's shape
 			if enemy.player_in_range &&
 			   !check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
 					   enemy.pos,
-					   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
+					   {player.pos, 8},
 				   ) {
 				enemy.player_in_range = false
 			} else if !enemy.player_in_range &&
 			   check_collsion_circular_concave_circle(
 				   enemy.detection_points[:],
 				   enemy.pos,
-				   {player.shape.(Circle).pos + player.pos, player.shape.(Circle).radius},
+				   {player.pos, 8},
 			   ) {
 				enemy.player_in_range = true
 				if enemy.current_path != nil {
@@ -1080,7 +1081,7 @@ main :: proc() {
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 				// Collision shape
-				// draw_shape(player.shape, player.pos, rl.RED)
+				draw_shape(player.shape, player.pos, rl.RED)
 			}
 
 			#partial switch editor_mode {

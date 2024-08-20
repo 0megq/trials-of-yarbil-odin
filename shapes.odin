@@ -39,12 +39,9 @@ sweep_collision_shapes :: proc(
 	delta: f32,
 	normal: Vec2,
 ) {
-	EPSILON :: 0.0001
 	switch a in shape_a {
 	case Circle:
 		// Expand the circle slightly
-		// a := ta
-		// a.radius += EPSILON
 		switch b in shape_b {
 		case Circle:
 			// Minowski sum circle collision
@@ -91,11 +88,6 @@ sweep_collision_shapes :: proc(
 			return delta, normal
 		}
 	case Polygon:
-		// a := ta
-		// center := get_polygon_center(a)
-		// for &p in a.points {
-		// 	p = normalize(p - center) * EPSILON
-		// }
 		switch b in shape_b {
 		case Circle:
 			return sweep_polygon_circle(
@@ -118,11 +110,6 @@ sweep_collision_shapes :: proc(
 			)
 		}
 	case Rectangle:
-		// a := ta
-		// a.x -= EPSILON
-		// a.y -= EPSILON
-		// a.width += 2 * EPSILON
-		// a.height += 2 * EPSILON
 		switch b in shape_b {
 		case Circle:
 			// Rectangle to polygon
@@ -226,7 +213,7 @@ sweep_polygon_circle :: proc(
 	return
 }
 
-// Normal points from a to b. Rel vel is the velocity of A from the reference point of B. Moving shape A by delta * rel_vel will result in the shapes being close to colliding
+// Normal points from a to b. Rel vel is the velocity of A from the reference point of B. Moving shape A by delta * rel_vel will result in the shapes colliding
 sweep_polygons :: proc(a: Polygon, b: Polygon, rel_vel: Vec2) -> (delta: f32, normal: Vec2) {
 	vel_magnitude := length(rel_vel)
 	vel_dir := rel_vel / vel_magnitude
@@ -254,7 +241,7 @@ sweep_polygons :: proc(a: Polygon, b: Polygon, rel_vel: Vec2) -> (delta: f32, no
 			// Step 3: Check to see if collision is the earliest collision. Smallest t value
 			if t < min_t || min_t == -1 {
 				min_t = t
-				min_normal = seg_delta.yx * {-1, 1}
+				min_normal = normalize(seg_delta.yx * {-1, 1})
 			}
 		}
 	}
@@ -278,7 +265,7 @@ sweep_polygons :: proc(a: Polygon, b: Polygon, rel_vel: Vec2) -> (delta: f32, no
 			// Step 3: Check to see if collision is the earliest collision. Smallest t value
 			if t < min_t || min_t == -1 {
 				min_t = t
-				min_normal = seg_delta.yx * {-1, 1}
+				min_normal = normalize(seg_delta.yx * {-1, 1})
 			}
 		}
 	}

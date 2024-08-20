@@ -14,7 +14,7 @@ test :: proc(t: ^testing.T) {
 	polygon := Polygon{{}, {{30, 0}, {20, 40}, {0, 60}, {-20, 50}, {0, -60}}, 0}
 
 	shape_1: Shape = polygon
-	shape_2: Shape = Circle{{}, 30}
+	shape_2: Shape = get_centered_rect({}, 10)
 
 	shape_1_pos: Vec2 = rl.GetMousePosition()
 	shape_2_pos: Vec2 = {300, 100}
