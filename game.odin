@@ -123,6 +123,7 @@ fires: [dynamic]Fire
 enemies: [dynamic]Enemy
 items: [dynamic]Item
 exploding_barrels: [dynamic]ExplodingBarrel
+level: Level
 
 delta: f32
 mouse_world_pos: Vec2
@@ -192,7 +193,6 @@ main :: proc() {
 	add_item_to_world({.Bomb, 1, 16}, {200, 50})
 	add_item_to_world({.Apple, 5, 16}, {100, 50})
 
-	level: Level
 
 	wall1 := PhysicsEntity {
 		pos   = {200, 100},
@@ -365,7 +365,6 @@ main :: proc() {
 
 		if editor_mode == .None {
 			player_update_velocity(&player, delta)
-			fmt.println("bef: ", player.vel)
 			remaining_delta := delta
 			for sweeps := 0; remaining_delta > 0 && sweeps < 10; sweeps += 1 {
 				min_col_delta: f32 = -1
@@ -399,8 +398,6 @@ main :: proc() {
 					player.pos += max(speed * min_col_delta - 0.001, 0) * vel_dir
 					remaining_delta -= min_col_delta
 					player.vel = slide(player.vel, min_normal)
-					he := player.pos.x >= 81.7
-					fmt.println("aft: ", player.vel, he)
 				}
 			}
 		}
@@ -557,6 +554,7 @@ main :: proc() {
 
 		for &entity in z_entities {
 			zentity_move(&entity, delta)
+			entity.pos += entity.vel * delta
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
 					entity.shape,
@@ -574,6 +572,7 @@ main :: proc() {
 
 		for &bomb, i in bombs {
 			zentity_move(&bomb, delta)
+			bomb.pos += bomb.vel * delta
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
 					bomb.shape,
@@ -630,29 +629,49 @@ main :: proc() {
 			}
 		}
 
-		for &weapon, i in projectile_weapons {
+		outer: for &weapon, i in projectile_weapons {
 			zentity_move(&weapon, delta)
-			if !weapon.just_hit {
-				for wall in level.walls {
-					_, normal, depth := resolve_collision_shapes(
+			remaining_delta := delta
+			for sweeps := 0; remaining_delta > 0 && sweeps < 10; sweeps += 1 {
+				min_col_delta: f32 = -1
+				min_normal: Vec2 = {}
+				wall_idx: int = -1
+				for wall, j in level.walls {
+					col_delta, normal := sweep_collision_shapes(
 						weapon.shape,
 						weapon.pos,
 						wall.shape,
 						wall.pos,
+						weapon.vel,
 					)
-					// fmt.printfln("%v, %v, %v", collide, normal, depth)
-					if depth > 0 {
-						weapon.pos -= normal * depth
-						weapon.vel = slide(weapon.vel, normal)
-						// TODO: Scale the damge done on durability (count) to the velocity of the impact
-						// Higher velocity hit wall should take more durability
-						weapon.data.count -= 5
-						if weapon.data.count <= 0 {
-							delete(weapon.shape.(Polygon).points)
-							unordered_remove(&projectile_weapons, i)
+					if col_delta >= 0 {
+						if col_delta < min_col_delta || min_col_delta == -1 {
+							min_col_delta = col_delta
+							min_normal = -normal
+							wall_idx = j
 						}
-						weapon.just_hit = true
-						break
+					}
+				}
+				if min_col_delta < 0 || min_col_delta > remaining_delta {
+					weapon.pos += weapon.vel * remaining_delta
+					remaining_delta = 0
+				} else {
+					speed := length(weapon.vel)
+					vel_dir := weapon.vel / speed
+					// Separate speed and direction so we can substract 0.001 from speed and then apply vel_dir
+					// Prevents player going through wall
+					weapon.pos += max(speed * min_col_delta - 0.001, 0) * vel_dir
+					remaining_delta -= min_col_delta
+					weapon.vel = slide(weapon.vel, min_normal)
+
+					if !weapon.walls_hit[wall_idx] {
+						fmt.println("oW!")
+						weapon.walls_hit[wall_idx] = true
+						weapon.data.count -= 1
+						if weapon.data.count <= 0 {
+							delete_projectile_weapon(i)
+							continue outer
+						}
 					}
 				}
 			}
@@ -674,8 +693,8 @@ main :: proc() {
 						damage_enemy(j, 10)
 						weapon.data.count -= 1
 						if weapon.data.count <= 0 {
-							delete(weapon.shape.(Polygon).points)
-							unordered_remove(&projectile_weapons, i)
+							delete_projectile_weapon(i)
+							continue outer
 						}
 					}
 				}
@@ -697,16 +716,15 @@ main :: proc() {
 						damage_exploding_barrel(j, 10)
 						weapon.data.count -= 1
 						if weapon.data.count <= 0 {
-							delete(weapon.shape.(Polygon).points)
-							unordered_remove(&projectile_weapons, i)
+							delete_projectile_weapon(i)
+							continue outer
 						}
 					}
 				}
 			}
 			if weapon.z <= 0 {
 				add_item_to_world(weapon.data, weapon.pos)
-				delete(weapon.shape.(Polygon).points)
-				unordered_remove(&projectile_weapons, i)
+				delete_projectile_weapon(i)
 			}
 		}
 
@@ -1182,7 +1200,6 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 			}
 		}
 
-		e.pos += e.vel * delta
 		e.rot += e.rot_vel * delta
 	}
 	// Update collision shape and sprite to match new rotation
@@ -1401,6 +1418,11 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 	}
 }
 
+delete_projectile_weapon :: proc(idx: int) {
+	delete(projectile_weapons[idx].walls_hit)
+	unordered_remove(&projectile_weapons, idx)
+}
+
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
 	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
@@ -1567,15 +1589,7 @@ alt_fire_selected_weapon :: proc() -> int {
 					{-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
 					angle(to_mouse),
 				),
-				shape = rect_to_polygon(
-					Rectangle {
-						-f32(tex.width) / 2,
-						-f32(tex.height) / 2,
-						f32(tex.width),
-						f32(tex.height),
-					},
-					allocator = context.allocator,
-				),
+				shape = Circle{{}, 4},
 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
 				z = 0,
 				vel_z = 12,
@@ -1583,6 +1597,7 @@ alt_fire_selected_weapon :: proc() -> int {
 				rot_vel = 1200 * get_weapon_charge_multiplier(),
 				sprite = sprite,
 				data = weapon_data,
+				walls_hit = make([]bool, len(level.walls), context.allocator),
 			},
 		)
 		reset_hit_states()

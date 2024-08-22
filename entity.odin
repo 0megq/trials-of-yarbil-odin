@@ -86,6 +86,7 @@ ZEntity :: struct {
 ProjectileWeapon :: struct {
 	using zentity: ZEntity,
 	data:          ItemData,
+	walls_hit:     []bool,
 }
 
 Bomb :: struct {
