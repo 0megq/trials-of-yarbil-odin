@@ -116,7 +116,7 @@ can_fire_dash: bool
 fire_dash_timer: f32
 player: Player
 camera: rl.Camera2D
-z_entities: [dynamic]ZEntity
+// z_entities: [dynamic]ZEntity
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
 fires: [dynamic]Fire
@@ -177,7 +177,7 @@ main :: proc() {
 
 	fires = make([dynamic]Fire, context.allocator)
 
-	z_entities = make([dynamic]ZEntity, context.allocator)
+	// z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
 	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
 	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 50})
@@ -364,40 +364,37 @@ main :: proc() {
 		}
 
 		if editor_mode == .None {
-			player_update_velocity(&player, delta)
-			remaining_delta := delta
-			for sweeps := 0; remaining_delta > 0 && sweeps < 10; sweeps += 1 {
-				min_col_delta: f32 = -1
-				min_normal: Vec2 = {}
-				for wall in level.walls {
-					col_delta, normal := sweep_collision_shapes(
-						player.shape,
-						player.pos,
-						wall.shape,
-						wall.pos,
-						player.vel,
-					)
-					if col_delta >= 0 {
-						if col_delta < min_col_delta || min_col_delta == -1 {
-							min_col_delta = col_delta
-							min_normal = -normal
-						} else if col_delta == min_col_delta {
-							min_normal -= normal
-							min_normal /= 2
-						}
-					}
+			player_move(&player, delta)
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					player.shape,
+					player.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					player.pos -= normal * depth
+					player.vel = slide(player.vel, normal)
 				}
-				if min_col_delta < 0 || min_col_delta > remaining_delta {
-					player.pos += player.vel * remaining_delta
-					remaining_delta = 0
-				} else {
-					speed := length(player.vel)
-					vel_dir := player.vel / speed
-					// Separate speed and direction so we can substract 0.001 from speed and then apply vel_dir
-					// Prevents player going through wall
-					player.pos += max(speed * min_col_delta - 0.001, 0) * vel_dir
-					remaining_delta -= min_col_delta
-					player.vel = slide(player.vel, min_normal)
+			}
+			for &barrel in exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					player.shape,
+					player.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					// player.pos -= normal * depth
+					barrel_vel_along_normal := proj(barrel.vel, normal)
+					player_vel_along_normal := proj(player.vel, normal)
+					barrel.vel -= barrel_vel_along_normal
+					player.vel -= player_vel_along_normal
+					barrel.vel += (barrel_vel_along_normal + player_vel_along_normal) / 2
+					player.vel += (barrel_vel_along_normal + player_vel_along_normal) / 2
+					barrel.pos += normal * depth
 				}
 			}
 		}
@@ -549,30 +546,37 @@ main :: proc() {
 					entity.pos -= normal * depth
 					entity.vel = slide(entity.vel, normal)
 				}
-			}
-		}
-
-		for &entity in z_entities {
-			zentity_move(&entity, delta)
-			entity.pos += entity.vel * delta
-			for wall in level.walls {
-				_, normal, depth := resolve_collision_shapes(
+				_, pnormal, pdepth := resolve_collision_shapes(
 					entity.shape,
 					entity.pos,
-					wall.shape,
-					wall.pos,
+					player.shape,
+					player.pos,
 				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					entity.pos -= normal * depth
-					entity.vel = slide(entity.vel, normal)
+				if pdepth > 0 {
+					player.pos += pnormal * pdepth
 				}
 			}
 		}
 
+		// for &entity in z_entities {
+		// 	zentity_move(&entity, delta)
+		// 	for wall in level.walls {
+		// 		_, normal, depth := resolve_collision_shapes(
+		// 			entity.shape,
+		// 			entity.pos,
+		// 			wall.shape,
+		// 			wall.pos,
+		// 		)
+		// 		// fmt.printfln("%v, %v, %v", collide, normal, depth)
+		// 		if depth > 0 {
+		// 			entity.pos -= normal * depth
+		// 			entity.vel = slide(entity.vel, normal)
+		// 		}
+		// 	}
+		// }
+
 		for &bomb, i in bombs {
 			zentity_move(&bomb, delta)
-			bomb.pos += bomb.vel * delta
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
 					bomb.shape,
@@ -624,6 +628,9 @@ main :: proc() {
 							damage_exploding_barrel(j, 100)
 						}
 					}
+					if check_collision_shapes(Circle{{}, 8}, bomb.pos, player.shape, player.pos) {
+						player.health -= 5
+					}
 					unordered_remove(&bombs, i)
 				}
 			}
@@ -631,49 +638,31 @@ main :: proc() {
 
 		outer: for &weapon, i in projectile_weapons {
 			zentity_move(&weapon, delta)
-			remaining_delta := delta
-			for sweeps := 0; remaining_delta > 0 && sweeps < 10; sweeps += 1 {
-				min_col_delta: f32 = -1
-				min_normal: Vec2 = {}
-				wall_idx: int = -1
-				for wall, j in level.walls {
-					col_delta, normal := sweep_collision_shapes(
-						weapon.shape,
-						weapon.pos,
-						wall.shape,
-						wall.pos,
-						weapon.vel,
-					)
-					if col_delta >= 0 {
-						if col_delta < min_col_delta || min_col_delta == -1 {
-							min_col_delta = col_delta
-							min_normal = -normal
-							wall_idx = j
-						}
-					}
-				}
-				if min_col_delta < 0 || min_col_delta > remaining_delta {
-					weapon.pos += weapon.vel * remaining_delta
-					remaining_delta = 0
-				} else {
-					speed := length(weapon.vel)
-					vel_dir := weapon.vel / speed
-					// Separate speed and direction so we can substract 0.001 from speed and then apply vel_dir
-					// Prevents player going through wall
-					weapon.pos += max(speed * min_col_delta - 0.001, 0) * vel_dir
-					remaining_delta -= min_col_delta
-					weapon.vel = slide(weapon.vel, min_normal)
 
-					if !weapon.walls_hit[wall_idx] {
-						fmt.println("oW!")
-						weapon.walls_hit[wall_idx] = true
-						weapon.data.count -= 1
+			speed_damage_ratio :: 15
+			speed_durablity_ratio :: 60
+
+			for wall, j in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					wall.shape,
+					wall.pos,
+				)
+
+				if depth > 0 {
+					if !weapon.walls_hit[j] {
+						weapon.walls_hit[j] = true
+						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(i)
 							continue outer
 						}
 					}
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
 				}
+
 			}
 
 			for enemy, j in enemies {
@@ -685,18 +674,18 @@ main :: proc() {
 				)
 				// fmt.printfln("%v, %v, %v", collide, normal, depth)
 				if depth > 0 {
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
 					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
 					if !enemy.just_hit {
 						enemies[j].just_hit = true
-						damage_enemy(j, 10)
-						weapon.data.count -= 1
+						damage_enemy(j, dot(normal, weapon.vel) / speed_damage_ratio)
+						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(i)
 							continue outer
 						}
 					}
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
 				}
 			}
 			for barrel, j in exploding_barrels {
@@ -708,23 +697,24 @@ main :: proc() {
 				)
 				// fmt.printfln("%v, %v, %v", collide, normal, depth)
 				if depth > 0 {
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
 					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
 					if !barrel.just_hit {
 						exploding_barrels[j].just_hit = true
-						damage_exploding_barrel(j, 10)
-						weapon.data.count -= 1
+						damage_exploding_barrel(j, dot(normal, weapon.vel) / speed_damage_ratio)
+						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(i)
 							continue outer
 						}
 					}
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
 				}
 			}
 			if weapon.z <= 0 {
 				add_item_to_world(weapon.data, weapon.pos)
 				delete_projectile_weapon(i)
+				continue outer
 			}
 		}
 
@@ -1008,10 +998,10 @@ main :: proc() {
 			}
 
 			// Draw Z Entities
-			for &entity in z_entities {
-				entity.sprite.scale = entity.z + 1
-				draw_sprite(entity.sprite, entity.pos)
-			}
+			// for &entity in z_entities {
+			// 	entity.sprite.scale = entity.z + 1
+			// 	draw_sprite(entity.sprite, entity.pos)
+			// }
 
 			for &entity in bombs {
 				entity.sprite.scale = entity.z + 1
@@ -1201,6 +1191,7 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 		}
 
 		e.rot += e.rot_vel * delta
+		e.pos += e.vel * delta
 	}
 	// Update collision shape and sprite to match new rotation
 	#partial switch &s in e.shape {
@@ -1210,7 +1201,7 @@ zentity_move :: proc(e: ^ZEntity, delta: f32) {
 	e.sprite.rotation = e.rot
 }
 
-player_update_velocity :: proc(e: ^Player, delta: f32) {
+player_move :: proc(e: ^Player, delta: f32) {
 	max_speed: f32 = PLAYER_BASE_MAX_SPEED
 	// Slow down player
 	if player.holding_item || player.charging_weapon || player.attacking {
@@ -1250,6 +1241,8 @@ player_update_velocity :: proc(e: ^Player, delta: f32) {
 			e.vel.y = 0
 		}
 	}
+
+	e.pos += e.vel * delta
 
 	// fmt.printfln(
 	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
@@ -1405,7 +1398,7 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		fire := Fire{Circle{barrel.pos, 24}, 2}
 		append(&fires, fire)
 		for enemy, i in enemies {
-			if check_collision_shapes(enemy.shape, enemy.pos, fire.circle, barrel.pos) {
+			if check_collision_shapes(enemy.shape, enemy.pos, fire.circle, {}) {
 				// Knockback
 				power_scale := (fire.radius - length(enemy.pos - fire.pos)) / fire.radius
 				power_scale = max(power_scale, 0.6) // TODO use a map function
@@ -1413,6 +1406,12 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 				// Damge
 				damage_enemy(i, 20)
 			}
+		}
+		if check_collision_shapes(fire.circle, {}, player.shape, player.pos) {
+			player.health -= 20
+			power_scale := (fire.radius - length(player.pos - fire.pos)) / fire.radius
+			power_scale = max(power_scale, 0.6) // TODO use a map function
+			player.vel -= normalize(fire.pos - player.pos) * 400 * power_scale
 		}
 		unordered_remove(&exploding_barrels, barrel_idx)
 	}

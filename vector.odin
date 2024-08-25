@@ -40,7 +40,7 @@ dot :: proc(v1: Vec2, v2: Vec2) -> f32 {
 }
 
 // Projects v onto axis
-proj :: proc(axis: Vec2, v: Vec2) -> Vec2 {
+proj :: proc(v: Vec2, axis: Vec2) -> Vec2 {
 	return dot(axis, v) * axis / length_squared(axis)
 }
 

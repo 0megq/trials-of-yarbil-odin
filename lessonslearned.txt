@@ -5,3 +5,4 @@
 - don't forget why you're doing the things that you do
 - make systems for debugging a feature, then build the feature
 - if you feel like refactoring something, then do it. you'll probably feel that urge again and it slows you down
+- sweeping collision detection aint that great. choose reliability over perfection

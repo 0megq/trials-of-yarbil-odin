@@ -957,11 +957,11 @@ check_collision_triangle_point :: proc(tri: [3]Vec2, point: Vec2) -> bool {
 get_closest_polygon_point :: proc(poly: Polygon, pos: Vec2) -> int {
 	points := polygon_to_points(poly)
 	closest_point_index := -1
-	closest_dist_squared := math.INF_F32
+	closest_dist_squared: f32
 	for i in 0 ..< len(points) {
 		dist_squared := length_squared(points[i] - pos)
 
-		if (dist_squared < closest_dist_squared) {
+		if (dist_squared < closest_dist_squared || closest_point_index == -1) {
 			closest_dist_squared = dist_squared
 			closest_point_index = i
 		}
