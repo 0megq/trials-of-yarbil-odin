@@ -1,5 +1,6 @@
 package game
 
+import "core:encoding/uuid"
 import rl "vendor:raylib"
 
 
@@ -106,6 +107,34 @@ Sprite :: struct {
 	tex_origin: Vec2, // origin/center of the sprite relative to the texture. (0, 0) is top left corner
 	rotation:   f32, // rotation in degress of the sprite
 	tint:       rl.Color, // tint of the texture. WHITE will render the texture normally
+}
+
+AttackType :: enum {
+	SWORD,
+	FIRE,
+	EXPLOSION,
+	PROJECTILE,
+	SURF,
+}
+
+EntityType :: enum {
+	PLAYER,
+	ENEMY,
+	LEVEL,
+	EXPLODING_BARREL,
+	BOMB,
+	ITEM,
+}
+
+Attack :: struct {
+	id:        uuid.Identifier,
+	pos:       Vec2,
+	shape:     Shape,
+	damage:    f32,
+	knockback: f32,
+	direction: Vec2,
+	type:      AttackType,
+	targets:   [EntityType]bool,
 }
 
 new_enemy :: proc(pos: Vec2, attack_poly: Polygon) -> Enemy {

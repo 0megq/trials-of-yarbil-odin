@@ -114,8 +114,8 @@ current_ability: MovementAbility
 editor_mode: EditorMode = .None
 can_fire_dash: bool
 fire_dash_timer: f32
-player: Player
 camera: rl.Camera2D
+player: Player
 // z_entities: [dynamic]ZEntity
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
@@ -1089,7 +1089,7 @@ main :: proc() {
 				// Player pickup range
 				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
 				// Collision shape
-				draw_shape(player.shape, player.pos, rl.RED)
+				// draw_shape(player.shape, player.pos, rl.RED)
 			}
 
 			#partial switch editor_mode {
@@ -1768,4 +1768,30 @@ reset_hit_states :: proc() {
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
 	append(&items, Item{pos = pos, shape = Circle{{}, 4}, data = data})
+}
+
+
+perform_attack :: proc(attack: Attack) -> (targets_hit: int) {
+	// Perform attack
+	switch attack.type {
+	case .SWORD:
+		// Attack all targets
+		if attack.targets[.ENEMY] {
+			for &enemy, i in enemies {
+				// Check for collision. Also, add a check to make sure the target is not being multiple times
+				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					damage_enemy(i, attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+	case .EXPLOSION:
+
+	case .FIRE:
+
+	case .PROJECTILE:
+
+	case .SURF:
+	}
+	return
 }
