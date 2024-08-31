@@ -5,6 +5,7 @@ import rl "vendor:raylib"
 
 
 Entity :: struct {
+	id:  uuid.Identifier,
 	pos: Vec2,
 }
 
@@ -72,6 +73,7 @@ Player :: struct {
 	weapon_switched:     bool, // Only true for 1 frame
 	item_switched:       bool,
 	attacking:           bool,
+	current_attack:      Attack,
 }
 
 ZEntity :: struct {
@@ -110,36 +112,40 @@ Sprite :: struct {
 }
 
 AttackType :: enum {
-	SWORD,
-	FIRE,
-	EXPLOSION,
-	PROJECTILE,
-	SURF,
+	Sword,
+	Fire,
+	Explosion,
+	Projectile,
+	Surf,
 }
 
 EntityType :: enum {
-	PLAYER,
-	ENEMY,
-	LEVEL,
-	EXPLODING_BARREL,
-	BOMB,
-	ITEM,
+	Player,
+	Enemy,
+	Level,
+	ExplodingBarrel,
+	Bomb,
+	Item,
 }
 
 Attack :: struct {
-	id:        uuid.Identifier,
-	pos:       Vec2,
-	shape:     Shape,
-	damage:    f32,
-	knockback: f32,
-	direction: Vec2,
-	type:      AttackType,
-	targets:   [EntityType]bool,
+	pos:             Vec2,
+	shape:           Shape,
+	damage:          f32,
+	knockback:       f32,
+	direction:       Vec2,
+	type:            AttackType,
+	targets:         bit_set[EntityType],
+	exclude_targets: [dynamic]uuid.Identifier,
+}
+
+new_entity :: proc(pos: Vec2) -> Entity {
+	return {uuid.generate_v4(), pos}
 }
 
 new_enemy :: proc(pos: Vec2, attack_poly: Polygon) -> Enemy {
 	return {
-		pos = pos,
+		entity = new_entity(pos),
 		shape = get_centered_rect({}, {16, 16}),
 		detection_range = 80,
 		attack_charge_range = 12,

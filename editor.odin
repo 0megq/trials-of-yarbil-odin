@@ -144,7 +144,10 @@ update_editor :: proc(
 	update_button(&new_shape_but, mouse_pos)
 
 	if new_shape_but.status == .Released {
-		append(walls, PhysicsEntity{pos = camera_target, shape = Rectangle{0, 0, 20, 20}})
+		append(
+			walls,
+			PhysicsEntity{entity = new_entity(camera_target), shape = Rectangle{0, 0, 20, 20}},
+		)
 		selected_wall_index = len(walls) - 1
 		selected_wall = &walls[selected_wall_index]
 		set_shape_fields_to_selected()

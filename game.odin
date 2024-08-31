@@ -1,10 +1,13 @@
 package game
 
+import "core:crypto"
 import "core:encoding/json"
+import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
 import "core:mem"
 import "core:os"
+import "core:slice"
 import rl "vendor:raylib"
 
 WINDOW_SIZE :: Vec2i{1440, 810}
@@ -85,8 +88,6 @@ controls: Controls = {
 attack_duration_timer: f32
 can_attack: bool
 attack_interval_timer: f32
-attack_damage: f32
-attack_knockback: f32
 attack_poly: Polygon
 
 sword_hitbox_points: []Vec2
@@ -130,6 +131,8 @@ mouse_world_pos: Vec2
 mouse_world_delta: Vec2
 
 main :: proc() {
+	context.random_generator = crypto.random_generator()
+
 	track: mem.Tracking_Allocator
 	mem.tracking_allocator_init(&track, context.allocator)
 	context.allocator = mem.tracking_allocator(&track)
@@ -151,7 +154,7 @@ main :: proc() {
 	load_navmesh()
 
 	player = {
-		pos          = {32, 32},
+		entity       = new_entity({32, 32}),
 		shape        = get_centered_rect({}, {12, 12}),
 		pickup_range = 16,
 		health       = 100,
@@ -195,11 +198,10 @@ main :: proc() {
 
 
 	wall1 := PhysicsEntity {
-		pos   = {200, 100},
-		shape = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0},
+		entity = new_entity({200, 100}),
+		shape  = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0},
 	}
 	level.walls = make([dynamic]PhysicsEntity, context.allocator)
-
 
 	if level_data, ok := os.read_entire_file("level.json", context.allocator); ok {
 		if json.unmarshal(level_data, &level) != nil {
@@ -209,6 +211,10 @@ main :: proc() {
 	} else {
 		append(&level.walls, wall1)
 	}
+	// Generate new ids for the walls. Potential source of bugs
+	// for &wall in level.walls {
+	// 	wall.id = uuid.generate_v4()
+	// }
 
 	enemies = make([dynamic]Enemy, context.allocator)
 	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
@@ -334,7 +340,7 @@ main :: proc() {
 			case .AIR:
 			}
 			if move_successful {
-				player.attacking = false
+				stop_player_attack()
 				player.charging_weapon = false
 				player.holding_item = false
 			}
@@ -745,7 +751,7 @@ main :: proc() {
 			}
 		} else if is_control_pressed(controls.alt_fire) &&
 		   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
-			player.attacking = false // Cancel attack if attacking
+			stop_player_attack() // Cancel attack if attacking
 			player.holding_item = false // Cancel item hold
 			player.charging_weapon = true
 			player.weapon_charge_time = 0
@@ -763,7 +769,7 @@ main :: proc() {
 		}
 		if is_control_pressed(controls.use_item) &&
 		   player.items[player.selected_item_idx].id != .Empty {
-			player.attacking = false // Cancel attack
+			stop_player_attack() // Cancel attack
 			player.charging_weapon = false // Cancel charge
 			player.holding_item = true
 			player.item_hold_time = 0
@@ -789,7 +795,7 @@ main :: proc() {
 		player.weapon_switched = false
 		if is_control_pressed(controls.switch_selected_weapon) {
 			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
-			player.attacking = false // Cancel attack if attacking
+			stop_player_attack() // Cancel attack if attacking
 			player.weapon_switched = true
 			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
@@ -821,44 +827,14 @@ main :: proc() {
 
 		if player.attacking {
 			if attack_duration_timer <= 0 {
-				player.attacking = false
+				stop_player_attack()
 			} else {
 				attack_duration_timer -= delta
-				for &enemy, i in enemies {
-					if !enemy.just_hit &&
-					   check_collision_shapes(enemy.shape, enemy.pos, attack_poly, player.pos) {
-						enemy.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
-						enemy.just_hit = true
-						damage_enemy(i, attack_damage)
-						player.weapons[player.selected_weapon_idx].count -= 1
-						if player.weapons[player.selected_weapon_idx].count <= 0 {
-							player.weapons[player.selected_item_idx].id = .Empty
-						}
-					}
-				}
-				// Other sword interactions go here
-				for &barrel, i in exploding_barrels {
-					if !barrel.just_hit &&
-					   check_collision_shapes(barrel.shape, barrel.pos, attack_poly, player.pos) {
-						barrel.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
-						barrel.just_hit = true
-						damage_exploding_barrel(i, attack_damage)
-						player.weapons[player.selected_weapon_idx].count -= 1
-						if player.weapons[player.selected_weapon_idx].count <= 0 {
-							player.weapons[player.selected_item_idx].id = .Empty
-						}
-					}
-				}
-				for &bomb in bombs {
-					if !bomb.just_hit &&
-					   check_collision_shapes(bomb.shape, bomb.pos, attack_poly, player.pos) {
-						bomb.vel += normalize(mouse_world_pos - player.pos) * attack_knockback
-						bomb.just_hit = true
-						player.weapons[player.selected_weapon_idx].count -= 1
-						if player.weapons[player.selected_weapon_idx].count <= 0 {
-							player.weapons[player.selected_item_idx].id = .Empty
-						}
-					}
+
+				targets_hit := perform_attack(&player.current_attack)
+				player.weapons[player.selected_weapon_idx].count -= targets_hit
+				if player.weapons[player.selected_weapon_idx].count <= 0 {
+					player.weapons[player.selected_item_idx].id = .Empty
 				}
 			}
 		} else if !can_attack { 	// If right after punch finished then tick punch rate timer until done
@@ -1478,7 +1454,9 @@ use_selected_item :: proc() {
 		append(
 			&bombs,
 			Bomb {
-				pos = player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
+				entity = new_entity(
+					player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
+				),
 				shape = Rectangle{-1, 0, 3, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
@@ -1515,6 +1493,13 @@ add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
 	return
 }
 
+stop_player_attack :: proc() {
+	if player.attacking {
+		player.attacking = false
+		delete(player.current_attack.exclude_targets)
+	}
+}
+
 fire_selected_weapon :: proc() -> int {
 	// get selected weapon ItemId
 	weapon_data := player.weapons[player.selected_weapon_idx]
@@ -1532,8 +1517,16 @@ fire_selected_weapon :: proc() -> int {
 			attack_duration_timer = ATTACK_DURATION
 			attack_interval_timer = ATTACK_INTERVAL
 			player.attacking = true
-			attack_damage = SWORD_DAMAGE
-			attack_knockback = SWORD_KNOCKBACK
+			player.current_attack = Attack {
+				pos             = player.pos,
+				shape           = attack_poly,
+				damage          = SWORD_DAMAGE,
+				knockback       = SWORD_KNOCKBACK,
+				direction       = normalize(mouse_world_pos - player.pos),
+				type            = .Sword,
+				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
+				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+			}
 			can_attack = false
 			reset_hit_states()
 
@@ -1583,10 +1576,13 @@ alt_fire_selected_weapon :: proc() -> int {
 		append(
 			&projectile_weapons,
 			ProjectileWeapon {
-				pos = player.pos +
-				rotate_vector(
-					{-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
-					angle(to_mouse),
+				entity = new_entity(
+					player.pos +
+					rotate_vector(
+						{-2, 5} +
+						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
+						angle(to_mouse),
+					),
 				),
 				shape = Circle{{}, 4},
 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
@@ -1719,7 +1715,7 @@ drop_item :: proc() -> ItemData {
 			// Set the weapon to empty and deselect it
 			player.weapons[player.selected_weapon_idx].id = .Empty
 			player.charging_weapon = false // Stop charging
-			player.attacking = false // Cancel attack
+			stop_player_attack() // Cancel attack
 			return weapon_data
 		}
 	} else {
@@ -1767,31 +1763,71 @@ reset_hit_states :: proc() {
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
-	append(&items, Item{pos = pos, shape = Circle{{}, 4}, data = data})
+	append(&items, Item{entity = new_entity(pos), shape = Circle{{}, 4}, data = data})
 }
 
-
-perform_attack :: proc(attack: Attack) -> (targets_hit: int) {
+perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	// Perform attack
 	switch attack.type {
-	case .SWORD:
+	case .Sword:
 		// Attack all targets
-		if attack.targets[.ENEMY] {
+		if .Enemy in attack.targets {
 			for &enemy, i in enemies {
-				// Check for collision. Also, add a check to make sure the target is not being multiple times
+				// Exclude enemy
+				_, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id)
+				if exclude_found {
+					continue
+				}
+
+				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					enemy.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
 					damage_enemy(i, attack.damage)
+					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
 				}
 			}
 		}
-	case .EXPLOSION:
+		if .ExplodingBarrel in attack.targets {
+			for &barrel, i in exploding_barrels {
+				// Exclude enemy
+				_, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id)
+				if exclude_found {
+					continue
+				}
 
-	case .FIRE:
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
+					barrel.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
+					damage_exploding_barrel(i, attack.damage)
+					append(&attack.exclude_targets, barrel.id)
+					targets_hit += 1
+				}
+			}
+		}
+		if .Bomb in attack.targets {
+			for &bomb in bombs {
+				// Exclude enemy
+				_, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id)
+				if exclude_found {
+					continue
+				}
 
-	case .PROJECTILE:
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
+					bomb.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
+					append(&attack.exclude_targets, bomb.id)
+					targets_hit += 1
+				}
+			}
+		}
+	case .Explosion:
 
-	case .SURF:
+	case .Fire:
+
+	case .Projectile:
+
+	case .Surf:
 	}
 	return
 }
