@@ -609,34 +609,19 @@ main :: proc() {
 					bomb.vel = slide(bomb.vel, normal)
 				}
 			}
-			if bomb.z <= 0 {
+			if bomb.z <= 0 { 	// if on ground, then start ticking
 				bomb.time_left -= delta
 				if bomb.time_left <= 0 {
 					bomb_explosion(bomb.pos, 8)
-					for enemy, j in enemies {
-						if check_collision_shapes(
-							Circle{{}, 8},
-							bomb.pos,
-							enemy.shape,
-							enemy.pos,
-						) {
-							damage_enemy(j, 6)
-						}
-					}
-					// Bomb damaging exploding barrel
-					for barrel, j in exploding_barrels {
-						if check_collision_shapes(
-							Circle{{}, 8},
-							bomb.pos,
-							barrel.shape,
-							barrel.pos,
-						) {
-							damage_exploding_barrel(j, 100)
-						}
-					}
-					if check_collision_shapes(Circle{{}, 8}, bomb.pos, player.shape, player.pos) {
-						player.health -= 5
-					}
+					perform_attack(
+						&{
+							targets = {.Player, .Enemy, .ExplodingBarrel},
+							damage = 10,
+							pos = bomb.pos,
+							shape = Circle{{}, 8},
+							type = .Explosion,
+						},
+					)
 					unordered_remove(&bombs, i)
 				}
 			}
@@ -1372,24 +1357,20 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		// KABOOM!!!
 		// Visual
 		fire := Fire{Circle{barrel.pos, 24}, 2}
-		append(&fires, fire)
-		for enemy, i in enemies {
-			if check_collision_shapes(enemy.shape, enemy.pos, fire.circle, {}) {
-				// Knockback
-				power_scale := (fire.radius - length(enemy.pos - fire.pos)) / fire.radius
-				power_scale = max(power_scale, 0.6) // TODO use a map function
-				enemies[i].vel -= normalize(fire.pos - enemy.pos) * 400 * power_scale
-				// Damge
-				damage_enemy(i, 20)
-			}
-		}
-		if check_collision_shapes(fire.circle, {}, player.shape, player.pos) {
-			player.health -= 20
-			power_scale := (fire.radius - length(player.pos - fire.pos)) / fire.radius
-			power_scale = max(power_scale, 0.6) // TODO use a map function
-			player.vel -= normalize(fire.pos - player.pos) * 400 * power_scale
-		}
 		unordered_remove(&exploding_barrels, barrel_idx)
+
+		append(&fires, fire)
+		// Damage
+		perform_attack(
+			&{
+				targets = {.Player, .Enemy, .ExplodingBarrel},
+				damage = 20,
+				knockback = 400,
+				pos = fire.pos,
+				shape = Circle{{}, fire.radius},
+				type = .Explosion,
+			},
+		)
 	}
 }
 
@@ -1767,6 +1748,7 @@ add_item_to_world :: proc(data: ItemData, pos: Vec2) {
 }
 
 perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
+	EXPLOSION_DAMAGE_MULTIPLIER :: 10
 	// Perform attack
 	switch attack.type {
 	case .Sword:
@@ -1774,14 +1756,14 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		if .Enemy in attack.targets {
 			for &enemy, i in enemies {
 				// Exclude enemy
-				_, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id)
-				if exclude_found {
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id);
+				   exclude_found {
 					continue
 				}
 
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-					enemy.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
+					enemy.vel += attack.direction * attack.knockback
 					damage_enemy(i, attack.damage)
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
@@ -1790,15 +1772,15 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		}
 		if .ExplodingBarrel in attack.targets {
 			for &barrel, i in exploding_barrels {
-				// Exclude enemy
-				_, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id)
-				if exclude_found {
+				// Exclude
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
+				   exclude_found {
 					continue
 				}
 
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-					barrel.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
+					barrel.vel += attack.direction * attack.knockback
 					damage_exploding_barrel(i, attack.damage)
 					append(&attack.exclude_targets, barrel.id)
 					targets_hit += 1
@@ -1807,22 +1789,64 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		}
 		if .Bomb in attack.targets {
 			for &bomb in bombs {
-				// Exclude enemy
-				_, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id)
-				if exclude_found {
+				// Exclude
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id);
+				   exclude_found {
 					continue
 				}
 
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
-					bomb.vel += normalize(mouse_world_pos - attack.pos) * attack.knockback
+					bomb.vel += attack.direction * attack.knockback
 					append(&attack.exclude_targets, bomb.id)
 					targets_hit += 1
 				}
 			}
 		}
 	case .Explosion:
+		if .Enemy in attack.targets {
+			for &enemy, i in enemies {
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id);
+				   exclude_found {
+					continue
+				}
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					// Knockback
+					// TODO: scale knockback and damage by closeness to explosion
+					enemy.vel += normalize(enemy.pos - attack.pos) * attack.knockback
+					// Damage
+					damage_enemy(i, attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+		if .Player in attack.targets {
+			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], player.id);
+			   !exclude_found {
+				if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
+					player.vel += normalize(player.pos - attack.pos) * attack.knockback
+					damage_player(attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+		if .ExplodingBarrel in attack.targets {
+			for &barrel, i in exploding_barrels {
+				// Exclude
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
+				   exclude_found {
+					continue
+				}
 
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
+					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
+					damage_exploding_barrel(i, attack.damage * EXPLOSION_DAMAGE_MULTIPLIER)
+					targets_hit += 1
+				}
+			}
+		}
 	case .Fire:
 
 	case .Projectile:
@@ -1830,4 +1854,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	case .Surf:
 	}
 	return
+}
+
+
+damage_player :: proc(amount: f32) {
+	player.health -= amount
+	player.health = max(player.health, 0)
 }
