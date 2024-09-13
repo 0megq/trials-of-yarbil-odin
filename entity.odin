@@ -89,7 +89,7 @@ ZEntity :: struct {
 ProjectileWeapon :: struct {
 	using zentity: ZEntity,
 	data:          ItemData,
-	walls_hit:     []bool,
+	attack:        Attack,
 }
 
 Bomb :: struct {
@@ -111,18 +111,10 @@ Sprite :: struct {
 	tint:       rl.Color, // tint of the texture. WHITE will render the texture normally
 }
 
-AttackType :: enum {
-	Sword,
-	Fire,
-	Explosion,
-	Projectile,
-	Surf,
-}
-
 EntityType :: enum {
 	Player,
 	Enemy,
-	Level,
+	Wall,
 	ExplodingBarrel,
 	Bomb,
 	Item,
@@ -134,9 +126,31 @@ Attack :: struct {
 	damage:          f32,
 	knockback:       f32,
 	direction:       Vec2,
-	type:            AttackType,
+	data:            AttackData,
 	targets:         bit_set[EntityType],
 	exclude_targets: [dynamic]uuid.Identifier,
+}
+
+AttackData :: union {
+	ExplosionAttackData,
+	SwordAttackData,
+	FireAttackData,
+	ProjectileAttackData,
+	SurfAttackData,
+}
+
+SwordAttackData :: struct {}
+
+FireAttackData :: struct {}
+
+SurfAttackData :: struct {}
+
+ExplosionAttackData :: struct {}
+
+ProjectileAttackData :: struct {
+	projectile_idx:        int,
+	speed_damage_ratio:    f32,
+	speed_durablity_ratio: int,
 }
 
 new_entity :: proc(pos: Vec2) -> Entity {

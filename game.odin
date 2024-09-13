@@ -246,7 +246,7 @@ main :: proc() {
 		mouse_world_pos = rl.GetMousePosition() / camera.zoom + camera.target
 		mouse_world_delta = rl.GetMouseDelta() / camera.zoom
 
-		for &timer, i in timers {
+		#reverse for &timer, i in timers {
 			timer.time_left -= delta
 			if timer.time_left <= 0 {
 				timer.callable()
@@ -295,34 +295,15 @@ main :: proc() {
 					player.vel = normalize(get_directional_input()) * 250
 					fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
 					append(&fires, fire)
-					for &enemy, i in enemies {
-						if check_collision_shapes(fire.circle, {}, enemy.shape, enemy.pos) {
-							power_scale :=
-								(FIRE_DASH_RADIUS - length(enemy.pos - fire.pos)) /
-								FIRE_DASH_RADIUS
-							power_scale = max(power_scale, 0.6) // TODO use a map function
-							enemy.vel -= normalize(fire.pos - enemy.pos) * 400 * power_scale
-							damage_enemy(i, 20)
-						}
+					attack := Attack {
+						pos       = player.pos,
+						shape     = Circle{{}, FIRE_DASH_RADIUS},
+						damage    = 20,
+						knockback = 400,
+						targets   = {.Bomb, .Enemy, .ExplodingBarrel},
+						data      = ExplosionAttackData{},
 					}
-					for &barrel, i in exploding_barrels {
-						if check_collision_shapes(fire.circle, {}, barrel.shape, barrel.pos) {
-							power_scale :=
-								(FIRE_DASH_RADIUS - length(barrel.pos - fire.pos)) /
-								FIRE_DASH_RADIUS
-							power_scale = max(power_scale, 0.6) // TODO use a map function
-							barrel.vel -= normalize(fire.pos - barrel.pos) * 400 * power_scale
-							damage_exploding_barrel(i, 20)
-						}
-					}
-					for &bomb in bombs {
-						if check_collision_shapes(fire.circle, {}, bomb.shape, bomb.pos) {
-							power_scale :=
-								(FIRE_DASH_RADIUS - length(bomb.pos - fire.pos)) / FIRE_DASH_RADIUS
-							power_scale = max(power_scale, 0.6) // TODO use a map function
-							bomb.vel -= normalize(fire.pos - bomb.pos) * 400 * power_scale
-						}
-					}
+					perform_attack(&attack)
 				}
 			case .WATER:
 				move_successful = true
@@ -350,23 +331,15 @@ main :: proc() {
 			player.vel = normalize(get_directional_input()) * 200
 			surf_poly.rotation = angle(get_directional_input())
 			surf_poly.pos = player.pos
-			for &enemy, i in enemies {
-				if check_collision_shapes(surf_poly, {}, enemy.shape, enemy.pos) {
-					enemy.vel = normalize(enemy.pos - (surf_poly.pos + {10, 0})) * 250
-					damage_enemy(i, 40 * delta)
-				}
+			attack := Attack {
+				targets   = {.Enemy, .ExplodingBarrel, .Bomb},
+				damage    = 40 * delta,
+				knockback = 210,
+				shape     = Polygon{{}, surf_poly.points, surf_poly.rotation},
+				pos       = surf_poly.pos,
+				data      = SurfAttackData{},
 			}
-			for &barrel, i in exploding_barrels {
-				if check_collision_shapes(surf_poly, {}, barrel.shape, barrel.pos) {
-					barrel.vel = normalize(barrel.pos - (surf_poly.pos + {10, 0})) * 250
-					damage_exploding_barrel(i, 40 * delta)
-				}
-			}
-			for &bomb in bombs {
-				if check_collision_shapes(surf_poly, {}, bomb.shape, bomb.pos) {
-					bomb.vel = normalize(bomb.pos - (surf_poly.pos + {10, 0})) * 250
-				}
-			}
+			perform_attack(&attack)
 		}
 
 		if editor_mode == .None {
@@ -405,7 +378,7 @@ main :: proc() {
 			}
 		}
 
-		for &fire, i in fires {
+		#reverse for &fire, i in fires {
 			fire.time_left -= delta
 			if fire.time_left <= 0 {
 				unordered_remove(&fires, i)
@@ -414,7 +387,7 @@ main :: proc() {
 
 		// Move enemies and track player if in range
 		// if false {
-		for &enemy in enemies {
+		#reverse for &enemy in enemies {
 
 			// Update detection points
 			for &p, i in enemy.detection_points {
@@ -506,18 +479,21 @@ main :: proc() {
 				if enemy.current_charge_time <= 0 {
 					enemy.just_attacked = true
 					enemy.charging = false
-					if check_collision_shapes(
-						enemy.attack_poly,
-						enemy.pos,
-						player.shape,
-						player.pos,
-					) {
-						fmt.println("damaged")
-						player.health -= 5
-						if player.health <= 0 {
-							fmt.println("player is dead")
-						}
-					}
+					perform_attack(
+						&Attack {
+							targets         = {.Bomb, .ExplodingBarrel, .Player},
+							damage          = 5,
+							knockback       = 100,
+							data            = SwordAttackData{},
+							pos             = enemy.pos,
+							shape           = enemy.attack_poly,
+							exclude_targets = make(
+								[dynamic]uuid.Identifier, // We don't want to reuse this
+								context.temp_allocator,
+							),
+							direction       = vector_from_angle(enemy.attack_poly.rotation),
+						},
+					)
 				}
 			}
 
@@ -538,7 +514,7 @@ main :: proc() {
 		// }
 
 
-		for &entity in exploding_barrels {
+		#reverse for &entity in exploding_barrels {
 			generic_move(&entity, 1000, delta)
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
@@ -581,7 +557,7 @@ main :: proc() {
 		// 	}
 		// }
 
-		for &bomb, i in bombs {
+		#reverse for &bomb, i in bombs {
 			zentity_move(&bomb, delta)
 			for wall in level.walls {
 				_, normal, depth := resolve_collision_shapes(
@@ -619,7 +595,7 @@ main :: proc() {
 							damage = 10,
 							pos = bomb.pos,
 							shape = Circle{{}, 8},
-							type = .Explosion,
+							data = ExplosionAttackData{},
 						},
 					)
 					unordered_remove(&bombs, i)
@@ -627,85 +603,24 @@ main :: proc() {
 			}
 		}
 
-		outer: for &weapon, i in projectile_weapons {
+		#reverse for &weapon, i in projectile_weapons {
 			zentity_move(&weapon, delta)
 
 			speed_damage_ratio :: 15
 			speed_durablity_ratio :: 60
 
-			for wall, j in level.walls {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					wall.shape,
-					wall.pos,
-				)
+			weapon.attack.pos = weapon.pos
+			weapon.attack.shape = weapon.shape
+			weapon.attack.data = ProjectileAttackData{i, speed_damage_ratio, speed_durablity_ratio}
 
-				if depth > 0 {
-					if !weapon.walls_hit[j] {
-						weapon.walls_hit[j] = true
-						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(i)
-							continue outer
-						}
-					}
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-
+			if perform_attack(&weapon.attack) == -1 {
+				// If the weapon was deleted while performing its attack
+				continue
 			}
 
-			for enemy, j in enemies {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					enemy.shape,
-					enemy.pos,
-				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
-					if !enemy.just_hit {
-						enemies[j].just_hit = true
-						damage_enemy(j, dot(normal, weapon.vel) / speed_damage_ratio)
-						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(i)
-							continue outer
-						}
-					}
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-			}
-			for barrel, j in exploding_barrels {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					barrel.shape,
-					barrel.pos,
-				)
-				// fmt.printfln("%v, %v, %v", collide, normal, depth)
-				if depth > 0 {
-					// 10 is a arbitrary number. TODO: make this use a weapon specific damage value
-					if !barrel.just_hit {
-						exploding_barrels[j].just_hit = true
-						damage_exploding_barrel(j, dot(normal, weapon.vel) / speed_damage_ratio)
-						weapon.data.count -= int(dot(normal, weapon.vel)) / speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(i)
-							continue outer
-						}
-					}
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-			}
 			if weapon.z <= 0 {
 				add_item_to_world(weapon.data, weapon.pos)
 				delete_projectile_weapon(i)
-				continue outer
 			}
 		}
 
@@ -1363,19 +1278,19 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		// Damage
 		perform_attack(
 			&{
-				targets = {.Player, .Enemy, .ExplodingBarrel},
+				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb},
 				damage = 20,
 				knockback = 400,
 				pos = fire.pos,
 				shape = Circle{{}, fire.radius},
-				type = .Explosion,
+				data = ExplosionAttackData{},
 			},
 		)
 	}
 }
 
 delete_projectile_weapon :: proc(idx: int) {
-	delete(projectile_weapons[idx].walls_hit)
+	delete(projectile_weapons[idx].attack.exclude_targets)
 	unordered_remove(&projectile_weapons, idx)
 }
 
@@ -1504,12 +1419,11 @@ fire_selected_weapon :: proc() -> int {
 				damage          = SWORD_DAMAGE,
 				knockback       = SWORD_KNOCKBACK,
 				direction       = normalize(mouse_world_pos - player.pos),
-				type            = .Sword,
+				data            = SwordAttackData{},
 				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
 				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
 			}
 			can_attack = false
-			reset_hit_states()
 
 			// Animation
 			if sword_animation.pos_cur_rotation == sword_animation.cpos_top_rotation { 	// Animate down
@@ -1573,10 +1487,12 @@ alt_fire_selected_weapon :: proc() -> int {
 				rot_vel = 1200 * get_weapon_charge_multiplier(),
 				sprite = sprite,
 				data = weapon_data,
-				walls_hit = make([]bool, len(level.walls), context.allocator),
+				attack = Attack {
+					targets = {.Enemy, .Wall, .ExplodingBarrel},
+					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+				},
 			},
 		)
-		reset_hit_states()
 		player.weapons[player.selected_weapon_idx].id = .Empty
 	}
 	return 0
@@ -1731,18 +1647,6 @@ is_control_released :: proc(c: Control) -> bool {
 	return false
 }
 
-reset_hit_states :: proc() {
-	for &enemy in enemies {
-		enemy.just_hit = false
-	}
-	for &barrel in exploding_barrels {
-		barrel.just_hit = false
-	}
-	for &bomb in bombs {
-		bomb.just_hit = false
-	}
-}
-
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
 	append(&items, Item{entity = new_entity(pos), shape = Circle{{}, 4}, data = data})
 }
@@ -1750,11 +1654,11 @@ add_item_to_world :: proc(data: ItemData, pos: Vec2) {
 perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	EXPLOSION_DAMAGE_MULTIPLIER :: 10
 	// Perform attack
-	switch attack.type {
-	case .Sword:
+	switch data in attack.data {
+	case SwordAttackData:
 		// Attack all targets
 		if .Enemy in attack.targets {
-			for &enemy, i in enemies {
+			#reverse for &enemy, i in enemies {
 				// Exclude enemy
 				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id);
 				   exclude_found {
@@ -1771,7 +1675,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
+			#reverse for &barrel, i in exploding_barrels {
 				// Exclude
 				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
 				   exclude_found {
@@ -1788,7 +1692,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .Bomb in attack.targets {
-			for &bomb in bombs {
+			#reverse for &bomb in bombs {
 				// Exclude
 				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id);
 				   exclude_found {
@@ -1803,17 +1707,25 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
-	case .Explosion:
-		if .Enemy in attack.targets {
-			for &enemy, i in enemies {
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id);
-				   exclude_found {
-					continue
+		if .Player in attack.targets {
+			// Exclude
+			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], player.id);
+			   !exclude_found {
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
+					player.vel += attack.direction * attack.knockback
+					damage_player(attack.damage)
+					append(&attack.exclude_targets, player.id)
+					targets_hit += 1
 				}
+			}
+		}
+	case ExplosionAttackData:
+		if .Enemy in attack.targets {
+			#reverse for &enemy, i in enemies {
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					// Knockback
-					// TODO: scale knockback and damage by closeness to explosion
 					enemy.vel += normalize(enemy.pos - attack.pos) * attack.knockback
 					// Damage
 					damage_enemy(i, attack.damage)
@@ -1822,23 +1734,14 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .Player in attack.targets {
-			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], player.id);
-			   !exclude_found {
-				if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
-					player.vel += normalize(player.pos - attack.pos) * attack.knockback
-					damage_player(attack.damage)
-					targets_hit += 1
-				}
+			if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
+				player.vel += normalize(player.pos - attack.pos) * attack.knockback
+				damage_player(attack.damage)
+				targets_hit += 1
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
-				// Exclude
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
-				   exclude_found {
-					continue
-				}
-
+			#reverse for &barrel, i in exploding_barrels {
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
@@ -1847,11 +1750,162 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
-	case .Fire:
 
-	case .Projectile:
+		if .Bomb in attack.targets {
+			#reverse for &bomb in bombs {
+				// Exclude
+				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id);
+				   exclude_found {
+					continue
+				}
 
-	case .Surf:
+				// Check for collision and apply knockback and damage
+				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
+					bomb.vel += normalize(bomb.pos - attack.pos) * attack.knockback
+					append(&attack.exclude_targets, bomb.id)
+					targets_hit += 1
+				}
+			}
+		}
+	case FireAttackData:
+
+	case ProjectileAttackData:
+		weapon := &projectile_weapons[data.projectile_idx]
+		if .Wall in attack.targets {
+			for wall in level.walls {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					wall.shape,
+					wall.pos,
+				)
+
+				if depth > 0 {
+					// Only damage the weapon if the wall is not already excluded
+					if _, exclude_found := slice.linear_search(attack.exclude_targets[:], wall.id);
+					   !exclude_found {
+						// Add to exclude
+						append(&attack.exclude_targets, wall.id)
+						// Durability
+						weapon.data.count -=
+							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+						if weapon.data.count <= 0 {
+							delete_projectile_weapon(data.projectile_idx)
+							return -1
+						}
+					}
+
+					// Resolve collision
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+				}
+			}
+		}
+		if .Enemy in attack.targets {
+			#reverse for enemy, i in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+
+				if depth > 0 {
+					// Only damage if enemy is not already excluded
+					if _, exclude_found := slice.linear_search(
+						attack.exclude_targets[:],
+						enemy.id,
+					); !exclude_found {
+						// Add to exclude
+						append(&attack.exclude_targets, enemy.id)
+						// Damage
+						damage_enemy(i, dot(normal, weapon.vel) / data.speed_damage_ratio)
+						// Durability
+						weapon.data.count -=
+							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+						if weapon.data.count <= 0 {
+							delete_projectile_weapon(data.projectile_idx)
+							return -1
+						}
+					}
+
+					// Resolve collision
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+				}
+			}
+		}
+
+		if .ExplodingBarrel in attack.targets {
+			#reverse for barrel, i in exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					weapon.shape,
+					weapon.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+
+				if depth > 0 {
+					// Only damage if enemy is not already excluded
+					if _, exclude_found := slice.linear_search(
+						attack.exclude_targets[:],
+						barrel.id,
+					); !exclude_found {
+						// Add to exclude
+						append(&attack.exclude_targets, barrel.id)
+						// Damage
+						damage_exploding_barrel(
+							i,
+							dot(normal, weapon.vel) / data.speed_damage_ratio,
+						)
+						// Durability
+						weapon.data.count -=
+							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+						if weapon.data.count <= 0 {
+							delete_projectile_weapon(data.projectile_idx)
+							return -1
+						}
+					}
+
+					// Resolve collision
+					weapon.pos -= normal * depth
+					weapon.vel = slide(weapon.vel, normal)
+				}
+			}
+		}
+
+	case SurfAttackData:
+		if .Enemy in attack.targets {
+			#reverse for &enemy, i in enemies {
+				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					// Knockback
+					enemy.vel = normalize(enemy.pos - attack.pos) * attack.knockback
+					// Damage
+					damage_enemy(i, attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+		if .ExplodingBarrel in attack.targets {
+			#reverse for &barrel, i in exploding_barrels {
+				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
+					// Knockback
+					barrel.vel = normalize(barrel.pos - attack.pos) * attack.knockback
+					// Damage
+					damage_exploding_barrel(i, attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+		if .Bomb in attack.targets {
+			#reverse for &bomb in bombs {
+				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
+					// Knockback
+					bomb.vel = normalize(bomb.pos - attack.pos) * attack.knockback
+					targets_hit += 1
+				}
+			}
+		}
 	}
 	return
 }
