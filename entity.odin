@@ -24,7 +24,6 @@ MovingEntity :: struct {
 ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
-	just_hit:            bool,
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
@@ -48,8 +47,16 @@ Enemy :: struct {
 	current_path_point:     int,
 	pathfinding_timer:      f32,
 	player_in_range:        bool,
-	just_hit:               bool,
+	data:                   EnemyData,
 }
+
+EnemyData :: union {
+	MeleeEnemyData,
+	RangedEnemyData,
+}
+
+MeleeEnemyData :: struct {}
+RangedEnemyData :: struct {}
 
 Item :: struct {
 	using moving_entity: MovingEntity,
@@ -83,12 +90,16 @@ ZEntity :: struct {
 	rot:                 f32,
 	rot_vel:             f32,
 	sprite:              Sprite,
-	just_hit:            bool,
 }
 
 ProjectileWeapon :: struct {
 	using zentity: ZEntity,
 	data:          ItemData,
+	attack:        Attack,
+}
+
+Arrow :: struct {
+	using zentity: ZEntity,
 	attack:        Attack,
 }
 
@@ -137,6 +148,7 @@ AttackData :: union {
 	FireAttackData,
 	ProjectileAttackData,
 	SurfAttackData,
+	ArrowAttackData,
 }
 
 SwordAttackData :: struct {}
@@ -152,6 +164,8 @@ ProjectileAttackData :: struct {
 	speed_damage_ratio:    f32,
 	speed_durablity_ratio: int,
 }
+
+ArrowAttackData :: struct {}
 
 new_entity :: proc(pos: Vec2) -> Entity {
 	return {uuid.generate_v4(), pos}

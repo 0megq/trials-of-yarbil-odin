@@ -400,7 +400,7 @@ main :: proc() {
 				}
 			}
 
-			// This collisiond detection does NOT use the player's shape
+			// This collision detection does NOT use the player's shape, but a circle to approximate it
 			if enemy.player_in_range &&
 			   !check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
@@ -497,7 +497,7 @@ main :: proc() {
 				}
 			}
 
-			// If player in attack trigger range
+			// If player in attack range
 			if !enemy.flinching &&
 			   !enemy.charging &&
 			   check_collision_shapes(
@@ -1801,6 +1801,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
+
 		if .Enemy in attack.targets {
 			#reverse for enemy, i in enemies {
 				_, normal, depth := resolve_collision_shapes(
@@ -1906,6 +1907,8 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
+	case ArrowAttackData:
+
 	}
 	return
 }
