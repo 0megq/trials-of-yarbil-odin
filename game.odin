@@ -120,6 +120,7 @@ player: Player
 // z_entities: [dynamic]ZEntity
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
+arrows: [dynamic]Arrow
 fires: [dynamic]Fire
 enemies: [dynamic]Enemy
 items: [dynamic]Item
@@ -186,6 +187,7 @@ main :: proc() {
 	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 50})
 
 	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
+	arrows = make([dynamic]Arrow, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -218,11 +220,12 @@ main :: proc() {
 
 	enemies = make([dynamic]Enemy, context.allocator)
 	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
-	append(&enemies, new_enemy({300, 80}, enemy_attack_poly))
-	append(&enemies, new_enemy({200, 200}, enemy_attack_poly))
-	append(&enemies, new_enemy({130, 200}, enemy_attack_poly))
-	append(&enemies, new_enemy({220, 180}, enemy_attack_poly))
-	append(&enemies, new_enemy({80, 300}, enemy_attack_poly))
+
+	append(&enemies, new_ranged_enemy({300, 40}))
+	append(&enemies, new_melee_enemy({200, 200}, enemy_attack_poly))
+	append(&enemies, new_melee_enemy({130, 200}, enemy_attack_poly))
+	append(&enemies, new_melee_enemy({220, 180}, enemy_attack_poly))
+	append(&enemies, new_melee_enemy({80, 300}, enemy_attack_poly))
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
@@ -450,6 +453,18 @@ main :: proc() {
 				}
 			}
 
+			#partial switch data in enemy.data {
+			case RangedEnemyData:
+				if check_collision_shapes(
+					Circle{{}, data.flee_range},
+					enemy.pos,
+					player.shape,
+					player.pos,
+				) {
+					// Set target to opposite of the player
+					target = enemy.pos + enemy.pos - player.pos
+				}
+			}
 			enemy_move(&enemy, delta, target)
 
 			for wall in level.walls {
@@ -479,36 +494,80 @@ main :: proc() {
 				if enemy.current_charge_time <= 0 {
 					enemy.just_attacked = true
 					enemy.charging = false
-					perform_attack(
-						&Attack {
-							targets         = {.Bomb, .ExplodingBarrel, .Player},
-							damage          = 5,
-							knockback       = 100,
-							data            = SwordAttackData{},
-							pos             = enemy.pos,
-							shape           = enemy.attack_poly,
-							exclude_targets = make(
-								[dynamic]uuid.Identifier, // We don't want to reuse this
-								context.temp_allocator,
-							),
-							direction       = vector_from_angle(enemy.attack_poly.rotation),
-						},
-					)
+					switch data in enemy.data {
+					case MeleeEnemyData:
+						damage :: 5
+						knockback :: 100
+						perform_attack(
+							&Attack {
+								targets         = {.Bomb, .ExplodingBarrel, .Player},
+								damage          = damage,
+								knockback       = knockback,
+								data            = SwordAttackData{},
+								pos             = enemy.pos,
+								shape           = data.attack_poly,
+								exclude_targets = make(
+									[dynamic]uuid.Identifier, // We don't want to reuse this
+									context.temp_allocator,
+								),
+								direction       = vector_from_angle(data.attack_poly.rotation),
+							},
+						)
+					case RangedEnemyData:
+						// launch arrow
+						to_player := normalize(player.pos - enemy.pos)
+						tex := loaded_textures[.Arrow]
+						arrow_sprite := Sprite {
+							.Arrow,
+							{0, 0, f32(tex.width), f32(tex.height)},
+							{1, 1},
+							{f32(tex.width) / 2, f32(tex.height) / 2},
+							0,
+							rl.WHITE,
+						}
+						append(
+							&arrows,
+							Arrow {
+								entity = new_entity(enemy.pos),
+								shape = Circle{{}, 4},
+								vel = to_player * 300,
+								z = 0,
+								vel_z = 10,
+								rot = angle(to_player),
+								sprite = arrow_sprite,
+								attack = Attack{targets = {.Player, .Wall, .ExplodingBarrel}},
+							},
+						)
+					}
 				}
 			}
 
 			// If player in attack range
 			if !enemy.flinching &&
 			   !enemy.charging &&
+			   enemy.player_in_range &&
 			   check_collision_shapes(
 				   Circle{{}, enemy.attack_charge_range},
 				   enemy.pos,
 				   player.shape,
 				   player.pos,
 			   ) {
-				enemy.attack_poly.rotation = angle(player.pos - enemy.pos)
-				enemy.charging = true
-				enemy.current_charge_time = enemy.start_charge_time
+				switch &data in enemy.data {
+				case MeleeEnemyData:
+					data.attack_poly.rotation = angle(player.pos - enemy.pos)
+					enemy.charging = true
+					enemy.current_charge_time = enemy.start_charge_time
+				case RangedEnemyData:
+					if !check_collision_shapes(
+						Circle{{}, data.flee_range},
+						enemy.pos,
+						player.shape,
+						player.pos,
+					) {
+						enemy.charging = true
+						enemy.current_charge_time = enemy.start_charge_time
+					}
+				}
 			}
 		}
 		// }
@@ -614,13 +673,32 @@ main :: proc() {
 			weapon.attack.data = ProjectileAttackData{i, speed_damage_ratio, speed_durablity_ratio}
 
 			if perform_attack(&weapon.attack) == -1 {
-				// If the weapon was deleted while performing its attack
+				// if the weapon was deleted while performing its attack
 				continue
 			}
 
 			if weapon.z <= 0 {
 				add_item_to_world(weapon.data, weapon.pos)
 				delete_projectile_weapon(i)
+			}
+		}
+
+		#reverse for &arrow, i in arrows {
+			zentity_move(&arrow, delta)
+
+			speed_damage_ratio :: 15
+
+			arrow.attack.pos = arrow.pos
+			arrow.attack.shape = arrow.shape
+			arrow.attack.data = ArrowAttackData{i, speed_damage_ratio}
+
+			if perform_attack(&arrow.attack) == -1 {
+				// if the arrow was deleted while performing its attack
+				continue
+			}
+
+			if arrow.z <= 0 {
+				delete_arrow(i)
 			}
 		}
 
@@ -651,7 +729,7 @@ main :: proc() {
 			}
 		} else if is_control_pressed(controls.alt_fire) &&
 		   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
-			stop_player_attack() // Cancel attack if attacking
+			stop_player_attack() // Cancel attack
 			player.holding_item = false // Cancel item hold
 			player.charging_weapon = true
 			player.weapon_charge_time = 0
@@ -695,7 +773,7 @@ main :: proc() {
 		player.weapon_switched = false
 		if is_control_pressed(controls.switch_selected_weapon) {
 			select_weapon(0 if player.selected_weapon_idx == 1 else 1)
-			stop_player_attack() // Cancel attack if attacking
+			stop_player_attack() // Cancel attack
 			player.weapon_switched = true
 			fmt.println("switched to weapon", player.selected_weapon_idx)
 		}
@@ -849,18 +927,34 @@ main :: proc() {
 					attack_area_color = rl.Color{255, 0, 0, 120}
 				}
 				if enemy.charging || enemy.just_attacked {
-					draw_shape(enemy.attack_poly, enemy.pos, attack_area_color)
+					bar_length: f32 = 3
+					bar_height: f32 = 10
+					bar_base_rec := get_centered_rect(
+						{enemy.pos.x, enemy.pos.y},
+						{bar_length, bar_height},
+					)
+					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+					bar_filled_rec := bar_base_rec
+					bar_filled_rec.height *= enemy.current_charge_time / enemy.start_charge_time
+					rl.DrawRectangleRec(bar_filled_rec, rl.DARKGREEN)
+
+					switch data in enemy.data {
+					case MeleeEnemyData:
+						draw_shape(data.attack_poly, enemy.pos, attack_area_color)
+					case RangedEnemyData:
+
+					}
 				}
 
 				// Draw detection area
-				// rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-				// for p, i in enemy.detection_points {
-				// 	rl.DrawLineV(
-				// 		p,
-				// 		enemy.detection_points[(i + 1) % len(enemy.detection_points)],
-				// 		rl.YELLOW,
-				// 	)
-				// }
+				rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+				for p, i in enemy.detection_points {
+					rl.DrawLineV(
+						p,
+						enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+						rl.YELLOW,
+					)
+				}
 
 				if enemy.current_path != nil {
 					for point in enemy.current_path {
@@ -885,6 +979,11 @@ main :: proc() {
 			}
 
 			for &entity in projectile_weapons {
+				entity.sprite.scale = entity.z + 1
+				draw_sprite(entity.sprite, entity.pos)
+			}
+
+			for &entity in arrows {
 				entity.sprite.scale = entity.z + 1
 				draw_sprite(entity.sprite, entity.pos)
 			}
@@ -1132,6 +1231,10 @@ player_move :: proc(e: ^Player, delta: f32) {
 
 enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	max_speed: f32 = 80.0
+	#partial switch data in e.data {
+	case RangedEnemyData:
+		max_speed = 70.0
+	}
 	acceleration: f32 = 400.0
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0
@@ -1292,6 +1395,10 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 delete_projectile_weapon :: proc(idx: int) {
 	delete(projectile_weapons[idx].attack.exclude_targets)
 	unordered_remove(&projectile_weapons, idx)
+}
+
+delete_arrow :: proc(idx: int) {
+	unordered_remove(&arrows, idx)
 }
 
 get_directional_input :: proc() -> Vec2 {
@@ -1908,7 +2015,76 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 	case ArrowAttackData:
+		arrow := &arrows[data.arrow_idx]
+		if .Wall in attack.targets {
+			for wall in level.walls {
+				_, _, depth := resolve_collision_shapes(
+					arrow.shape,
+					arrow.pos,
+					wall.shape,
+					wall.pos,
+				)
 
+				if depth > 0 {
+					delete_arrow(data.arrow_idx)
+					return -1
+				}
+			}
+		}
+
+		if .Enemy in attack.targets {
+			#reverse for enemy, i in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					arrow.shape,
+					arrow.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+
+				if depth > 0 {
+					// Damage
+					damage_enemy(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
+
+					delete_arrow(data.arrow_idx)
+					return -1
+				}
+			}
+		}
+
+		if .ExplodingBarrel in attack.targets {
+			#reverse for barrel, i in exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					arrow.shape,
+					arrow.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+
+				if depth > 0 {
+					// Damage
+					damage_exploding_barrel(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
+
+					delete_arrow(data.arrow_idx)
+					return -1
+				}
+			}
+		}
+
+		if .Player in attack.targets {
+			_, normal, depth := resolve_collision_shapes(
+				arrow.shape,
+				arrow.pos,
+				player.shape,
+				player.pos,
+			)
+
+			if depth > 0 {
+				damage_player(dot(normal, arrow.vel) / data.speed_damage_ratio)
+
+				delete_arrow(data.arrow_idx)
+				return -1
+			}
+		}
 	}
 	return
 }

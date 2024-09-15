@@ -3,11 +3,12 @@ package game
 import rl "vendor:raylib"
 
 TextureId :: enum {
-	Empty = 0,
+	Empty = 0, // 1-99 is items
 	Bomb,
 	Apple,
-	Sword = 100,
-	Player = 200,
+	Sword = 100, // 100-199 is weapons
+	Player = 200, // 200 <= is everything else
+	Arrow,
 }
 
 loaded_textures: #sparse[TextureId]rl.Texture2D
@@ -27,6 +28,7 @@ load_textures :: proc() {
 		.Apple  = rl.LoadTexture("assets/apple.png"),
 		.Sword  = rl.LoadTexture("assets/sword.png"),
 		.Player = rl.LoadTexture("assets/samurai.png"),
+		.Arrow  = rl.LoadTexture("assets/arrow.png"),
 	}
 }
 

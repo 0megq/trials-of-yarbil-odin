@@ -28,35 +28,38 @@ ExplodingBarrel :: struct {
 }
 
 Enemy :: struct {
-	using moving_entity:    MovingEntity,
-	detection_range:        f32,
-	detection_points:       [50]Vec2,
-	attack_charge_range:    f32,
-	start_charge_time:      f32,
-	current_charge_time:    f32,
-	charging:               bool,
-	start_flinch_time:      f32,
-	current_flinch_time:    f32,
-	flinching:              bool,
-	just_attacked:          bool,
-	attack_poly:            Polygon,
-	knockback_just_applied: bool,
-	health:                 f32,
-	max_health:             f32,
-	current_path:           []Vec2,
-	current_path_point:     int,
-	pathfinding_timer:      f32,
-	player_in_range:        bool,
-	data:                   EnemyData,
+	using moving_entity: MovingEntity,
+	detection_range:     f32,
+	detection_points:    [50]Vec2,
+	attack_charge_range: f32, // Range for the enemy to start charging
+	start_charge_time:   f32,
+	current_charge_time: f32,
+	charging:            bool,
+	start_flinch_time:   f32,
+	current_flinch_time: f32,
+	flinching:           bool,
+	just_attacked:       bool,
+	health:              f32,
+	max_health:          f32,
+	current_path:        []Vec2,
+	current_path_point:  int,
+	pathfinding_timer:   f32,
+	player_in_range:     bool,
+	data:                EnemyData,
 }
 
-EnemyData :: union {
+EnemyData :: union #no_nil {
 	MeleeEnemyData,
 	RangedEnemyData,
 }
 
-MeleeEnemyData :: struct {}
-RangedEnemyData :: struct {}
+MeleeEnemyData :: struct {
+	attack_poly: Polygon, // hitbox of attack
+}
+
+RangedEnemyData :: struct {
+	flee_range: f32,
+}
 
 Item :: struct {
 	using moving_entity: MovingEntity,
@@ -165,22 +168,40 @@ ProjectileAttackData :: struct {
 	speed_durablity_ratio: int,
 }
 
-ArrowAttackData :: struct {}
+ArrowAttackData :: struct {
+	arrow_idx:          int,
+	speed_damage_ratio: f32,
+}
 
 new_entity :: proc(pos: Vec2) -> Entity {
 	return {uuid.generate_v4(), pos}
 }
 
-new_enemy :: proc(pos: Vec2, attack_poly: Polygon) -> Enemy {
+new_melee_enemy :: proc(pos: Vec2, attack_poly: Polygon) -> Enemy {
+	e := new_enemy(pos)
+	e.data = MeleeEnemyData{attack_poly}
+	return e
+}
+
+new_ranged_enemy :: proc(pos: Vec2) -> Enemy {
+	e := new_enemy(pos)
+	e.data = RangedEnemyData{60}
+	e.attack_charge_range = 120
+	e.detection_range = 160
+	e.health = 60
+	e.max_health = 60
+	e.start_charge_time = 0.5
+	return e
+}
+
+new_enemy :: proc(pos: Vec2) -> Enemy {
 	return {
 		entity = new_entity(pos),
 		shape = get_centered_rect({}, {16, 16}),
 		detection_range = 80,
 		attack_charge_range = 12,
-		start_charge_time = 0.2,
+		start_charge_time = 0.3,
 		start_flinch_time = 0.2,
-		attack_poly = attack_poly,
-		knockback_just_applied = false,
 		health = 80,
 		max_health = 80,
 	}
