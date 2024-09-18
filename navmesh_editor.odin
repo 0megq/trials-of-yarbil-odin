@@ -60,7 +60,7 @@ unload_navmesh :: proc() {
 // 	append(&game_nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
 // }
 
-update_navmesh_editor :: proc(mouse_world_pos: Vec2, mouse_world_delta: Vec2) {
+update_navmesh_editor :: proc() {
 	/* Incomplete Features
 	Multiselect and move
 	Move close together points together (Ctrl click)
@@ -333,7 +333,7 @@ draw_navmesh_editor_world :: proc(mouse_world_pos: Vec2) {
 	}
 }
 
-draw_navmesh_editor_ui :: proc(mouse_world_pos: Vec2, camera: rl.Camera2D) {
+draw_navmesh_editor_ui :: proc() {
 	// Display mouse coordinates
 	rl.DrawText(fmt.ctprintf("%v", mouse_world_pos), 20, 20, 16, rl.WHITE)
 
@@ -342,7 +342,7 @@ draw_navmesh_editor_ui :: proc(mouse_world_pos: Vec2, camera: rl.Camera2D) {
 			rl.DrawTextEx(
 				rl.GetFontDefault(),
 				fmt.ctprintf("%v", i),
-				world_to_screen(node.pos, camera),
+				world_to_screen(node.pos),
 				24,
 				2,
 				rl.WHITE,

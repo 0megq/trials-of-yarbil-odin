@@ -126,6 +126,7 @@ enemies: [dynamic]Enemy
 items: [dynamic]Item
 exploding_barrels: [dynamic]ExplodingBarrel
 level: Level
+tilemap: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 delta: f32
 mouse_world_pos: Vec2
@@ -153,6 +154,11 @@ main :: proc() {
 
 	load_textures()
 	load_navmesh()
+
+
+	fill_tiles({0, 0}, {10, 10}, GrassData{})
+	set_tile({2, 3}, WaterData{})
+
 
 	player = {
 		entity       = new_entity({32, 32}),
@@ -248,7 +254,7 @@ main :: proc() {
 		delta = rl.GetFrameTime()
 		mouse_world_pos = rl.GetMousePosition() / camera.zoom + camera.target
 		mouse_world_delta = rl.GetMouseDelta() / camera.zoom
-
+		camera.rotation += delta * 50
 		#reverse for &timer, i in timers {
 			timer.time_left -= delta
 			if timer.time_left <= 0 {
@@ -276,7 +282,7 @@ main :: proc() {
 				camera.target,
 			)
 		case .NavMesh:
-			update_navmesh_editor(mouse_world_pos, mouse_world_delta)
+			update_navmesh_editor()
 		}
 
 		if !can_fire_dash {
@@ -880,6 +886,8 @@ main :: proc() {
 
 			rl.BeginMode2D(camera)
 
+			draw_tilemap()
+
 			if surfing {
 				draw_polygon(surf_poly, rl.DARKGREEN)
 			}
@@ -1084,7 +1092,7 @@ main :: proc() {
 			case .Level:
 				draw_editor_ui()
 			case .NavMesh:
-				draw_navmesh_editor_ui(mouse_world_pos, camera)
+				draw_navmesh_editor_ui()
 			}
 
 			rl.EndDrawing()
@@ -1423,8 +1431,12 @@ turn_off_surf :: proc() {
 	surfing = false
 }
 
-world_to_screen :: proc(point: Vec2, camera: rl.Camera2D) -> Vec2 {
+world_to_screen :: proc(point: Vec2) -> Vec2 {
 	return (point - camera.target) * camera.zoom
+}
+
+screen_to_world :: proc(point: Vec2) -> Vec2 {
+	return point / camera.zoom + camera.target
 }
 
 use_selected_item :: proc() {
