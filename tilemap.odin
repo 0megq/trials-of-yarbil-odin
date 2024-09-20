@@ -2,12 +2,14 @@ package game
 
 
 // import "core:fmt"
+import "core:reflect"
 import rl "vendor:raylib"
 
 TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
 
-TileData :: union {
+TileData :: union #no_nil {
+	EmptyData,
 	GrassData,
 	StoneData,
 	WaterData,
@@ -15,7 +17,9 @@ TileData :: union {
 }
 
 GrassData :: struct {
-	on_fire: bool,
+	on_fire:      bool,
+	spread_timer: f32,
+	spreading:    bool,
 }
 
 StoneData :: struct {}
@@ -24,8 +28,54 @@ WaterData :: struct {}
 
 WallData :: struct {}
 
+EmptyData :: struct {}
+
+
+update_tilemap :: proc() {
+	// Fire spread for grass tiles
+	for tile_pos in get_tiles_with_data(GrassData{}) {
+		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
+		if tile_data.on_fire && tile_data.spreading {
+			// Decrease spread timer
+			tile_data.spread_timer -= delta
+			if tile_data.spread_timer <= 0 {
+				// Spread once timer is done
+				for t in get_neighboring_tiles(tile_pos) {
+					if is_valid_tile_pos(t) &&
+					   reflect.union_variant_typeid(tilemap[t.x][t.y]) == GrassData {
+						// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
+						set_tile(t, GrassData{true, 1, true})
+					}
+				}
+				// Set .spreading = false
+				tile_data.spreading = false
+			}
+		}
+	}
+}
+
+is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
+	return pos.x >= 0 && pos.x < TILEMAP_SIZE && pos.y >= 0 && pos.y < TILEMAP_SIZE
+}
+
+get_neighboring_tile_data :: proc(pos: Vec2i) -> [4]TileData {
+	return {
+		tilemap[pos.x][pos.y - 1],
+		tilemap[pos.x - 1][pos.y],
+		tilemap[pos.x][pos.y + 1],
+		tilemap[pos.x + 1][pos.y],
+	}
+}
+
+get_neighboring_tiles :: proc(pos: Vec2i) -> [4]Vec2i {
+	return {{pos.x, pos.y - 1}, {pos.x - 1, pos.y}, {pos.x, pos.y + 1}, {pos.x + 1, pos.y}}
+}
+
 set_tile :: proc(pos: Vec2i, data: TileData) {
-	// No bounds checking
+	if !is_valid_tile_pos(pos) {
+		rl.TraceLog(.ERROR, "Invalid tile position")
+		return
+	}
 	tilemap[pos.x][pos.y] = data
 }
 
@@ -41,6 +91,31 @@ fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData) {
 	}
 }
 
+get_tiles_with_data :: proc(data: TileData, exact_match_only := false) -> []Vec2i {
+	result := make([dynamic]Vec2i, context.allocator)
+	data_type := reflect.union_variant_typeid(data)
+
+	if exact_match_only {
+		for col, x in tilemap {
+			for tile, y in col {
+				if reflect.union_variant_typeid(tile) == data_type && tile == data {
+					append(&result, Vec2i{i32(x), i32(y)})
+				}
+			}
+		}
+		return result[:]
+	}
+
+	for col, x in tilemap {
+		for tile, y in col {
+			if reflect.union_variant_typeid(tile) == data_type {
+				append(&result, Vec2i{i32(x), i32(y)})
+			}
+		}
+	}
+	return result[:]
+}
+
 draw_tilemap :: proc() {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := (world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1)
@@ -48,7 +123,6 @@ draw_tilemap :: proc() {
 	start.y = clamp(start.y, 0, TILEMAP_SIZE - 1)
 	end.x = clamp(end.x, 0, TILEMAP_SIZE - 1)
 	end.y = clamp(end.y, 0, TILEMAP_SIZE - 1)
-
 	for x in start.x ..< end.x {
 		for y in start.y ..< end.y {
 			sprite := Sprite {
@@ -61,15 +135,23 @@ draw_tilemap :: proc() {
 
 			switch data in tilemap[x][y] {
 			case GrassData:
-				sprite.tex_region.y = TILE_SIZE
+				sprite.tex_region.y = 1
+				if data.on_fire {
+					sprite.tex_region.x = 2
+				}
 			case WaterData:
-
+				sprite.tex_region.x = 2
 			case StoneData:
-				sprite.tex_region.x = TILE_SIZE
+				sprite.tex_region.x = 1
 			case WallData:
-				sprite.tex_region.x = TILE_SIZE
-				sprite.tex_region.y = TILE_SIZE
+				sprite.tex_region.x = 1
+				sprite.tex_region.y = 1
+			case EmptyData:
+
 			}
+
+			sprite.tex_region.x *= TILE_SIZE
+			sprite.tex_region.y *= TILE_SIZE
 
 			draw_sprite(sprite, {f32(x), f32(y)} * TILE_SIZE)
 

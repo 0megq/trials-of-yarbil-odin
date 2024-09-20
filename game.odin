@@ -160,8 +160,8 @@ main :: proc() {
 
 
 	fill_tiles({0, 0}, {10, 10}, GrassData{})
-	set_tile({2, 3}, WaterData{})
-
+	// set_tile({2, 3}, GrassData{})
+	set_tile({3, 4}, GrassData{true, 1, true})
 
 	player = {
 		entity       = new_entity({32, 32}),
@@ -284,6 +284,8 @@ main :: proc() {
 		case .NavMesh:
 			update_navmesh_editor()
 		}
+
+		update_tilemap()
 
 		if !can_fire_dash {
 			fire_dash_timer -= delta
@@ -1348,8 +1350,8 @@ draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	dst_rec := Rectangle {
 		pos.x,
 		pos.y,
-		f32(tex.width) * math.abs(sprite.scale.x), // scale the sprite. a negative would mess this up
-		f32(tex.height) * math.abs(sprite.scale.y),
+		f32(sprite.tex_region.width) * math.abs(sprite.scale.x), // scale the sprite. a negative would mess this up
+		f32(sprite.tex_region.height) * math.abs(sprite.scale.y),
 	}
 
 	src_rec := Rectangle {
