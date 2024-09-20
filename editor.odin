@@ -133,20 +133,13 @@ rotation_field := NumberField {
 	{150, 255, 150, 200},
 }
 
-update_editor :: proc(
-	walls: ^[dynamic]PhysicsEntity,
-	mouse_pos: Vec2,
-	mouse_delta: Vec2,
-	mouse_world_pos: Vec2,
-	mouse_world_delta: Vec2,
-	camera_target: Vec2,
-) {
+update_editor :: proc(walls: ^[dynamic]PhysicsEntity) {
 	update_button(&new_shape_but, mouse_pos)
 
 	if new_shape_but.status == .Released {
 		append(
 			walls,
-			PhysicsEntity{entity = new_entity(camera_target), shape = Rectangle{0, 0, 20, 20}},
+			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 20, 20}},
 		)
 		selected_wall_index = len(walls) - 1
 		selected_wall = &walls[selected_wall_index]

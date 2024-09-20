@@ -12,7 +12,8 @@ import rl "vendor:raylib"
 
 WINDOW_SIZE :: Vec2i{1440, 810}
 GAME_SIZE :: Vec2i{480, 270}
-WINDOW_TO_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
+WINDOW_OVER_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
+GAME_OVER_WINDOW :: f32(GAME_SIZE.x) / f32(WINDOW_SIZE.x)
 PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
@@ -129,6 +130,8 @@ level: Level
 tilemap: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 delta: f32
+mouse_pos: Vec2
+mouse_delta: Vec2
 mouse_world_pos: Vec2
 mouse_world_delta: Vec2
 
@@ -246,15 +249,19 @@ main :: proc() {
 	// attack_poly.points = punch_points[:]
 
 	camera = rl.Camera2D {
-		target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2,
-		zoom   = WINDOW_TO_GAME,
+		target = player.pos,
+		zoom   = WINDOW_OVER_GAME,
+		offset = ({f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2),
 	}
 
 	for !rl.WindowShouldClose() {
 		delta = rl.GetFrameTime()
-		mouse_world_pos = rl.GetMousePosition() / camera.zoom + camera.target
-		mouse_world_delta = rl.GetMouseDelta() / camera.zoom
-		camera.rotation += delta * 50
+		// Mouse movement
+		mouse_pos = rl.GetMousePosition()
+		mouse_delta = rl.GetMouseDelta()
+		mouse_world_pos = screen_to_world(mouse_pos)
+		mouse_world_delta = mouse_delta / camera.zoom
+		// camera.rotation += delta * 50
 		#reverse for &timer, i in timers {
 			timer.time_left -= delta
 			if timer.time_left <= 0 {
@@ -273,14 +280,7 @@ main :: proc() {
 
 		#partial switch editor_mode {
 		case .Level:
-			update_editor(
-				&level.walls,
-				rl.GetMousePosition(),
-				rl.GetMouseDelta(),
-				mouse_world_pos,
-				mouse_world_delta,
-				camera.target,
-			)
+			update_editor(&level.walls)
 		case .NavMesh:
 			update_navmesh_editor()
 		}
@@ -866,25 +866,23 @@ main :: proc() {
 			rl.BeginDrawing()
 			rl.ClearBackground(rl.DARKGRAY)
 
-			// Zooming
+			// Camera Zooming
 			{
 				if editor_mode == .None {
-					camera.target = player.pos - {f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2
-					camera.zoom = WINDOW_TO_GAME
+					camera.target = player.pos
+					camera.zoom = WINDOW_OVER_GAME
+					camera.offset = {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / 2
 				} else {
 					if rl.IsMouseButtonDown(.MIDDLE) {
 						camera.target -= mouse_world_delta
 					}
-					world_center :=
-						camera.target + {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
 					camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
 					camera.zoom = max(0.1, camera.zoom)
-					camera.target =
-						world_center - {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / camera.zoom / 2
 				}
 			}
 
 			rl.BeginMode2D(camera)
+
 
 			draw_tilemap()
 
@@ -1082,7 +1080,13 @@ main :: proc() {
 				draw_navmesh_editor_world(mouse_world_pos)
 			}
 
+			// World center
+			// rl.DrawCircleV({}, 30, rl.RED)
+			// rl.DrawCircleV(screen_to_world({}), 5, rl.BLUE)
+
 			rl.EndMode2D()
+
+			// rl.DrawCircleV(({40, 40} - camera.target) * camera.zoom + camera.offset, 10, rl.BLUE)
 
 			rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
 			draw_hud()
@@ -1432,11 +1436,11 @@ turn_off_surf :: proc() {
 }
 
 world_to_screen :: proc(point: Vec2) -> Vec2 {
-	return (point - camera.target) * camera.zoom
+	return (point - camera.target) * camera.zoom + camera.offset
 }
 
 screen_to_world :: proc(point: Vec2) -> Vec2 {
-	return point / camera.zoom + camera.target
+	return (point - camera.offset) / camera.zoom + camera.target
 }
 
 use_selected_item :: proc() {
