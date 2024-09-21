@@ -132,6 +132,7 @@ EntityType :: enum {
 	ExplodingBarrel,
 	Bomb,
 	Item,
+	Tile,
 }
 
 Attack :: struct {

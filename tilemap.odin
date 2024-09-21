@@ -2,6 +2,7 @@ package game
 
 
 // import "core:fmt"
+import "core:math"
 import "core:reflect"
 import rl "vendor:raylib"
 
@@ -33,9 +34,10 @@ EmptyData :: struct {}
 
 update_tilemap :: proc() {
 	// Fire spread for grass tiles
-	for tile_pos in get_tiles_with_data(GrassData{}) {
+	for tile_pos in get_tiles_on_fire() {
+		// Update tiles
 		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
-		if tile_data.on_fire && tile_data.spreading {
+		if tile_data.spreading {
 			// Decrease spread timer
 			tile_data.spread_timer -= delta
 			if tile_data.spread_timer <= 0 {
@@ -51,6 +53,16 @@ update_tilemap :: proc() {
 				tile_data.spreading = false
 			}
 		}
+
+		// Deal damage
+		fire_attack := Attack {
+			shape   = Rectangle{0, 0, TILE_SIZE, TILE_SIZE},
+			data    = FireAttackData{},
+			pos     = Vec2{f32(tile_pos.x), f32(tile_pos.y)} * TILE_SIZE,
+			damage  = FIRE_TILE_DAMAGE * delta,
+			targets = {.ExplodingBarrel, .Player, .Enemy},
+		}
+		perform_attack(&fire_attack)
 	}
 }
 
@@ -92,7 +104,7 @@ fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData) {
 }
 
 get_tiles_with_data :: proc(data: TileData, exact_match_only := false) -> []Vec2i {
-	result := make([dynamic]Vec2i, context.allocator)
+	result := make([dynamic]Vec2i, context.temp_allocator)
 	data_type := reflect.union_variant_typeid(data)
 
 	if exact_match_only {
@@ -116,15 +128,27 @@ get_tiles_with_data :: proc(data: TileData, exact_match_only := false) -> []Vec2
 	return result[:]
 }
 
+get_tiles_on_fire :: proc() -> []Vec2i {
+	result := make([dynamic]Vec2i, context.temp_allocator)
+	for col, x in tilemap {
+		for tile, y in col {
+			if reflect.union_variant_typeid(tile) == GrassData && tile.(GrassData).on_fire {
+				append(&result, Vec2i{i32(x), i32(y)})
+			}
+		}
+	}
+	return result[:]
+}
+
 draw_tilemap :: proc() {
 	start := world_to_tilemap(screen_to_world({})) - 1
-	end := (world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1)
+	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
 	start.y = clamp(start.y, 0, TILEMAP_SIZE - 1)
 	end.x = clamp(end.x, 0, TILEMAP_SIZE - 1)
 	end.y = clamp(end.y, 0, TILEMAP_SIZE - 1)
-	for x in start.x ..< end.x {
-		for y in start.y ..< end.y {
+	for x in start.x ..= end.x {
+		for y in start.y ..= end.y {
 			sprite := Sprite {
 				tex_id     = .Tilemap,
 				tex_region = {0, 0, TILE_SIZE, TILE_SIZE},
@@ -153,7 +177,7 @@ draw_tilemap :: proc() {
 			sprite.tex_region.x *= TILE_SIZE
 			sprite.tex_region.y *= TILE_SIZE
 
-			draw_sprite(sprite, {f32(x), f32(y)} * TILE_SIZE)
+			draw_sprite(sprite, tilemap_to_world({x, y}))
 
 			// rl.DrawRectangleLines(
 			// 	i32(x) * TILE_SIZE,
@@ -166,7 +190,41 @@ draw_tilemap :: proc() {
 	}
 }
 
+// Allocates using temp allocator. 
+get_tile_shape_collision :: proc(shape: Shape, pos: Vec2) -> []Vec2i {
+	result := make([dynamic]Vec2i, context.temp_allocator)
+
+	switch s in shape {
+	case Circle:
+		center_tile := world_to_tilemap(pos + s.pos)
+		tile_radius := i32(math.ceil(s.radius / TILE_SIZE))
+		start := Vec2i{center_tile.x - tile_radius, center_tile.y - tile_radius}
+		end := Vec2i{center_tile.x + tile_radius, center_tile.y + tile_radius}
+
+		start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
+		start.y = clamp(start.y, 0, TILEMAP_SIZE - 1)
+		end.x = clamp(end.x, 0, TILEMAP_SIZE - 1)
+		end.y = clamp(end.y, 0, TILEMAP_SIZE - 1)
+
+		for x in start.x ..= end.x {
+			for y in start.y ..= end.y {
+				rect := Rectangle{f32(x * TILE_SIZE), f32(y * TILE_SIZE), TILE_SIZE, TILE_SIZE}
+				if rl.CheckCollisionCircleRec(s.pos + pos, s.radius, rect) {
+					append(&result, Vec2i{x, y})
+				}
+			}
+		}
+	case Polygon:
+
+	case Rectangle:
+	}
+	return result[:]
+}
 
 world_to_tilemap :: proc(pos: Vec2) -> Vec2i {
-	return {i32(pos.x) / TILE_SIZE, i32(pos.y) / TILE_SIZE}
+	return {i32(pos.x), i32(pos.y)} / TILE_SIZE
+}
+
+tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
+	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }

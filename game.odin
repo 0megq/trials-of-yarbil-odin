@@ -23,8 +23,9 @@ ENEMY_PATHFINDING_TIME :: 0.5
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
-ITEM_HOLD_DIVISOR :: 1
-WEAPON_CHARGE_DIVISOR :: 1
+FIRE_TILE_DAMAGE :: 1
+ITEM_HOLD_DIVISOR :: 1 // Max time
+WEAPON_CHARGE_DIVISOR :: 1 // Max time
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -159,9 +160,9 @@ main :: proc() {
 	load_navmesh()
 
 
-	fill_tiles({0, 0}, {10, 10}, GrassData{})
+	fill_tiles({0, 0}, {199, 199}, GrassData{})
 	// set_tile({2, 3}, GrassData{})
-	set_tile({3, 4}, GrassData{true, 1, true})
+	// set_tile({3, 4}, GrassData{true, 1, true})
 
 	player = {
 		entity       = new_entity({32, 32}),
@@ -1075,6 +1076,20 @@ main :: proc() {
 				// draw_shape(player.shape, player.pos, rl.RED)
 			}
 
+			// Tile Circle Collision Check
+			// r := f32(10)
+			// rl.DrawCircleV(mouse_world_pos, r, {100, 100, 100, 100})
+			// tiles := get_tile_shape_collision(Circle{mouse_world_pos, r}, 0)
+			// for tile in tiles {
+			// 	rl.DrawRectangle(
+			// 		tile.x * TILE_SIZE,
+			// 		tile.y * TILE_SIZE,
+			// 		TILE_SIZE,
+			// 		TILE_SIZE,
+			// 		{100, 0, 0, 100},
+			// 	)
+			// }
+
 			#partial switch editor_mode {
 			case .Level:
 				draw_editor_world()
@@ -1371,12 +1386,14 @@ draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	)
 }
 
-damage_enemy :: proc(enemy_idx: int, amount: f32) {
+damage_enemy :: proc(enemy_idx: int, amount: f32, should_flinch := true) {
 	enemy := &enemies[enemy_idx]
-	enemy.charging = false
+	if should_flinch {
+		enemy.charging = false
+		enemy.flinching = true
+		enemy.current_flinch_time = enemy.start_flinch_time
+	}
 	enemy.health -= amount
-	enemy.flinching = true
-	enemy.current_flinch_time = enemy.start_flinch_time
 	if enemy.health <= 0 {
 		unordered_remove(&enemies, enemy_idx)
 	}
@@ -1395,7 +1412,7 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		// Damage
 		perform_attack(
 			&{
-				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb},
+				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
 				damage = 20,
 				knockback = 400,
 				pos = fire.pos,
@@ -1892,8 +1909,42 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
-	case FireAttackData:
 
+		if .Tile in attack.targets {
+			tiles := get_tile_shape_collision(attack.shape, attack.pos)
+			for tile in tiles {
+				#partial switch data in tilemap[tile.x][tile.y] {
+				case GrassData:
+					if !data.on_fire {
+						tilemap[tile.x][tile.y] = GrassData{true, 1, true}
+					}
+				}
+			}
+		}
+	case FireAttackData:
+		if .Enemy in attack.targets {
+			#reverse for &enemy, i in enemies {
+				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					// Damage
+					damage_enemy(i, attack.damage, false)
+					targets_hit += 1
+				}
+			}
+		}
+		if .ExplodingBarrel in attack.targets {
+			#reverse for &barrel, i in exploding_barrels {
+				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
+					// Damage
+					damage_exploding_barrel(i, attack.damage)
+					targets_hit += 1
+				}
+			}
+		}
+		if .Player in attack.targets {
+			if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
+				damage_player(attack.damage)
+			}
+		}
 	case ProjectileAttackData:
 		weapon := &projectile_weapons[data.projectile_idx]
 		if .Wall in attack.targets {
