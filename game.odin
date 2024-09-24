@@ -38,6 +38,7 @@ EditorMode :: enum {
 	None,
 	Level,
 	NavMesh,
+	Entity,
 }
 
 Timer :: struct {
@@ -276,14 +277,16 @@ main :: proc() {
 		}
 
 		if rl.IsKeyPressed(.H) {
-			editor_mode = EditorMode((int(editor_mode) + 1) % 3)
+			editor_mode = EditorMode((int(editor_mode) + 1) % len(EditorMode))
 		}
 
 		#partial switch editor_mode {
 		case .Level:
-			update_editor(&level.walls)
+			update_geometry_editor(&level.walls)
 		case .NavMesh:
 			update_navmesh_editor()
+		case .Entity:
+			update_entity_editor()
 		}
 
 		update_tilemap()
@@ -1092,9 +1095,11 @@ main :: proc() {
 
 			#partial switch editor_mode {
 			case .Level:
-				draw_editor_world()
+				draw_geometry_editor_world()
 			case .NavMesh:
 				draw_navmesh_editor_world(mouse_world_pos)
+			case .Entity:
+				draw_entity_editor_world()
 			}
 
 			// World center
@@ -1111,9 +1116,11 @@ main :: proc() {
 
 			#partial switch editor_mode {
 			case .Level:
-				draw_editor_ui()
+				draw_geometry_editor_ui()
 			case .NavMesh:
 				draw_navmesh_editor_ui()
+			case .Entity:
+				draw_entity_editor_ui()
 			}
 
 			rl.EndDrawing()

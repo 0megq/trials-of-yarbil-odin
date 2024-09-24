@@ -3,6 +3,20 @@ package game
 import "core:encoding/uuid"
 import rl "vendor:raylib"
 
+EntityType :: union {
+	Entity,
+	PhysicsEntity,
+	MovingEntity,
+	ExplodingBarrel,
+	Enemy,
+	Player,
+	Item,
+	ZEntity,
+	ProjectileWeapon,
+	Arrow,
+	Bomb,
+}
+
 
 Entity :: struct {
 	id:  uuid.Identifier,
@@ -125,7 +139,7 @@ Sprite :: struct {
 	tint:       rl.Color, // tint of the texture. WHITE will render the texture normally
 }
 
-EntityType :: enum {
+AttackTarget :: enum {
 	Player,
 	Enemy,
 	Wall,
@@ -142,7 +156,7 @@ Attack :: struct {
 	knockback:       f32,
 	direction:       Vec2,
 	data:            AttackData,
-	targets:         bit_set[EntityType],
+	targets:         bit_set[AttackTarget],
 	exclude_targets: [dynamic]uuid.Identifier,
 }
 
