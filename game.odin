@@ -14,11 +14,7 @@ WINDOW_SIZE :: Vec2i{1440, 810}
 GAME_SIZE :: Vec2i{480, 270}
 WINDOW_OVER_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
 GAME_OVER_WINDOW :: f32(GAME_SIZE.x) / f32(WINDOW_SIZE.x)
-PLAYER_BASE_MAX_SPEED :: 80
-PLAYER_BASE_ACCELERATION :: 1500
-PLAYER_BASE_FRICTION :: 750
-PLAYER_BASE_HARSH_FRICTION :: 2000
-PLAYER_PUNCH_SIZE :: Vec2{12, 16}
+
 ENEMY_PATHFINDING_TIME :: 0.5
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
@@ -28,8 +24,6 @@ ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
 
 // weapon/attack related constants
-ATTACK_DURATION :: 0.15
-ATTACK_INTERVAL :: 0.4
 SWORD_DAMAGE :: 10
 SWORD_KNOCKBACK :: 150
 SWORD_HITBOX_OFFSET :: 4
@@ -38,6 +32,7 @@ EditorMode :: enum {
 	None,
 	Level,
 	NavMesh,
+	Tilemap,
 }
 
 Timer :: struct {
@@ -54,10 +49,9 @@ MovementAbility :: enum {
 	AIR,
 }
 
-Level :: struct {
-	walls:    [dynamic]PhysicsEntity,
-	nav_mesh: NavMesh,
-}
+// Level :: struct {
+// 	walls: [dynamic]PhysicsEntity,
+// }
 
 Control :: union {
 	rl.KeyboardKey,
@@ -86,47 +80,11 @@ controls: Controls = {
 	movement_ability       = rl.KeyboardKey.SPACE,
 }
 
-// weapon-related variables
-attack_duration_timer: f32
-can_attack: bool
-attack_interval_timer: f32
-attack_poly: Polygon
-
 sword_hitbox_points: []Vec2
 
-WeaponAnimation :: struct {
-	// Constants
-	cpos_top_rotation:    f32,
-	csprite_top_rotation: f32,
-	cpos_bot_rotation:    f32,
-	csprite_bot_rotation: f32,
-
-	// For animation purposes
-	pos_rotation_vel:     f32, // Simulates the rotation of the arc of the swing
-	sprite_rotation_vel:  f32, // Simulates the rotation of the sprite
-
-	// Weapon rotations
-	pos_cur_rotation:     f32,
-	sprite_cur_rotation:  f32,
-}
-sword_animation := WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
-
-
-surfing: bool
-current_ability: MovementAbility
 editor_mode: EditorMode = .None
-can_fire_dash: bool
-fire_dash_timer: f32
 camera: rl.Camera2D
-player: Player
-// z_entities: [dynamic]ZEntity
-bombs: [dynamic]Bomb
-projectile_weapons: [dynamic]ProjectileWeapon
-arrows: [dynamic]Arrow
-fires: [dynamic]Fire
-enemies: [dynamic]Enemy
-items: [dynamic]Item
-exploding_barrels: [dynamic]ExplodingBarrel
+
 level: Level
 tilemap: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
@@ -158,6 +116,7 @@ main :: proc() {
 
 	load_textures()
 	load_navmesh()
+	load_entities()
 
 
 	fill_tiles({0, 0}, {199, 199}, GrassData{})
@@ -193,8 +152,8 @@ main :: proc() {
 
 	// z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
-	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
-	append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 50})
+	// exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
+	// append(&exploding_barrels, ExplodingBarrel{pos = {24, 64}, shape = Circle{{}, 6}, health = 50})
 
 	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 	arrows = make([dynamic]Arrow, context.allocator)
@@ -203,10 +162,10 @@ main :: proc() {
 
 	append(&timers, Timer{0.5, toggle_text_cursor, 0.5})
 
-	items = make([dynamic]Item, context.allocator)
-	add_item_to_world({.Sword, 10, 10}, {500, 300})
-	add_item_to_world({.Bomb, 1, 16}, {200, 50})
-	add_item_to_world({.Apple, 5, 16}, {100, 50})
+	// items = make([dynamic]Item, context.allocator)
+	// add_item_to_world({.Sword, 10, 10}, {500, 300})
+	// add_item_to_world({.Bomb, 1, 16}, {200, 50})
+	// add_item_to_world({.Apple, 5, 16}, {100, 50})
 
 
 	wall1 := PhysicsEntity {
@@ -228,14 +187,14 @@ main :: proc() {
 	// 	wall.id = uuid.generate_v4()
 	// }
 
-	enemies = make([dynamic]Enemy, context.allocator)
-	enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
+	// enemies = make([dynamic]Enemy, context.allocator)
+	// enemy_attack_poly := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
 
-	append(&enemies, new_ranged_enemy({300, 40}))
-	append(&enemies, new_melee_enemy({200, 200}, enemy_attack_poly))
-	append(&enemies, new_melee_enemy({130, 200}, enemy_attack_poly))
-	append(&enemies, new_melee_enemy({220, 180}, enemy_attack_poly))
-	append(&enemies, new_melee_enemy({80, 300}, enemy_attack_poly))
+	// append(&enemies, new_ranged_enemy({300, 40}))
+	// append(&enemies, new_melee_enemy({200, 200}, enemy_attack_poly))
+	// append(&enemies, new_melee_enemy({130, 200}, enemy_attack_poly))
+	// append(&enemies, new_melee_enemy({220, 180}, enemy_attack_poly))
+	// append(&enemies, new_melee_enemy({80, 300}, enemy_attack_poly))
 
 	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
@@ -276,14 +235,15 @@ main :: proc() {
 		}
 
 		if rl.IsKeyPressed(.H) {
-			editor_mode = EditorMode((int(editor_mode) + 1) % 3)
+			editor_mode = EditorMode((int(editor_mode) + 1) % len(EditorMode))
 		}
 
 		#partial switch editor_mode {
 		case .Level:
-			update_editor(&level.walls)
+			update_geometry_editor(&level.walls)
 		case .NavMesh:
 			update_navmesh_editor()
+		case .Tilemap:
 		}
 
 		update_tilemap()
@@ -1092,7 +1052,7 @@ main :: proc() {
 
 			#partial switch editor_mode {
 			case .Level:
-				draw_editor_world()
+				draw_geometry_editor_world()
 			case .NavMesh:
 				draw_navmesh_editor_world(mouse_world_pos)
 			}
@@ -1111,7 +1071,7 @@ main :: proc() {
 
 			#partial switch editor_mode {
 			case .Level:
-				draw_editor_ui()
+				draw_geometry_editor_ui()
 			case .NavMesh:
 				draw_navmesh_editor_ui()
 			}
@@ -1127,6 +1087,8 @@ main :: proc() {
 	}
 	delete(level.walls)
 
+	save_entities()
+	unload_entities()
 	save_navmesh()
 	unload_navmesh()
 	mem.tracking_allocator_clear(&track)
@@ -2083,6 +2045,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				}
 			}
 		}
+
 	case ArrowAttackData:
 		arrow := &arrows[data.arrow_idx]
 		if .Wall in attack.targets {

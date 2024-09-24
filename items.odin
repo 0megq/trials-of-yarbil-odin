@@ -1,9 +1,9 @@
 package game
 
 ItemId :: enum {
-	Empty = 0,
-	Bomb,
-	Apple,
+	Nil   = 0,
+	Bomb  = 1,
+	Apple = 2,
 	Sword = 100, // values 100 and greater are for weapons
 }
 

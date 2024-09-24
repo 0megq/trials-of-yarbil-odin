@@ -133,7 +133,7 @@ rotation_field := NumberField {
 	{150, 255, 150, 200},
 }
 
-update_editor :: proc(walls: ^[dynamic]PhysicsEntity) {
+update_geometry_editor :: proc(walls: ^[dynamic]PhysicsEntity) {
 	update_button(&new_shape_but, mouse_pos)
 
 	if new_shape_but.status == .Released {
@@ -241,14 +241,14 @@ update_shape_fields :: proc(mouse_pos: Vec2) {
 	}
 }
 
-draw_editor_world :: proc() {
+draw_geometry_editor_world :: proc() {
 	if selected_wall != nil {
 		draw_shape_lines(selected_wall.shape, selected_wall.pos, SELECTED_OUTLINE_COLOR)
 		rl.DrawCircleV(selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)
 	}
 }
 
-draw_editor_ui :: proc() {
+draw_geometry_editor_ui :: proc() {
 	if selected_wall != nil {
 		draw_button(change_shape_but)
 		draw_shape_fields()
