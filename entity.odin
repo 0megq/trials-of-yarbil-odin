@@ -118,6 +118,7 @@ ProjectileWeapon :: struct {
 Arrow :: struct {
 	using zentity: ZEntity,
 	attack:        Attack,
+	source:        uuid.Identifier,
 }
 
 Bomb :: struct {
@@ -219,5 +220,19 @@ new_enemy :: proc(pos: Vec2) -> Enemy {
 		start_flinch_time = 0.2,
 		health = 80,
 		max_health = 80,
+	}
+}
+
+new_exploding_barrel :: proc(pos: Vec2) -> ExplodingBarrel {
+	return {entity = new_entity(pos), shape = Circle{{}, 6}, health = 50}
+}
+
+new_player :: proc(pos: Vec2) -> Player {
+	return {
+		entity = new_entity(pos),
+		shape = get_centered_rect({}, {12, 12}),
+		pickup_range = 16,
+		health = 100,
+		max_health = 100,
 	}
 }
