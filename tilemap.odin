@@ -8,6 +8,7 @@ import rl "vendor:raylib"
 
 TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
+Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
@@ -37,7 +38,7 @@ WaterData :: struct {}
 WallData :: struct {}
 
 
-update_tilemap :: proc() {
+update_tilemap :: proc(tilemap: ^Tilemap) {
 	// Fire spread for grass tiles
 	for tile_pos in get_tiles_on_fire() {
 		// Update tiles
@@ -88,7 +89,7 @@ get_neighboring_tiles :: proc(pos: Vec2i) -> [4]Vec2i {
 	return {{pos.x, pos.y - 1}, {pos.x - 1, pos.y}, {pos.x, pos.y + 1}, {pos.x + 1, pos.y}}
 }
 
-set_tile :: proc(pos: Vec2i, data: TileData) {
+set_tile :: proc(tilemap: ^Tilemap, pos: Vec2i, data: TileData) {
 	if !is_valid_tile_pos(pos) {
 		rl.TraceLog(.ERROR, "Invalid tile position")
 		return
@@ -108,7 +109,11 @@ fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData) {
 	}
 }
 
-get_tiles_with_data :: proc(data: TileData, exact_match_only := false) -> []Vec2i {
+get_tiles_with_data :: proc(
+	tilemap: Tilemap,
+	data: TileData,
+	exact_match_only := false,
+) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	data_type := reflect.union_variant_typeid(data)
 
@@ -133,7 +138,7 @@ get_tiles_with_data :: proc(data: TileData, exact_match_only := false) -> []Vec2
 	return result[:]
 }
 
-get_tiles_on_fire :: proc() -> []Vec2i {
+get_tiles_on_fire :: proc(tilemap: Tilemap) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	for col, x in tilemap {
 		for tile, y in col {
@@ -145,7 +150,7 @@ get_tiles_on_fire :: proc() -> []Vec2i {
 	return result[:]
 }
 
-draw_tilemap :: proc() {
+draw_tilemap :: proc(tilemap: Tilemap) {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
@@ -234,7 +239,7 @@ tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }
 
-load_tilemap :: proc() {
+load_tilemap :: proc(tilemap: ^Tilemap) {
 	img := rl.LoadImage("assets/tilemap01.png")
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {

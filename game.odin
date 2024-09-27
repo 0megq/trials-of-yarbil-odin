@@ -86,20 +86,15 @@ controls: Controls = {
 	movement_ability       = rl.KeyboardKey.SPACE,
 }
 
-// weapon-related variables
-attack_duration_timer: f32
-can_attack: bool
-attack_interval_timer: f32
-attack_poly: Polygon
-
-sword_hitbox_points: []Vec2 = {
+SWORD_HITBOX_POINTS :: []Vec2 {
 	{SWORD_HITBOX_OFFSET, -12},
 	{SWORD_HITBOX_OFFSET + 10, -5},
 	{SWORD_HITBOX_OFFSET + 12, 0},
 	{SWORD_HITBOX_OFFSET + 10, 5},
 	{SWORD_HITBOX_OFFSET, 12},
 }
-enemy_attack_poly: Polygon = Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
+
+ENEMY_ATTACK_POLY :: Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
 
 WeaponAnimation :: struct {
 	// Constants
@@ -116,26 +111,11 @@ WeaponAnimation :: struct {
 	pos_cur_rotation:     f32,
 	sprite_cur_rotation:  f32,
 }
-sword_animation := WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
 
+SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
 
-surfing: bool
-current_ability: MovementAbility
 editor_mode: EditorMode = .None
-can_fire_dash: bool
-fire_dash_timer: f32
 camera: rl.Camera2D
-player: Player
-// z_entities: [dynamic]ZEntity
-bombs: [dynamic]Bomb
-projectile_weapons: [dynamic]ProjectileWeapon
-arrows: [dynamic]Arrow
-fires: [dynamic]Fire
-enemies: [dynamic]Enemy
-items: [dynamic]Item
-exploding_barrels: [dynamic]ExplodingBarrel
-level: Level
-tilemap: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 delta: f32
 mouse_pos: Vec2
@@ -166,14 +146,14 @@ main :: proc() {
 	load_textures()
 	load_navmesh()
 	load_entities()
-	load_tilemap()
+	load_tilemap(&world.tilemap)
+	init_editor_state(editor_state)
 
 	// fill_tiles({0, 0}, {199, 199}, GrassData{})
 	// set_tile({2, 3}, GrassData{})
 	// set_tile({3, 4}, GrassData{true, 1, true})
 
-	current_ability = .WATER
-	can_fire_dash = true
+	world.player.cur_ability = .WATER
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
@@ -766,51 +746,57 @@ main :: proc() {
 				select_weapon(0 if player.selected_weapon_idx == 1 else 1)
 				stop_player_attack() // Cancel attack
 				player.weapon_switched = true
-				fmt.println("switched to weapon", player.selected_weapon_idx)
+				// fmt.println("switched to weapon", player.selected_weapon_idx)
 			}
 
 			// Weapon animation
-			if sword_animation.pos_rotation_vel == 0 {
+			if player.cur_weapon_anim.pos_rotation_vel == 0 {
 				// Do nothing. when vel is 0 that means we are not animating
 			} else {
 				// Animate
-				sword_animation.pos_cur_rotation += sword_animation.pos_rotation_vel * delta
-				sword_animation.sprite_cur_rotation += sword_animation.sprite_rotation_vel * delta
+				player.cur_weapon_anim.pos_cur_rotation +=
+					player.cur_weapon_anim.pos_rotation_vel * delta
+				player.cur_weapon_anim.sprite_cur_rotation +=
+					player.cur_weapon_anim.sprite_rotation_vel * delta
 			}
 			// Stop Weapon animation
-			if sword_animation.pos_rotation_vel < 0 &&
-			   (sword_animation.pos_cur_rotation <= sword_animation.cpos_top_rotation ||
+			if player.cur_weapon_anim.pos_rotation_vel < 0 &&
+			   (player.cur_weapon_anim.pos_cur_rotation <=
+						   player.cur_weapon_anim.cpos_top_rotation ||
 					   !player.attacking) {
 				// Animating to top finished
-				sword_animation.pos_cur_rotation = sword_animation.cpos_top_rotation
-				sword_animation.sprite_cur_rotation = sword_animation.csprite_top_rotation
-				sword_animation.pos_rotation_vel = 0
-			} else if sword_animation.pos_rotation_vel > 0 &&
-			   (sword_animation.pos_cur_rotation >= sword_animation.cpos_bot_rotation ||
+				player.cur_weapon_anim.pos_cur_rotation = player.cur_weapon_anim.cpos_top_rotation
+				player.cur_weapon_anim.sprite_cur_rotation =
+					player.cur_weapon_anim.csprite_top_rotation
+				player.cur_weapon_anim.pos_rotation_vel = 0
+			} else if player.cur_weapon_anim.pos_rotation_vel > 0 &&
+			   (player.cur_weapon_anim.pos_cur_rotation >=
+						   player.cur_weapon_anim.cpos_bot_rotation ||
 					   !player.attacking) {
 				// Animating to bottom finished
-				sword_animation.pos_cur_rotation = sword_animation.cpos_bot_rotation
-				sword_animation.sprite_cur_rotation = sword_animation.csprite_bot_rotation
-				sword_animation.pos_rotation_vel = 0
+				player.cur_weapon_anim.pos_cur_rotation = player.cur_weapon_anim.cpos_bot_rotation
+				player.cur_weapon_anim.sprite_cur_rotation =
+					player.cur_weapon_anim.csprite_bot_rotation
+				player.cur_weapon_anim.pos_rotation_vel = 0
 			}
 
 			if player.attacking {
-				if attack_duration_timer <= 0 {
+				if player.attack_dur_timer <= 0 {
 					stop_player_attack()
 				} else {
-					attack_duration_timer -= delta
+					player.attack_dur_timer -= delta
 
-					targets_hit := perform_attack(&player.current_attack)
+					targets_hit := perform_attack(&player.cur_attack)
 					player.weapons[player.selected_weapon_idx].count -= targets_hit
 					if player.weapons[player.selected_weapon_idx].count <= 0 {
 						player.weapons[player.selected_item_idx].id = .Empty
 					}
 				}
-			} else if !can_attack { 	// If right after punch finished then tick punch rate timer until done
-				if attack_interval_timer <= 0 {
-					can_attack = true
+			} else if !player.can_attack { 	// If right after punch finished then tick punch rate timer until done
+				if player.attack_interval_timer <= 0 {
+					player.can_attack = true
 				}
-				attack_interval_timer -= delta
+				player.attack_interval_timer -= delta
 			}
 
 			// Item pickup
@@ -1527,7 +1513,7 @@ add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
 stop_player_attack :: proc() {
 	if player.attacking {
 		player.attacking = false
-		delete(player.current_attack.exclude_targets)
+		delete(player.cur_attack.exclude_targets)
 	}
 }
 
@@ -1542,15 +1528,15 @@ fire_selected_weapon :: proc() -> int {
 	// Fire weapon
 	#partial switch weapon_data.id {
 	case .Sword:
-		if can_attack {
+		if player.can_attack {
 			// Attack
-			attack_poly.rotation = angle(mouse_world_pos - player.pos)
-			attack_duration_timer = ATTACK_DURATION
-			attack_interval_timer = ATTACK_INTERVAL
+			player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
+			player.attack_dur_timer = ATTACK_DURATION
+			player.attack_interval_timer = ATTACK_INTERVAL
 			player.attacking = true
-			player.current_attack = Attack {
+			player.cur_attack = Attack {
 				pos             = player.pos,
-				shape           = attack_poly,
+				shape           = player.attack_poly,
 				damage          = SWORD_DAMAGE,
 				knockback       = SWORD_KNOCKBACK,
 				direction       = normalize(mouse_world_pos - player.pos),
@@ -1558,22 +1544,27 @@ fire_selected_weapon :: proc() -> int {
 				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
 				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
 			}
-			can_attack = false
+			player.can_attack = false
 
 			// Animation
-			if sword_animation.pos_cur_rotation == sword_animation.cpos_top_rotation { 	// Animate down
-				sword_animation.pos_rotation_vel =
-					(sword_animation.cpos_bot_rotation - sword_animation.cpos_top_rotation) /
+			if player.cur_weapon_anim.pos_cur_rotation ==
+			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
+				player.cur_weapon_anim.pos_rotation_vel =
+					(player.cur_weapon_anim.cpos_bot_rotation -
+						player.cur_weapon_anim.cpos_top_rotation) /
 					ATTACK_DURATION
-				sword_animation.sprite_rotation_vel =
-					(sword_animation.csprite_bot_rotation - sword_animation.csprite_top_rotation) /
+				player.cur_weapon_anim.sprite_rotation_vel =
+					(player.cur_weapon_anim.csprite_bot_rotation -
+						player.cur_weapon_anim.csprite_top_rotation) /
 					ATTACK_DURATION
 			} else { 	// Animate up
-				sword_animation.pos_rotation_vel =
-					(sword_animation.cpos_top_rotation - sword_animation.cpos_bot_rotation) /
+				player.cur_weapon_anim.pos_rotation_vel =
+					(player.cur_weapon_anim.cpos_top_rotation -
+						player.cur_weapon_anim.cpos_bot_rotation) /
 					ATTACK_DURATION
-				sword_animation.sprite_rotation_vel =
-					(sword_animation.csprite_top_rotation - sword_animation.csprite_bot_rotation) /
+				player.cur_weapon_anim.sprite_rotation_vel =
+					(player.cur_weapon_anim.csprite_top_rotation -
+						player.cur_weapon_anim.csprite_bot_rotation) /
 					ATTACK_DURATION
 			}
 		}
@@ -1671,8 +1662,8 @@ draw_weapon :: proc(weapon: ItemId) {
 		sprite_pos += {-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50)
 	} else {
 		// Set rotation and position based on if sword is on top or not
-		sprite.rotation = sword_animation.sprite_cur_rotation
-		sprite_pos += {2, 0} + 4 * vector_from_angle(sword_animation.pos_cur_rotation)
+		sprite.rotation = player.cur_weapon_anim.sprite_cur_rotation
+		sprite_pos += {2, 0} + 4 * vector_from_angle(player.cur_weapon_anim.pos_cur_rotation)
 	}
 
 	// Rotate sprite and rotate its position to face mouse
@@ -1734,7 +1725,8 @@ select_weapon :: proc(idx: int) {
 	player.selected_weapon_idx = idx
 	#partial switch player.weapons[idx].id {
 	case .Sword:
-		attack_poly.points = sword_hitbox_points
+		player.attack_poly.points = SWORD_HITBOX_POINTS
+		player.cur_weapon_anim = SWORD_ANIMATION_DEFAULT
 	}
 }
 

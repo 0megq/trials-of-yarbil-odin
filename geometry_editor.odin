@@ -3,8 +3,6 @@ package game
 import rl "vendor:raylib"
 
 SELECTED_OUTLINE_COLOR :: rl.GREEN
-selected_wall: ^PhysicsEntity
-selected_wall_index: int = -1
 
 /*
 polygon point interface
@@ -27,248 +25,144 @@ points field is a dynamic array of point fields
 move and/or create points with mouse
 */
 
-new_shape_but := Button {
-	{20, 60, 120, 30},
-	"New Shape",
-	.Normal,
-	{200, 200, 200, 200},
-	{150, 150, 150, 200},
-	{100, 100, 100, 200},
-}
 
-change_shape_but := Button {
-	{20, 100, 120, 30},
-	"Change Shape",
-	.Normal,
-	{200, 200, 200, 200},
-	{150, 150, 150, 200},
-	{100, 100, 100, 200},
-}
+update_geometry_editor :: proc(w: ^World, e: ^EditorState) {
+	update_button(&e.new_shape_but, mouse_pos)
 
-entity_x_field := NumberField {
-	{20, 390, 200, 40},
-	0,
-	"0",
-	" E.X ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-entity_y_field := NumberField {
-	{20, 450, 200, 40},
-	0,
-	"0",
-	" E.Y ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-x_field := NumberField {
-	{20, 150, 120, 40},
-	0,
-	"0",
-	" X ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-y_field := NumberField {
-	{20, 210, 120, 40},
-	0,
-	"0",
-	" Y ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-radius_field := NumberField {
-	{20, 270, 120, 40},
-	0,
-	"0",
-	" R ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-width_field := NumberField {
-	{20, 270, 120, 40},
-	0,
-	"0",
-	" W ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-height_field := NumberField {
-	{20, 330, 120, 40},
-	0,
-	"0",
-	" H ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-rotation_field := NumberField {
-	{20, 270, 120, 40},
-	0,
-	"0",
-	" R ",
-	false,
-	0,
-	{150, 150, 150, 200},
-	{150, 255, 150, 200},
-}
-
-update_geometry_editor :: proc(walls: ^[dynamic]PhysicsEntity) {
-	update_button(&new_shape_but, mouse_pos)
-
-	if new_shape_but.status == .Released {
+	if e.new_shape_but.status == .Released {
 		append(
-			walls,
+			&w.walls,
 			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 20, 20}},
 		)
-		selected_wall_index = len(walls) - 1
-		selected_wall = &walls[selected_wall_index]
-		set_shape_fields_to_selected()
+		e.selected_wall_index = len(w.walls) - 1
+		e.selected_wall = &w.walls[e.selected_wall_index]
+		set_shape_fields_to_selected_shape(e)
 	}
 
-	if selected_wall != nil {
-		update_button(&change_shape_but, mouse_pos)
-		if change_shape_but.status == .Released {
-			switch shape in selected_wall.shape {
+	if e.selected_wall != nil {
+		update_button(&e.change_shape_but, mouse_pos)
+		if e.change_shape_but.status == .Released {
+			switch shape in e.selected_wall.shape {
 			case Circle:
-				selected_wall.shape = Polygon{}
+				e.selected_wall.shape = Rectangle{}
 			case Polygon:
-				delete(shape.points)
-				selected_wall.shape = Rectangle{}
+			// Not supporting polygon
+			// delete(shape.points)
+			// selected_wall.shape = Rectangle{}
 			case Rectangle:
-				selected_wall.shape = Circle{}
+				e.selected_wall.shape = Circle{}
 			}
 		}
-		update_shape_fields(mouse_pos)
+		update_shape_fields(e)
 	}
 
 	// Deleting shapes
-	if rl.IsKeyPressed(.D) && selected_wall != nil {
+	if rl.IsKeyPressed(.D) && e.selected_wall != nil {
 		if rl.IsKeyDown(.LEFT_CONTROL) {
-			selected_wall = nil
-			selected_wall_index = -1
+			e.selected_wall = nil
+			e.selected_wall_index = -1
 		}
 		if rl.IsKeyDown(.LEFT_SHIFT) {
-			unordered_remove(walls, selected_wall_index)
-			selected_wall = nil
-			selected_wall_index = -1
+			unordered_remove(&w.walls, e.selected_wall_index)
+			e.selected_wall = nil
+			e.selected_wall_index = -1
 		}
 	}
 
 	// Selecting shapes
 	if rl.IsMouseButtonPressed(.LEFT) {
-		for &wall, index in walls {
+		for &wall, index in w.walls {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
-				selected_wall = &wall
-				selected_wall_index = index
-				set_shape_fields_to_selected()
+				e.selected_wall = &wall
+				e.selected_wall_index = index
+				set_shape_fields_to_selected_shape(e)
 				break
 			}
 		}
-	} else if rl.IsMouseButtonDown(.RIGHT) && selected_wall != nil { 	// Moving shape
-		selected_wall.pos += mouse_world_delta
-		set_shape_fields_to_selected()
+	} else if rl.IsMouseButtonDown(.RIGHT) && e.selected_wall != nil { 	// Moving shape
+		e.selected_wall.pos += mouse_world_delta
+		set_shape_fields_to_selected_shape(e)
 	}
 }
 
-set_shape_fields_to_selected :: proc() {
-	set_number_field_value(&entity_x_field, selected_wall.pos.x)
-	set_number_field_value(&entity_y_field, selected_wall.pos.y)
-	switch shape in selected_wall.shape {
+set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
+	set_number_field_value(&e.entity_x_field, e.selected_wall.pos.x)
+	set_number_field_value(&e.entity_y_field, e.selected_wall.pos.y)
+	switch shape in e.selected_wall.shape {
 	case Circle:
-		set_number_field_value(&x_field, shape.pos.x)
-		set_number_field_value(&y_field, shape.pos.y)
-		set_number_field_value(&radius_field, shape.radius)
+		set_number_field_value(&e.shape_x_field, shape.pos.x)
+		set_number_field_value(&e.shape_y_field, shape.pos.y)
+		set_number_field_value(&e.radius_field, shape.radius)
 	case Polygon:
-		set_number_field_value(&x_field, shape.pos.x)
-		set_number_field_value(&y_field, shape.pos.y)
-		set_number_field_value(&rotation_field, shape.rotation)
+	// set_number_field_value(&x_field, shape.pos.x)
+	// set_number_field_value(&y_field, shape.pos.y)
+	// set_number_field_value(&rotation_field, shape.rotation)
 	//TODO: Implement points and rotation
 	case Rectangle:
-		set_number_field_value(&x_field, shape.x)
-		set_number_field_value(&y_field, shape.y)
-		set_number_field_value(&width_field, shape.width)
-		set_number_field_value(&height_field, shape.height)
+		set_number_field_value(&e.shape_x_field, shape.x)
+		set_number_field_value(&e.shape_y_field, shape.y)
+		set_number_field_value(&e.width_field, shape.width)
+		set_number_field_value(&e.height_field, shape.height)
 	}
 }
 
-update_shape_fields :: proc(mouse_pos: Vec2) {
-	update_number_field(&entity_x_field, mouse_pos)
-	update_number_field(&entity_y_field, mouse_pos)
-	selected_wall.pos.x = entity_x_field.number
-	selected_wall.pos.y = entity_y_field.number
-	update_number_field(&x_field, mouse_pos)
-	update_number_field(&y_field, mouse_pos)
-	switch &shape in selected_wall.shape {
+update_shape_fields :: proc(e: ^EditorState) {
+	update_number_field(&e.entity_x_field, mouse_pos)
+	update_number_field(&e.entity_y_field, mouse_pos)
+	e.selected_wall.pos.x = e.entity_x_field.number
+	e.selected_wall.pos.y = e.entity_y_field.number
+	update_number_field(&e.shape_x_field, mouse_pos)
+	update_number_field(&e.shape_y_field, mouse_pos)
+	switch &shape in e.selected_wall.shape {
 	case Circle:
-		update_number_field(&radius_field, mouse_pos)
-		shape.pos.x = x_field.number
-		shape.pos.y = y_field.number
-		shape.radius = radius_field.number
+		update_number_field(&e.radius_field, mouse_pos)
+		shape.pos.x = e.shape_x_field.number
+		shape.pos.y = e.shape_y_field.number
+		shape.radius = e.radius_field.number
 	case Polygon:
-		update_number_field(&rotation_field, mouse_pos)
-		shape.pos.x = x_field.number
-		shape.pos.y = y_field.number
-		shape.rotation = rotation_field.number
+	// No longer supporting polygon in level editor
+	// update_number_field(&rotation_field, mouse_pos)
+	// shape.pos.x = e.shape_x_field.number
+	// shape.pos.y = e.shape_y_field.number
+	// shape.rotation = e.rotation_field.number
+	case Rectangle:
+		update_number_field(&e.width_field, mouse_pos)
+		update_number_field(&e.height_field, mouse_pos)
+		shape.x = e.shape_x_field.number
+		shape.y = e.shape_y_field.number
+		shape.width = e.width_field.number
+		shape.height = e.height_field.number
+	}
+}
+
+draw_geometry_editor_world :: proc(e: ^EditorState) {
+	if e.selected_wall != nil {
+		draw_shape_lines(e.selected_wall.shape, e.selected_wall.pos, SELECTED_OUTLINE_COLOR)
+		rl.DrawCircleV(e.selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)
+	}
+}
+
+draw_geometry_editor_ui :: proc(e: ^EditorState) {
+	if e.selected_wall != nil {
+		draw_button(e.change_shape_but)
+		draw_shape_fields(e)
+	}
+	draw_button(e.new_shape_but)
+}
+
+draw_shape_fields :: proc(e: ^EditorState) {
+	draw_number_field(e.entity_x_field)
+	draw_number_field(e.entity_y_field)
+	draw_number_field(e.shape_x_field)
+	draw_number_field(e.shape_y_field)
+	switch _ in e.selected_wall.shape {
+	case Circle:
+		draw_number_field(e.radius_field)
+	case Polygon:
+	// draw_number_field(rotation_field)
 	//TODO: Implement points and rotation
 	case Rectangle:
-		update_number_field(&width_field, mouse_pos)
-		update_number_field(&height_field, mouse_pos)
-		shape.x = x_field.number
-		shape.y = y_field.number
-		shape.width = width_field.number
-		shape.height = height_field.number
-	}
-}
-
-draw_geometry_editor_world :: proc() {
-	if selected_wall != nil {
-		draw_shape_lines(selected_wall.shape, selected_wall.pos, SELECTED_OUTLINE_COLOR)
-		rl.DrawCircleV(selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)
-	}
-}
-
-draw_geometry_editor_ui :: proc() {
-	if selected_wall != nil {
-		draw_button(change_shape_but)
-		draw_shape_fields()
-	}
-	draw_button(new_shape_but)
-}
-
-draw_shape_fields :: proc() {
-	draw_number_field(entity_x_field)
-	draw_number_field(entity_y_field)
-	draw_number_field(x_field)
-	draw_number_field(y_field)
-	switch _ in selected_wall.shape {
-	case Circle:
-		draw_number_field(radius_field)
-	case Polygon:
-		draw_number_field(rotation_field)
-	//TODO: Implement points and rotation
-	case Rectangle:
-		draw_number_field(width_field)
-		draw_number_field(height_field)
+		draw_number_field(e.width_field)
+		draw_number_field(e.height_field)
 	}
 }

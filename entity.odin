@@ -38,6 +38,7 @@ MovingEntity :: struct {
 ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
+	max_health:          f32,
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
@@ -81,23 +82,32 @@ Item :: struct {
 }
 
 Player :: struct {
-	using moving_entity: MovingEntity,
-	pickup_range:        f32,
-	health:              f32,
-	max_health:          f32,
-	weapons:             [2]ItemData,
-	items:               [6]ItemData,
-	selected_weapon_idx: int,
-	selected_item_idx:   int,
-	item_count:          int,
-	holding_item:        bool,
-	item_hold_time:      f32,
-	charging_weapon:     bool,
-	weapon_charge_time:  f32,
-	weapon_switched:     bool, // Only true for 1 frame
-	item_switched:       bool,
-	attacking:           bool,
-	current_attack:      Attack,
+	using moving_entity:   MovingEntity, // velocity is only valid while playing game. position and id should be saved. shape is const
+	pickup_range:          f32, // const
+	health:                f32, // should save
+	max_health:            f32, // const
+	weapons:               [2]ItemData, // should save
+	items:                 [6]ItemData, // should save
+	selected_weapon_idx:   int, // should save
+	selected_item_idx:     int, // should save
+	item_count:            int, // should save
+	holding_item:          bool, // valid only while playing game
+	item_hold_time:        f32, // valid only while playing game
+	charging_weapon:       bool, // valid only while playing game
+	weapon_charge_time:    f32, // valid only while playing game
+	weapon_switched:       bool, // valid only while playing game
+	item_switched:         bool, // valid only while playing game
+	attacking:             bool, // valid only while playing game
+	cur_attack:            Attack, // valid only while playing game
+	cur_weapon_anim:       WeaponAnimation,
+	attack_dur_timer:      f32,
+	can_attack:            bool,
+	attack_interval_timer: f32,
+	attack_poly:           Polygon,
+	surfing:               bool,
+	can_fire_dash:         bool,
+	fire_dash_timer:       f32,
+	cur_ability:           MovementAbility,
 }
 
 ZEntity :: struct {
@@ -228,11 +238,13 @@ new_exploding_barrel :: proc(pos: Vec2) -> ExplodingBarrel {
 }
 
 new_player :: proc(pos: Vec2) -> Player {
-	return {
-		entity = new_entity(pos),
-		shape = get_centered_rect({}, {12, 12}),
-		pickup_range = 16,
-		health = 100,
-		max_health = 100,
-	}
+	return {entity = new_entity(pos), health = 100}
+}
+
+set_player_defaults :: proc() {
+	w.player.can_fire_dash = true
+	w.player.shape = get_centered_rect({}, {12, 12})
+	w.player.pickup_range = 16
+	w.player.max_health = 100
+	w.player.can_attack = false
 }

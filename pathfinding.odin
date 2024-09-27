@@ -2,8 +2,6 @@ package game
 
 // import "core:fmt"
 
-game_nav_mesh: NavMesh
-
 // To be used in a NavMesh
 NavCell :: struct {
 	verts: [3]Vec2, // Vertices that make up the cell
