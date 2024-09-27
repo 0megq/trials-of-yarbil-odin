@@ -4,13 +4,13 @@ import "core:fmt"
 import rl "vendor:raylib"
 
 
-draw_hud :: proc(w: World) {
+draw_hud :: proc() {
 	// Display items
 	slot_size :: 48
 	margin :: 16
 	// Show selected item
 	{
-		selected_item := w.player.items[w.player.selected_item_idx]
+		selected_item := player.items[player.selected_item_idx]
 
 		pos := Vec2{16, f32(WINDOW_SIZE.y) - slot_size * 2 - margin}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
@@ -41,9 +41,9 @@ draw_hud :: proc(w: World) {
 	{
 		pos := Vec2{16, f32(WINDOW_SIZE.y) - slot_size * 3 - margin}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-		if w.player.item_count > 2 {
+		if player.item_count > 2 {
 			tex :=
-				loaded_textures[item_to_texture[w.player.items[(w.player.selected_item_idx - 1) %% w.player.item_count].id]]
+				loaded_textures[item_to_texture[player.items[(player.selected_item_idx - 1) %% player.item_count].id]]
 			src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
 			dst := Rectangle {
 				pos.x + slot_size / 2,
@@ -59,9 +59,9 @@ draw_hud :: proc(w: World) {
 	{
 		pos := Vec2{16, f32(WINDOW_SIZE.y) - slot_size - margin}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-		if w.player.item_count > 1 {
+		if player.item_count > 1 {
 			tex :=
-				loaded_textures[item_to_texture[w.player.items[(w.player.selected_item_idx + 1) %% w.player.item_count].id]]
+				loaded_textures[item_to_texture[player.items[(player.selected_item_idx + 1) %% player.item_count].id]]
 			src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
 			dst := Rectangle {
 				pos.x + slot_size / 2,
@@ -81,7 +81,7 @@ draw_hud :: proc(w: World) {
 			f32(WINDOW_SIZE.y) - slot_size - margin,
 		}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-		tex := loaded_textures[item_to_texture[w.player.weapons[0].id]]
+		tex := loaded_textures[item_to_texture[player.weapons[0].id]]
 		src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
 		dst := Rectangle {
 			pos.x + slot_size / 2,
@@ -99,7 +99,7 @@ draw_hud :: proc(w: World) {
 			f32(WINDOW_SIZE.y) - slot_size * 2 - margin,
 		}
 		rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-		tex := loaded_textures[item_to_texture[w.player.weapons[1].id]]
+		tex := loaded_textures[item_to_texture[player.weapons[1].id]]
 		src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
 		dst := Rectangle {
 			pos.x + slot_size / 2,
@@ -114,11 +114,11 @@ draw_hud :: proc(w: World) {
 	{
 		pos := Vec2 {
 			f32(WINDOW_SIZE.x) - slot_size - margin,
-			f32(WINDOW_SIZE.y) - slot_size * (1 + f32(w.player.selected_weapon_idx)) - margin,
+			f32(WINDOW_SIZE.y) - slot_size * (1 + f32(player.selected_weapon_idx)) - margin,
 		}
 
 		// Show durability
-		if weapon := w.player.weapons[w.player.selected_weapon_idx]; weapon.id != .Empty {
+		if weapon := player.weapons[player.selected_weapon_idx]; weapon.id != .Empty {
 			bar_margin :: 4
 
 			durability_bar_length: f32 = slot_size - bar_margin * 2
@@ -135,11 +135,11 @@ draw_hud :: proc(w: World) {
 			rl.DrawRectangleRec(durability_bar_filled_rec, rl.GREEN)
 		}
 
-		if w.player.attacking {
+		if player.attacking {
 			rl.DrawRectangleRec({pos.x, pos.y, slot_size, slot_size}, Color{0, 0, 0, 70})
-		} else if !w.player.can_attack {
+		} else if !player.can_attack {
 			// Value from 0 to 1. Starts at 1 then decreases
-			cooldown_ratio := w.player.attack_interval_timer / ATTACK_INTERVAL
+			cooldown_ratio := player.attack_interval_timer / ATTACK_INTERVAL
 			// Display
 			rl.DrawRectangleRec(
 				{
@@ -157,12 +157,12 @@ draw_hud :: proc(w: World) {
 
 
 	// Display Fire Dash Status
-	if w.player.cur_ability == .FIRE {
-		if w.player.can_fire_dash {
+	if player.cur_ability == .FIRE {
+		if player.can_fire_dash {
 			rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
 		} else {
 			rl.DrawText(
-				fmt.ctprintf("On Cooldown: %f", w.player.fire_dash_timer),
+				fmt.ctprintf("On Cooldown: %f", player.fire_dash_timer),
 				1000,
 				16,
 				20,

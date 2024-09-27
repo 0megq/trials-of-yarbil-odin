@@ -10,44 +10,44 @@ GRID_SNAP_SIZE :: 5
 POINT_SNAP_RADIUS :: 3 // Radius to check for other points to snap to
 MOUSE_RADIUS :: 2 // Radius to check for mouse
 
-load_navmesh :: proc(w: ^World) {
-	if nav_mesh_data, ok := os.read_entire_file("w.nav_mesh.json", context.allocator); ok {
-		if json.unmarshal(nav_mesh_data, &w.nav_mesh) != nil {
-			w.nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-			append(&w.nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-			w.nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
+load_navmesh :: proc() {
+	if nav_mesh_data, ok := os.read_entire_file("nav_mesh.json", context.allocator); ok {
+		if json.unmarshal(nav_mesh_data, &nav_mesh) != nil {
+			nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+			append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+			nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 		}
 		delete(nav_mesh_data)
 	} else {
-		w.nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-		append(&w.nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-		w.nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
+		nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
+		nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
 	}
 	rl.TraceLog(.INFO, "Navmesh Loaded")
 }
 
-save_navmesh :: proc(w: ^World) {
-	calculate_graph(&w.nav_mesh)
-	if nav_mesh_data, err := json.marshal(w.nav_mesh, allocator = context.allocator); err == nil {
-		os.write_entire_file("w.nav_mesh.json", nav_mesh_data)
+save_navmesh :: proc() {
+	calculate_graph(&nav_mesh)
+	if nav_mesh_data, err := json.marshal(nav_mesh, allocator = context.allocator); err == nil {
+		os.write_entire_file("nav_mesh.json", nav_mesh_data)
 		delete(nav_mesh_data)
 	}
 	rl.TraceLog(.INFO, "Navmesh Saved")
 }
 
-unload_navmesh :: proc(w: ^World) {
-	delete(w.nav_mesh.cells)
-	delete(w.nav_mesh.nodes)
-	w.nav_mesh.cells = nil
-	w.nav_mesh.nodes = nil
+unload_navmesh :: proc() {
+	delete(nav_mesh.cells)
+	delete(nav_mesh.nodes)
+	nav_mesh.cells = nil
+	nav_mesh.nodes = nil
 }
 
 // init_navmesh :: proc() {
-// 	w.nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-// 	append(&w.nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
+// 	nav_mesh.cells = make([dynamic]NavCell, context.allocator)
+// 	append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
 // }
 
-update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
+update_navmesh_editor :: proc(e: ^EditorState) {
 	/* Incomplete Features
 	Multiselect and move
 	Move close together points together (Ctrl click)
@@ -69,7 +69,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 			if e.test_path != nil {
 				delete(e.test_path)
 			}
-			e.test_path = find_path(e.test_path_start, e.test_path_end, w.nav_mesh)
+			e.test_path = find_path(e.test_path_start, e.test_path_end, nav_mesh)
 		} else { 	// Toggle path display
 			e.display_test_path = !e.display_test_path
 		}
@@ -105,7 +105,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 			}
 		} else if e.selected_nav_cell == nil { 	// In all cells
 			e.selected_point = nil
-			for &cell, ci in w.nav_mesh.cells {
+			for &cell, ci in nav_mesh.cells {
 				for &v in cell.verts {
 					if length(v - mouse_world_pos) <= MOUSE_RADIUS {
 						// If there is no point selected or if v is closer to the mouse than the already selected point then set it
@@ -128,7 +128,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 		if rl.IsKeyDown(.LEFT_SHIFT) {
 			snapped := false
 			// Snapping to other points
-			for cell, ci in w.nav_mesh.cells {
+			for cell, ci in nav_mesh.cells {
 				for v in cell.verts {
 					if ci == e.selected_point_cell_index {continue}
 					if length(mouse_world_pos - v) <= POINT_SNAP_RADIUS {
@@ -150,7 +150,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 	// New triangle (N)
 	if rl.IsKeyPressed(.N) {
 		append(
-			&w.nav_mesh.cells,
+			&nav_mesh.cells,
 			NavCell{{mouse_world_pos, mouse_world_pos + {0, 10}, mouse_world_pos + {10, 0}}},
 		)
 		e.selected_nav_cell = nil
@@ -168,20 +168,20 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 		v2 := e.selected_nav_cell.verts[2]
 
 		// Delete triangle
-		unordered_remove(&w.nav_mesh.cells, e.selected_nav_cell_index)
+		unordered_remove(&nav_mesh.cells, e.selected_nav_cell_index)
 		e.selected_nav_cell = nil
 		e.selected_nav_cell_index = -1
 		e.selected_point = nil
 		e.selected_point_cell_index = -1
 
 		// Create 4 smaller triangles
-		append(&w.nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
+		append(&nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
 
-		append(&w.nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
+		append(&nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
 
-		append(&w.nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
+		append(&nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
 
-		append(&w.nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
+		append(&nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
 	}
 
 	// Delete (D)
@@ -191,7 +191,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 		// 	selected_nav_cell_index = -1
 		// }
 		// if rl.IsKeyDown(.LEFT_SHIFT) {
-		unordered_remove(&w.nav_mesh.cells, e.selected_nav_cell_index)
+		unordered_remove(&nav_mesh.cells, e.selected_nav_cell_index)
 		e.selected_nav_cell = nil
 		e.selected_nav_cell_index = -1
 		e.selected_point = nil
@@ -202,7 +202,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 	// Select/Deselect triangle (S)
 	if !rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
 		e.selected_nav_cell_index = -1
-		for &cell, i in w.nav_mesh.cells {
+		for &cell, i in nav_mesh.cells {
 			if e.selected_nav_cell != &cell &&
 			   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 				e.selected_nav_cell = &cell
@@ -221,7 +221,7 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 			// Move selected triangle
 			e.selected_nav_cell.verts += {mouse_world_delta, mouse_world_delta, mouse_world_delta}
 		} else {
-			for &cell, i in w.nav_mesh.cells {
+			for &cell, i in nav_mesh.cells {
 				if e.selected_nav_cell != &cell &&
 				   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 					e.selected_nav_cell = &cell
@@ -234,19 +234,19 @@ update_navmesh_editor :: proc(w: ^World, e: ^EditorState) {
 
 	// Manual Save (Ctrl + S)
 	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
-		save_navmesh(w)
+		save_navmesh()
 	}
 
 	// Manual Load (Ctrl + L)
 	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.L) {
-		unload_navmesh(w)
-		load_navmesh(w)
+		unload_navmesh()
+		load_navmesh()
 	}
 }
 
-draw_navmesh_editor_world :: proc(w: World, e: EditorState) {
+draw_navmesh_editor_world :: proc(e: EditorState) {
 	// Draw individual cells in navmesh. Draw points, edges, and fill cells
-	for &cell in w.nav_mesh.cells {
+	for &cell in nav_mesh.cells {
 		// Fill
 		rl.DrawTriangle(cell.verts[0], cell.verts[1], cell.verts[2], Color{0, 120, 120, 150})
 
@@ -294,17 +294,17 @@ draw_navmesh_editor_world :: proc(w: World, e: EditorState) {
 
 	if e.display_nav_graph {
 		// Draw connections
-		for node in w.nav_mesh.nodes {
+		for node in nav_mesh.nodes {
 			for connection in node.connections {
 				if connection < 0 {
 					break
 				}
-				rl.DrawLineV(node.pos, w.nav_mesh.nodes[connection].pos, rl.GRAY)
+				rl.DrawLineV(node.pos, nav_mesh.nodes[connection].pos, rl.GRAY)
 			}
 		}
 
 		// Draw nodes
-		for node in w.nav_mesh.nodes {
+		for node in nav_mesh.nodes {
 			rl.DrawCircleV(node.pos, 1, rl.BLACK)
 		}
 	}
@@ -322,12 +322,12 @@ draw_navmesh_editor_world :: proc(w: World, e: EditorState) {
 	}
 }
 
-draw_navmesh_editor_ui :: proc(w: World, e: EditorState) {
+draw_navmesh_editor_ui :: proc(e: EditorState) {
 	// Display mouse coordinates
 	rl.DrawText(fmt.ctprintf("%v", mouse_world_pos), 20, 20, 16, rl.WHITE)
 
 	if e.display_nav_graph {
-		for node, i in w.nav_mesh.nodes {
+		for node, i in nav_mesh.nodes {
 			rl.DrawTextEx(
 				rl.GetFontDefault(),
 				fmt.ctprintf("%v", i),

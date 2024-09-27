@@ -72,33 +72,18 @@ LevelData :: struct {
 	walls:             [dynamic]PhysicsEntity,
 }
 // updates made while in an editor mode will be saved here
-current_level_data: LevelData
-
-
-// stores all data relevant to the game world. does not store ui and controls and stuff
-World :: struct {
-	player:             Player,
-	enemies:            [dynamic]Enemy,
-	items:              [dynamic]Item,
-	exploding_barrels:  [dynamic]ExplodingBarrel,
-	tilemap:            Tilemap,
-	nav_mesh:           NavMesh,
-	walls:              [dynamic]PhysicsEntity,
-	bombs:              [dynamic]Bomb,
-	projectile_weapons: [dynamic]ProjectileWeapon,
-	arrows:             [dynamic]Arrow,
-	fires:              [dynamic]Fire,
-}
-world: World
+cur_level_data: LevelData
 
 
 EditorState :: struct {
+	mode:                      EditorMode,
+
 	// Entity editor
 	selected_entity:           EntityType,
 	selected_phys_entity:      ^PhysicsEntity,
 
 	// Level editor
-	selected_wall:             ^PhysicsEntity,
+	selected_wall:             ^Wall,
 	selected_wall_index:       int,
 	// Level editor ui
 	new_shape_but:             Button,
@@ -291,7 +276,7 @@ unload_game_data :: proc() {
 	// delete any allocated memory related to game data
 }
 
-load_entities :: proc(w: ^World) {
+load_entities :: proc() {
 	// Load EntityData struct from json file
 	// generate new uuid's
 
@@ -303,9 +288,9 @@ load_entities :: proc(w: ^World) {
 			setup_default_entities()
 		} else {
 			set_player_data(data.player_data)
-			w.enemies = data.enemies
-			w.items = data.items
-			w.exploding_barrels = data.exploding_barrels
+			enemies = data.enemies
+			items = data.items
+			exploding_barrels = data.exploding_barrels
 		}
 
 		delete(bytes)
@@ -317,10 +302,10 @@ load_entities :: proc(w: ^World) {
 	rl.TraceLog(.INFO, "Entities Loaded")
 }
 
-save_entities :: proc(w: World) {
+save_entities :: proc() {
 	// Save EntityData struct to json file
 
-	data := EntityData{get_player_data(), w.enemies, w.items, w.exploding_barrels}
+	data := EntityData{get_player_data(), enemies, items, exploding_barrels}
 
 	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
@@ -333,38 +318,38 @@ save_entities :: proc(w: World) {
 	rl.TraceLog(.INFO, "Entities Saved")
 }
 
-unload_entities :: proc(w: ^World) {
+unload_entities :: proc() {
 	// Unload entity data AKA delete memory
-	delete(w.enemies)
-	delete(w.items)
-	delete(w.exploding_barrels)
+	delete(enemies)
+	delete(items)
+	delete(exploding_barrels)
 
 	rl.TraceLog(.INFO, "Entities Unloaded")
 }
 
-update_entity_editor :: proc(w: ^World, e: ^EditorState) {
+update_entity_editor :: proc(e: ^EditorState) {
 	// select entity
 	outer: if rl.IsMouseButtonPressed(.LEFT) {
-		if check_collision_shape_point(w.player.shape, w.player.pos, mouse_world_pos) {
-			e.selected_phys_entity = &w.player.physics_entity
-			e.selected_entity = w.player
+		if check_collision_shape_point(player.shape, player.pos, mouse_world_pos) {
+			e.selected_phys_entity = &player.physics_entity
+			e.selected_entity = player
 			break outer
 		}
-		for &enemy in w.enemies {
+		for &enemy in enemies {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
 				e.selected_entity = enemy
 				break outer
 			}
 		}
-		for &barrel in w.exploding_barrels {
+		for &barrel in exploding_barrels {
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
 				e.selected_entity = barrel
 				break outer
 			}
 		}
-		for &item in w.items {
+		for &item in items {
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
 				e.selected_entity = item
@@ -384,23 +369,23 @@ update_entity_editor :: proc(w: ^World, e: ^EditorState) {
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.DELETE) {
 		#partial switch en in e.selected_entity {
 		case Enemy:
-			for enemy, i in w.enemies {
+			for enemy, i in enemies {
 				if enemy.id == en.id {
-					unordered_remove(&w.enemies, i)
+					unordered_remove(&enemies, i)
 					break
 				}
 			}
 		case ExplodingBarrel:
-			for barrel, i in w.exploding_barrels {
+			for barrel, i in exploding_barrels {
 				if barrel.id == en.id {
-					unordered_remove(&w.exploding_barrels, i)
+					unordered_remove(&exploding_barrels, i)
 					break
 				}
 			}
 		case Item:
-			for item, i in w.items {
+			for item, i in items {
 				if item.id == en.id {
-					unordered_remove(&w.items, i)
+					unordered_remove(&items, i)
 					break
 				}
 			}
@@ -415,9 +400,9 @@ update_entity_editor :: proc(w: ^World, e: ^EditorState) {
 	if rl.IsKeyDown(.N) {
 		if rl.IsKeyPressed(.ONE) {
 			// creating new enemy
-			append(&w.enemies, new_enemy(mouse_world_pos))
+			append(&enemies, new_enemy(mouse_world_pos))
 		} else if rl.IsKeyPressed(.TWO) {
-			append(&w.exploding_barrels, new_exploding_barrel(mouse_world_pos))
+			append(&exploding_barrels, new_exploding_barrel(mouse_world_pos))
 		} else if rl.IsKeyPressed(.THREE) {
 			add_item_to_world({id = .Apple, count = 1}, mouse_world_pos)
 		}
@@ -425,13 +410,13 @@ update_entity_editor :: proc(w: ^World, e: ^EditorState) {
 
 	// manual save
 	if rl.IsKeyPressed(.S) {
-		save_entities(w)
+		save_entities()
 	}
 
 	// manual load
 	if rl.IsKeyPressed(.L) {
-		unload_entities(w)
-		load_entities(w)
+		unload_entities()
+		load_entities()
 	}
 }
 
@@ -450,49 +435,49 @@ draw_entity_editor_ui :: proc(e: EditorState) {
 	}
 }
 
-setup_default_entities :: proc(w: ^World) {
-	w.player = new_player({32, 32})
+setup_default_entities :: proc() {
+	player = new_player({32, 32})
 	set_player_defaults()
 	pickup_item({.Sword, 100, 100})
 	pickup_item({.Bomb, 3, 16})
 
-	w.enemies = make([dynamic]Enemy, context.allocator)
-	append(&w.enemies, new_ranged_enemy({300, 40}))
-	append(&w.enemies, new_melee_enemy({200, 200}, ENEMY_ATTACK_POLY))
-	append(&w.enemies, new_melee_enemy({130, 200}, ENEMY_ATTACK_POLY))
-	append(&w.enemies, new_melee_enemy({220, 180}, ENEMY_ATTACK_POLY))
-	append(&w.enemies, new_melee_enemy({80, 300}, ENEMY_ATTACK_POLY))
+	enemies = make([dynamic]Enemy, context.allocator)
+	append(&enemies, new_ranged_enemy({300, 40}))
+	append(&enemies, new_melee_enemy({200, 200}, ENEMY_ATTACK_POLY))
+	append(&enemies, new_melee_enemy({130, 200}, ENEMY_ATTACK_POLY))
+	append(&enemies, new_melee_enemy({220, 180}, ENEMY_ATTACK_POLY))
+	append(&enemies, new_melee_enemy({80, 300}, ENEMY_ATTACK_POLY))
 
-	w.exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
-	append(&w.exploding_barrels, new_exploding_barrel({24, 64}))
+	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
+	append(&exploding_barrels, new_exploding_barrel({24, 64}))
 
-	w.items = make([dynamic]Item, context.allocator)
+	items = make([dynamic]Item, context.allocator)
 	add_item_to_world({.Sword, 10, 10}, {500, 300})
 	add_item_to_world({.Bomb, 1, 16}, {200, 50})
 	add_item_to_world({.Apple, 5, 16}, {100, 50})
 }
 
 
-set_player_data :: proc(w: ^World, data: PlayerData1) {
-	w.player.moving_entity = data.moving_entity
-	w.player.health = data.health
-	w.player.weapons = data.weapons
-	w.player.items = data.items
+set_player_data :: proc(data: PlayerData1) {
+	player.moving_entity = data.moving_entity
+	player.health = data.health
+	player.weapons = data.weapons
+	player.items = data.items
 	select_weapon(data.selected_weapon_idx)
-	w.player.selected_item_idx = data.selected_item_idx
-	w.player.item_count = data.item_count
+	player.selected_item_idx = data.selected_item_idx
+	player.item_count = data.item_count
 	set_player_defaults()
 }
 
-get_player_data :: proc(w: World) -> PlayerData1 {
+get_player_data :: proc() -> PlayerData1 {
 	return {
-		w.player.moving_entity,
-		w.player.health,
-		w.player.weapons,
-		w.player.items,
-		w.player.selected_weapon_idx,
-		w.player.selected_item_idx,
-		w.player.item_count,
-		w.player.cur_ability,
+		player.moving_entity,
+		player.health,
+		player.weapons,
+		player.items,
+		player.selected_weapon_idx,
+		player.selected_item_idx,
+		player.item_count,
+		player.cur_ability,
 	}
 }

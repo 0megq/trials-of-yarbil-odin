@@ -26,16 +26,16 @@ move and/or create points with mouse
 */
 
 
-update_geometry_editor :: proc(w: ^World, e: ^EditorState) {
+update_geometry_editor :: proc(e: ^EditorState) {
 	update_button(&e.new_shape_but, mouse_pos)
 
 	if e.new_shape_but.status == .Released {
 		append(
-			&w.walls,
+			&walls,
 			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 20, 20}},
 		)
-		e.selected_wall_index = len(w.walls) - 1
-		e.selected_wall = &w.walls[e.selected_wall_index]
+		e.selected_wall_index = len(walls) - 1
+		e.selected_wall = &walls[e.selected_wall_index]
 		set_shape_fields_to_selected_shape(e)
 	}
 
@@ -63,7 +63,7 @@ update_geometry_editor :: proc(w: ^World, e: ^EditorState) {
 			e.selected_wall_index = -1
 		}
 		if rl.IsKeyDown(.LEFT_SHIFT) {
-			unordered_remove(&w.walls, e.selected_wall_index)
+			unordered_remove(&walls, e.selected_wall_index)
 			e.selected_wall = nil
 			e.selected_wall_index = -1
 		}
@@ -71,7 +71,7 @@ update_geometry_editor :: proc(w: ^World, e: ^EditorState) {
 
 	// Selecting shapes
 	if rl.IsMouseButtonPressed(.LEFT) {
-		for &wall, index in w.walls {
+		for &wall, index in walls {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
@@ -135,14 +135,14 @@ update_shape_fields :: proc(e: ^EditorState) {
 	}
 }
 
-draw_geometry_editor_world :: proc(e: ^EditorState) {
+draw_geometry_editor_world :: proc(e: EditorState) {
 	if e.selected_wall != nil {
 		draw_shape_lines(e.selected_wall.shape, e.selected_wall.pos, SELECTED_OUTLINE_COLOR)
 		rl.DrawCircleV(e.selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)
 	}
 }
 
-draw_geometry_editor_ui :: proc(e: ^EditorState) {
+draw_geometry_editor_ui :: proc(e: EditorState) {
 	if e.selected_wall != nil {
 		draw_button(e.change_shape_but)
 		draw_shape_fields(e)
@@ -150,7 +150,7 @@ draw_geometry_editor_ui :: proc(e: ^EditorState) {
 	draw_button(e.new_shape_but)
 }
 
-draw_shape_fields :: proc(e: ^EditorState) {
+draw_shape_fields :: proc(e: EditorState) {
 	draw_number_field(e.entity_x_field)
 	draw_number_field(e.entity_y_field)
 	draw_number_field(e.shape_x_field)

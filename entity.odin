@@ -35,6 +35,8 @@ MovingEntity :: struct {
 	vel:                  Vec2,
 }
 
+Wall :: PhysicsEntity
+
 ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
@@ -242,9 +244,9 @@ new_player :: proc(pos: Vec2) -> Player {
 }
 
 set_player_defaults :: proc() {
-	w.player.can_fire_dash = true
-	w.player.shape = get_centered_rect({}, {12, 12})
-	w.player.pickup_range = 16
-	w.player.max_health = 100
-	w.player.can_attack = false
+	player.can_fire_dash = true
+	player.shape = get_centered_rect({}, {12, 12})
+	player.pickup_range = 16
+	player.max_health = 100
+	player.can_attack = false
 }

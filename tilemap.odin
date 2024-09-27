@@ -38,7 +38,7 @@ WaterData :: struct {}
 WallData :: struct {}
 
 
-update_tilemap :: proc(tilemap: ^Tilemap) {
+update_tilemap :: proc() {
 	// Fire spread for grass tiles
 	for tile_pos in get_tiles_on_fire() {
 		// Update tiles
@@ -89,7 +89,7 @@ get_neighboring_tiles :: proc(pos: Vec2i) -> [4]Vec2i {
 	return {{pos.x, pos.y - 1}, {pos.x - 1, pos.y}, {pos.x, pos.y + 1}, {pos.x + 1, pos.y}}
 }
 
-set_tile :: proc(tilemap: ^Tilemap, pos: Vec2i, data: TileData) {
+set_tile :: proc(pos: Vec2i, data: TileData) {
 	if !is_valid_tile_pos(pos) {
 		rl.TraceLog(.ERROR, "Invalid tile position")
 		return
@@ -138,7 +138,7 @@ get_tiles_with_data :: proc(
 	return result[:]
 }
 
-get_tiles_on_fire :: proc(tilemap: Tilemap) -> []Vec2i {
+get_tiles_on_fire :: proc() -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	for col, x in tilemap {
 		for tile, y in col {
@@ -150,7 +150,7 @@ get_tiles_on_fire :: proc(tilemap: Tilemap) -> []Vec2i {
 	return result[:]
 }
 
-draw_tilemap :: proc(tilemap: Tilemap) {
+draw_tilemap :: proc() {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
@@ -239,7 +239,7 @@ tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }
 
-load_tilemap :: proc(tilemap: ^Tilemap) {
+load_tilemap :: proc() {
 	img := rl.LoadImage("assets/tilemap01.png")
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {

@@ -75,27 +75,6 @@ Controls :: struct {
 	movement_ability:       Control,
 }
 
-controls: Controls = {
-	fire                   = rl.MouseButton.LEFT,
-	alt_fire               = rl.MouseButton.MIDDLE,
-	use_item               = rl.MouseButton.RIGHT,
-	switch_selected_weapon = rl.KeyboardKey.X,
-	drop                   = rl.KeyboardKey.Q,
-	pickup                 = rl.KeyboardKey.E,
-	cancel                 = rl.KeyboardKey.LEFT_CONTROL,
-	movement_ability       = rl.KeyboardKey.SPACE,
-}
-
-SWORD_HITBOX_POINTS :: []Vec2 {
-	{SWORD_HITBOX_OFFSET, -12},
-	{SWORD_HITBOX_OFFSET + 10, -5},
-	{SWORD_HITBOX_OFFSET + 12, 0},
-	{SWORD_HITBOX_OFFSET + 10, 5},
-	{SWORD_HITBOX_OFFSET, 12},
-}
-
-ENEMY_ATTACK_POLY :: Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
-
 WeaponAnimation :: struct {
 	// Constants
 	cpos_top_rotation:    f32,
@@ -112,9 +91,44 @@ WeaponAnimation :: struct {
 	sprite_cur_rotation:  f32,
 }
 
+controls: Controls = {
+	fire                   = rl.MouseButton.LEFT,
+	alt_fire               = rl.MouseButton.MIDDLE,
+	use_item               = rl.MouseButton.RIGHT,
+	switch_selected_weapon = rl.KeyboardKey.X,
+	drop                   = rl.KeyboardKey.Q,
+	pickup                 = rl.KeyboardKey.E,
+	cancel                 = rl.KeyboardKey.LEFT_CONTROL,
+	movement_ability       = rl.KeyboardKey.SPACE,
+}
+
+SWORD_HITBOX_POINTS := []Vec2 {
+	{SWORD_HITBOX_OFFSET, -12},
+	{SWORD_HITBOX_OFFSET + 10, -5},
+	{SWORD_HITBOX_OFFSET + 12, 0},
+	{SWORD_HITBOX_OFFSET + 10, 5},
+	{SWORD_HITBOX_OFFSET, 12},
+}
+
+ENEMY_ATTACK_POLY := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
+
 SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
 
-editor_mode: EditorMode = .None
+// world data
+player: Player
+enemies: [dynamic]Enemy
+items: [dynamic]Item
+exploding_barrels: [dynamic]ExplodingBarrel
+tilemap: Tilemap
+nav_mesh: NavMesh
+walls: [dynamic]Wall
+bombs: [dynamic]Bomb
+projectile_weapons: [dynamic]ProjectileWeapon
+arrows: [dynamic]Arrow
+fires: [dynamic]Fire
+
+
+// misc
 camera: rl.Camera2D
 
 delta: f32
@@ -146,14 +160,15 @@ main :: proc() {
 	load_textures()
 	load_navmesh()
 	load_entities()
-	load_tilemap(&world.tilemap)
-	init_editor_state(editor_state)
+	load_tilemap()
+
+	init_editor_state(&editor_state)
 
 	// fill_tiles({0, 0}, {199, 199}, GrassData{})
 	// set_tile({2, 3}, GrassData{})
 	// set_tile({3, 4}, GrassData{true, 1, true})
 
-	world.player.cur_ability = .WATER
+	player.cur_ability = .WATER
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
@@ -175,15 +190,15 @@ main :: proc() {
 		entity = new_entity({200, 100}),
 		shape  = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0},
 	}
-	level.walls = make([dynamic]PhysicsEntity, context.allocator)
+	walls = make([dynamic]Wall, context.allocator)
 
-	if level_data, ok := os.read_entire_file("level.json", context.allocator); ok {
-		if json.unmarshal(level_data, &level) != nil {
-			append(&level.walls, wall1)
+	if bytes, ok := os.read_entire_file("level.json", context.allocator); ok {
+		if json.unmarshal(bytes, &walls) != nil {
+			append(&walls, wall1)
 		}
-		delete(level_data)
+		delete(bytes)
 	} else {
-		append(&level.walls, wall1)
+		append(&walls, wall1)
 	}
 	// Generate new ids for the walls. Potential source of bugs
 	// for &wall in level.walls {
@@ -228,36 +243,36 @@ main :: proc() {
 		}
 
 		if rl.IsKeyPressed(.H) {
-			editor_mode = EditorMode((int(editor_mode) + 1) % len(EditorMode))
+			editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
 		}
 
-		#partial switch editor_mode {
+		#partial switch editor_state.mode {
 		case .Level:
-			update_geometry_editor(&level.walls)
+			update_geometry_editor(&editor_state)
 		case .NavMesh:
-			update_navmesh_editor()
+			update_navmesh_editor(&editor_state)
 		case .Entity:
-			update_entity_editor()
+			update_entity_editor(&editor_state)
 		}
 
-		if editor_mode == .None {
+		if editor_state.mode == .None {
 			update_tilemap()
 
-			if !can_fire_dash {
-				fire_dash_timer -= delta
-				if fire_dash_timer <= 0 {
-					can_fire_dash = true
+			if !player.can_fire_dash {
+				player.fire_dash_timer -= delta
+				if player.fire_dash_timer <= 0 {
+					player.can_fire_dash = true
 				}
 			}
 
 			if is_control_pressed(controls.movement_ability) {
 				move_successful := false
-				switch current_ability {
+				switch player.cur_ability {
 				case .FIRE:
-					if can_fire_dash {
+					if player.can_fire_dash {
 						move_successful = true
-						can_fire_dash = false
-						fire_dash_timer = FIRE_DASH_COOLDOWN
+						player.can_fire_dash = false
+						player.fire_dash_timer = FIRE_DASH_COOLDOWN
 
 						player.vel = normalize(get_directional_input()) * 250
 						fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
@@ -274,7 +289,7 @@ main :: proc() {
 					}
 				case .WATER:
 					move_successful = true
-					surfing = true
+					player.surfing = true
 					append(&timers, Timer{1, turn_off_surf, 0})
 				// for &enemy in enemies {
 				// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
@@ -294,7 +309,7 @@ main :: proc() {
 				}
 			}
 
-			if surfing {
+			if player.surfing {
 				player.vel = normalize(get_directional_input()) * 200
 				surf_poly.rotation = angle(get_directional_input())
 				surf_poly.pos = player.pos
@@ -310,7 +325,7 @@ main :: proc() {
 			}
 
 			player_move(&player, delta)
-			for wall in level.walls {
+			for wall in walls {
 				_, normal, depth := resolve_collision_shapes(
 					player.shape,
 					player.pos,
@@ -358,7 +373,7 @@ main :: proc() {
 				// Update detection points
 				for &p, i in enemy.detection_points {
 					dir := vector_from_angle(f32(i) * 360 / f32(len(enemy.detection_points)))
-					t := cast_ray_through_level(level.walls[:], enemy.pos, dir)
+					t := cast_ray_through_level(walls[:], enemy.pos, dir)
 					if t < enemy.detection_range {
 						p = enemy.pos + t * dir
 					} else {
@@ -384,7 +399,7 @@ main :: proc() {
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
 					}
-					enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+					enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
 					enemy.current_path_point = 1
 					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 				}
@@ -397,12 +412,12 @@ main :: proc() {
 						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 						// Find new path
 						delete(enemy.current_path)
-						enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+						enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
 						enemy.current_path_point = 1
 					}
 					if enemy.current_path_point >= len(enemy.current_path) {
 						delete(enemy.current_path)
-						enemy.current_path = find_path(enemy.pos, player.pos, game_nav_mesh)
+						enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
 						enemy.current_path_point = 1
 					}
 				}
@@ -431,7 +446,7 @@ main :: proc() {
 				}
 				enemy_move(&enemy, delta, target)
 
-				for wall in level.walls {
+				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						enemy.shape,
 						enemy.pos,
@@ -542,7 +557,7 @@ main :: proc() {
 
 			#reverse for &entity in exploding_barrels {
 				generic_move(&entity, 1000, delta)
-				for wall in level.walls {
+				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
@@ -585,7 +600,7 @@ main :: proc() {
 
 			#reverse for &bomb, i in bombs {
 				zentity_move(&bomb, delta)
-				for wall in level.walls {
+				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
 						bomb.pos,
@@ -840,7 +855,7 @@ main :: proc() {
 
 			// Camera Zooming
 			{
-				if editor_mode == .None {
+				if editor_state.mode == .None {
 					camera.target = player.pos
 					camera.zoom = WINDOW_OVER_GAME
 					camera.offset = {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / 2
@@ -858,7 +873,7 @@ main :: proc() {
 
 			draw_tilemap()
 
-			if surfing {
+			if player.surfing {
 				draw_polygon(surf_poly, rl.DARKGREEN)
 			}
 
@@ -883,7 +898,7 @@ main :: proc() {
 				draw_sprite(sprite, item.pos)
 			}
 
-			for wall in level.walls {
+			for wall in walls {
 				draw_shape(wall.shape, wall.pos, rl.GRAY)
 			}
 
@@ -1059,13 +1074,13 @@ main :: proc() {
 			// 	)
 			// }
 
-			#partial switch editor_mode {
+			#partial switch editor_state.mode {
 			case .Level:
-				draw_geometry_editor_world()
+				draw_geometry_editor_world(editor_state)
 			case .NavMesh:
-				draw_navmesh_editor_world(mouse_world_pos)
+				draw_navmesh_editor_world(editor_state)
 			case .Entity:
-				draw_entity_editor_world()
+				draw_entity_editor_world(editor_state)
 			}
 
 			// World center
@@ -1079,15 +1094,15 @@ main :: proc() {
 			draw_hud()
 
 
-			#partial switch editor_mode {
+			#partial switch editor_state.mode {
 			case .Level:
-				draw_geometry_editor_ui()
+				draw_geometry_editor_ui(editor_state)
 				rl.DrawText("Level Editor", 1300, 32, 16, rl.BLACK)
 			case .NavMesh:
-				draw_navmesh_editor_ui()
+				draw_navmesh_editor_ui(editor_state)
 				rl.DrawText("NavMesh Editor", 1300, 32, 16, rl.BLACK)
 			case .Entity:
-				draw_entity_editor_ui()
+				draw_entity_editor_ui(editor_state)
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
 			case .None:
 				rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
@@ -1098,11 +1113,11 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 
-	if level_data, err := json.marshal(level, allocator = context.allocator); err == nil {
+	if level_data, err := json.marshal(walls, allocator = context.allocator); err == nil {
 		os.write_entire_file("level.json", level_data)
 		delete(level_data)
 	}
-	delete(level.walls)
+	delete(walls)
 
 	save_entities()
 	unload_entities()
@@ -1430,7 +1445,7 @@ get_directional_input :: proc() -> Vec2 {
 }
 
 turn_off_surf :: proc() {
-	surfing = false
+	player.surfing = false
 }
 
 world_to_screen :: proc(point: Vec2) -> Vec2 {
@@ -1933,7 +1948,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	case ProjectileAttackData:
 		weapon := &projectile_weapons[data.projectile_idx]
 		if .Wall in attack.targets {
-			for wall in level.walls {
+			for wall in walls {
 				_, normal, depth := resolve_collision_shapes(
 					weapon.shape,
 					weapon.pos,
@@ -2071,7 +2086,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	case ArrowAttackData:
 		arrow := &arrows[data.arrow_idx]
 		if .Wall in attack.targets {
-			for wall in level.walls {
+			for wall in walls {
 				_, _, depth := resolve_collision_shapes(
 					arrow.shape,
 					arrow.pos,
