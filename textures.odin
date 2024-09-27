@@ -30,7 +30,7 @@ load_textures :: proc() {
 		.Sword   = rl.LoadTexture("assets/sword.png"),
 		.Player  = rl.LoadTexture("assets/samurai.png"),
 		.Arrow   = rl.LoadTexture("assets/arrow.png"),
-		.Tilemap = rl.LoadTexture("assets/tilemap.png"),
+		.Tilemap = rl.LoadTexture("assets/tileset.png"),
 	}
 }
 

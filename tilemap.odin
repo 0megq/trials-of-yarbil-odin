@@ -9,6 +9,11 @@ import rl "vendor:raylib"
 TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
 
+GRASS_COLOR :: Color{0, 255, 0, 255}
+STONE_COLOR :: Color{100, 100, 100, 255}
+WATER_COLOR :: Color{0, 0, 255, 255}
+WALL_COLOR :: Color{0, 0, 50, 255}
+
 TileData :: union #no_nil {
 	EmptyData,
 	GrassData,
@@ -16,6 +21,8 @@ TileData :: union #no_nil {
 	WaterData,
 	WallData,
 }
+
+EmptyData :: struct {}
 
 GrassData :: struct {
 	on_fire:      bool,
@@ -28,8 +35,6 @@ StoneData :: struct {}
 WaterData :: struct {}
 
 WallData :: struct {}
-
-EmptyData :: struct {}
 
 
 update_tilemap :: proc() {
@@ -227,4 +232,27 @@ world_to_tilemap :: proc(pos: Vec2) -> Vec2i {
 
 tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
+}
+
+load_tilemap :: proc() {
+	img := rl.LoadImage("assets/tilemap01.png")
+	defer rl.UnloadImage(img)
+	if rl.IsImageReady(img) {
+		for x in 0 ..< TILEMAP_SIZE {
+			for y in 0 ..< TILEMAP_SIZE {
+				switch rl.GetImageColor(img, i32(x), i32(y)) {
+				case GRASS_COLOR:
+					tilemap[x][y] = GrassData{}
+				case STONE_COLOR:
+					tilemap[x][y] = StoneData{}
+				case WATER_COLOR:
+					tilemap[x][y] = WaterData{}
+				case WALL_COLOR:
+					tilemap[x][y] = WallData{}
+				}
+			}
+		}
+	} else {
+		rl.TraceLog(.WARNING, "Tilemap image not ready")
+	}
 }

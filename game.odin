@@ -166,8 +166,9 @@ main :: proc() {
 	load_textures()
 	load_navmesh()
 	load_entities()
+	load_tilemap()
 
-	fill_tiles({0, 0}, {199, 199}, GrassData{})
+	// fill_tiles({0, 0}, {199, 199}, GrassData{})
 	// set_tile({2, 3}, GrassData{})
 	// set_tile({3, 4}, GrassData{true, 1, true})
 
