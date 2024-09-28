@@ -1,7 +1,7 @@
 package game
 
 
-// import "core:fmt"
+import "core:fmt"
 import "core:math"
 import "core:reflect"
 import rl "vendor:raylib"
@@ -150,7 +150,7 @@ get_tiles_on_fire :: proc() -> []Vec2i {
 	return result[:]
 }
 
-draw_tilemap :: proc() {
+draw_tilemap :: proc(tilemap: Tilemap) {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
@@ -239,21 +239,21 @@ tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }
 
-load_tilemap :: proc() {
-	img := rl.LoadImage("assets/tilemap01.png")
+load_tilemap :: proc(filename: string, tm: ^Tilemap) {
+	img := rl.LoadImage(fmt.ctprint(filename))
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {
 		for x in 0 ..< TILEMAP_SIZE {
 			for y in 0 ..< TILEMAP_SIZE {
 				switch rl.GetImageColor(img, i32(x), i32(y)) {
 				case GRASS_COLOR:
-					tilemap[x][y] = GrassData{}
+					tm[x][y] = GrassData{}
 				case STONE_COLOR:
-					tilemap[x][y] = StoneData{}
+					tm[x][y] = StoneData{}
 				case WATER_COLOR:
-					tilemap[x][y] = WaterData{}
+					tm[x][y] = WaterData{}
 				case WALL_COLOR:
-					tilemap[x][y] = WallData{}
+					tm[x][y] = WallData{}
 				}
 			}
 		}

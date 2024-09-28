@@ -1,12 +1,10 @@
 package game
 
 import "core:crypto"
-import "core:encoding/json"
 import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
 import "core:mem"
-import "core:os"
 import "core:slice"
 import rl "vendor:raylib"
 
@@ -53,10 +51,6 @@ MovementAbility :: enum {
 	ELECTRIC,
 	GROUND,
 	AIR,
-}
-
-Level :: struct {
-	walls: [dynamic]PhysicsEntity,
 }
 
 Control :: union {
@@ -114,6 +108,8 @@ ENEMY_ATTACK_POLY := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10
 
 SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
 
+game_data: GameData
+
 // world data
 player: Player
 enemies: [dynamic]Enemy
@@ -127,7 +123,6 @@ projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
 fires: [dynamic]Fire
 
-
 // misc
 camera: rl.Camera2D
 
@@ -136,6 +131,7 @@ mouse_pos: Vec2
 mouse_delta: Vec2
 mouse_world_pos: Vec2
 mouse_world_delta: Vec2
+
 
 main :: proc() {
 	context.random_generator = crypto.random_generator()
@@ -158,9 +154,10 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
 	load_textures()
-	load_navmesh()
-	load_entities()
-	load_tilemap()
+	// load_navmesh()
+	// load_entities()
+	load_game_data()
+	load_level()
 
 	init_editor_state(&editor_state)
 
@@ -185,21 +182,6 @@ main :: proc() {
 
 	append(&timers, Timer{0.5, toggle_text_cursor, 0.5})
 
-
-	wall1 := PhysicsEntity {
-		entity = new_entity({200, 100}),
-		shape  = Polygon{{}, {{-16, -16}, {16, -16}, {0, 16}}, 0},
-	}
-	walls = make([dynamic]Wall, context.allocator)
-
-	if bytes, ok := os.read_entire_file("level.json", context.allocator); ok {
-		if json.unmarshal(bytes, &walls) != nil {
-			append(&walls, wall1)
-		}
-		delete(bytes)
-	} else {
-		append(&walls, wall1)
-	}
 	// Generate new ids for the walls. Potential source of bugs
 	// for &wall in level.walls {
 	// 	wall.id = uuid.generate_v4()
@@ -242,20 +224,31 @@ main :: proc() {
 			}
 		}
 
-		if rl.IsKeyPressed(.H) {
-			editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
+		if rl.IsKeyDown(.LEFT_CONTROL) {
+			if rl.IsKeyPressed(.H) {
+				editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
+				save_level()
+			}
+
+			// save level to file
+			if editor_state.mode != .None && rl.IsKeyPressed(.S) {
+				save_level()
+			}
+
+			// load level from file
+			if editor_state.mode != .None && rl.IsKeyPressed(.L) {
+				reload_level()
+			}
 		}
 
-		#partial switch editor_state.mode {
+		switch editor_state.mode {
 		case .Level:
 			update_geometry_editor(&editor_state)
 		case .NavMesh:
 			update_navmesh_editor(&editor_state)
 		case .Entity:
 			update_entity_editor(&editor_state)
-		}
-
-		if editor_state.mode == .None {
+		case .None:
 			update_tilemap()
 
 			if !player.can_fire_dash {
@@ -845,6 +838,7 @@ main :: proc() {
 				// 	player.selected_weapon_idx,
 				// 	player.selected_item_idx,
 				// )
+
 			}
 		}
 
@@ -870,8 +864,7 @@ main :: proc() {
 
 			rl.BeginMode2D(camera)
 
-
-			draw_tilemap()
+			draw_tilemap(tilemap)
 
 			if player.surfing {
 				draw_polygon(surf_poly, rl.DARKGREEN)
@@ -956,7 +949,7 @@ main :: proc() {
 				}
 			}
 
-			for &barrel in exploding_barrels {
+			for barrel in exploding_barrels {
 				draw_shape(barrel.shape, barrel.pos, rl.RED)
 			}
 
@@ -1113,16 +1106,12 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 
-	if level_data, err := json.marshal(walls, allocator = context.allocator); err == nil {
-		os.write_entire_file("level.json", level_data)
-		delete(level_data)
-	}
-	delete(walls)
+	save_level()
+	unload_level()
 
-	save_entities()
-	unload_entities()
-	save_navmesh()
-	unload_navmesh()
+	save_game_data()
+	unload_game_data()
+
 	mem.tracking_allocator_clear(&track)
 	free_all(context.temp_allocator)
 	free_all(context.allocator)

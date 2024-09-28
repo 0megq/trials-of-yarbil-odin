@@ -1,0 +1,26 @@
+{
+	"player_pos": [
+		0.00000000,
+		0.00000000
+	],
+	"enemies": [
+
+	],
+	"items": [
+
+	],
+	"exploding_barrels": [
+
+	],
+	"nav_mesh": {
+		"cells": [
+
+		],
+		"nodes": [
+
+		]
+	},
+	"walls": [
+
+	]
+}

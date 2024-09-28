@@ -1,51 +1,12 @@
 package game
 
-import "core:encoding/json"
 import "core:fmt"
 import "core:math"
-import "core:os"
 import rl "vendor:raylib"
 
 GRID_SNAP_SIZE :: 5
 POINT_SNAP_RADIUS :: 3 // Radius to check for other points to snap to
 MOUSE_RADIUS :: 2 // Radius to check for mouse
-
-load_navmesh :: proc() {
-	if nav_mesh_data, ok := os.read_entire_file("nav_mesh.json", context.allocator); ok {
-		if json.unmarshal(nav_mesh_data, &nav_mesh) != nil {
-			nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-			append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-			nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
-		}
-		delete(nav_mesh_data)
-	} else {
-		nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-		append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}})
-		nav_mesh.nodes = make([dynamic]NavNode, context.allocator)
-	}
-	rl.TraceLog(.INFO, "Navmesh Loaded")
-}
-
-save_navmesh :: proc() {
-	calculate_graph(&nav_mesh)
-	if nav_mesh_data, err := json.marshal(nav_mesh, allocator = context.allocator); err == nil {
-		os.write_entire_file("nav_mesh.json", nav_mesh_data)
-		delete(nav_mesh_data)
-	}
-	rl.TraceLog(.INFO, "Navmesh Saved")
-}
-
-unload_navmesh :: proc() {
-	delete(nav_mesh.cells)
-	delete(nav_mesh.nodes)
-	nav_mesh.cells = nil
-	nav_mesh.nodes = nil
-}
-
-// init_navmesh :: proc() {
-// 	nav_mesh.cells = make([dynamic]NavCell, context.allocator)
-// 	append(&nav_mesh.cells, NavCell{{{10, 10}, {20, 15}, {10, 0}}, {-1, -1, -1}, 0})
-// }
 
 update_navmesh_editor :: proc(e: ^EditorState) {
 	/* Incomplete Features
@@ -230,17 +191,6 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 				}
 			}
 		}
-	}
-
-	// Manual Save (Ctrl + S)
-	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
-		save_navmesh()
-	}
-
-	// Manual Load (Ctrl + L)
-	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.L) {
-		unload_navmesh()
-		load_navmesh()
 	}
 }
 

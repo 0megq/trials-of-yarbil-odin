@@ -245,7 +245,7 @@ new_player :: proc(pos: Vec2) -> Player {
 
 set_player_defaults :: proc() {
 	player.can_fire_dash = true
-	player.shape = get_centered_rect({}, {12, 12})
+	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16
 	player.max_health = 100
 	player.can_attack = false

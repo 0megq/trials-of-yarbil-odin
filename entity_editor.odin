@@ -3,34 +3,24 @@ package game
 import "core:encoding/json"
 import "core:fmt"
 import "core:os"
+import "core:slice"
 import rl "vendor:raylib"
 
 ENTITY_LOAD_FILE_PATH :: "entity1.json"
 ENTITY_SAVE_FILE_PATH :: "entity1.json"
 
-LEVEL_SAVE_PREFIX :: "level"
-GAME_SAVE_PREFIX :: "game"
+LEVEL_FILE_PREFIX :: "data/level"
+TILEMAP_FILE_PREFIX :: "assets/tilemap"
+GAME_FILE_PREFIX :: "data/game"
 
+PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
 
 // This is the only data that gets saved for entities
 EntityData :: struct {
-	player_data:       PlayerData1,
+	player_data:       PlayerData,
 	enemies:           [dynamic]Enemy,
 	items:             [dynamic]Item,
 	exploding_barrels: [dynamic]ExplodingBarrel,
-}
-PlayerData1 :: struct {
-	moving_entity:       MovingEntity,
-	// player health
-	health:              f32,
-	// player inventory
-	weapons:             [2]ItemData,
-	items:               [6]ItemData,
-	selected_weapon_idx: int,
-	selected_item_idx:   int,
-	item_count:          int,
-	// current ability
-	ability:             MovementAbility,
 }
 
 PlayerData :: struct {
@@ -49,13 +39,13 @@ PlayerData :: struct {
 // Used for serialization
 GameData :: struct {
 	// player data
-	player_data:     PlayerData,
+	player_data:   PlayerData,
 	// current level index
-	cur_level_index: int,
+	cur_level_idx: int,
 }
 
 // Used for serialization and level editor
-LevelData :: struct {
+Level :: struct {
 	// start player pos
 	player_pos:        Vec2,
 	// enemies
@@ -64,15 +54,14 @@ LevelData :: struct {
 	items:             [dynamic]Item,
 	// barrels
 	exploding_barrels: [dynamic]ExplodingBarrel,
-	// tilemap file
-	tilemap_file:      string,
 	// navmesh
 	nav_mesh:          NavMesh,
 	// walls
 	walls:             [dynamic]PhysicsEntity,
 }
 // updates made while in an editor mode will be saved here
-cur_level_data: LevelData
+level: Level
+level_tilemap_cache: Tilemap
 
 
 EditorState :: struct {
@@ -220,28 +209,72 @@ init_editor_state :: proc(e: ^EditorState) {
 }
 
 reload_level :: proc() {
-	// unload level
-	// load level
+	unload_level()
+	load_level()
 }
 
 load_level :: proc() {
-	// set player pos
-	// setup enemies, items, barrels
-	// setup tilemap, navmesh, level geometry
+	data := Level{}
 
-	// keep player data and other persistent information
+	level_file := fmt.tprintf("%s%02b.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
+	if bytes, ok := os.read_entire_file(level_file, context.allocator); ok {
+		if json.unmarshal(bytes, &data) != nil {
+			rl.TraceLog(.WARNING, "Error parsing level data")
+			// setup enemies, items, barrels
+			level.enemies = make([dynamic]Enemy)
+			level.items = make([dynamic]Item)
+			level.exploding_barrels = make([dynamic]ExplodingBarrel)
+			// setup tilemap, navmesh, level geometry
+			level.nav_mesh.cells = make([dynamic]NavCell)
+			level.nav_mesh.nodes = make([dynamic]NavNode)
+			level.walls = make([dynamic]Wall)
+		} else {
+			level = data
+			load_tilemap(
+				fmt.tprintf("%s%02b.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
+				&level_tilemap_cache,
+			)
+			tilemap = level_tilemap_cache
+		}
+
+		delete(bytes)
+	} else {
+		rl.TraceLog(.WARNING, "Error parsing level data")
+		// setup enemies, items, barrels
+		level.enemies = make([dynamic]Enemy)
+		level.items = make([dynamic]Item)
+		level.exploding_barrels = make([dynamic]ExplodingBarrel)
+		// setup tilemap, navmesh, level geometry
+		level.nav_mesh.cells = make([dynamic]NavCell)
+		level.nav_mesh.nodes = make([dynamic]NavNode)
+		level.walls = make([dynamic]Wall)
+	}
+
+	rl.TraceLog(.INFO, "Level Loaded")
+
+	player.pos = level.player_pos
+
+	// We clone the arrays so we don't change the level data when we play the game
+	enemies = slice.clone_to_dynamic(level.enemies[:])
+	items = slice.clone_to_dynamic(level.items[:])
+	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
+
+	// These two can stay since gameplay wont affect the navmesh or walls
+	nav_mesh = level.nav_mesh
+	walls = level.walls
 }
 
-save_level :: proc(level_index: int) {
+save_level :: proc() {
 	// save player pos
 	// save enemies, items, barrels
 	// save tilemap, navmesh, level geometry
 
-	data: LevelData = {}
+	calculate_graph(&level.nav_mesh)
 
+	data: Level = level
 	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
-		level_save_path := fmt.tprintf("%s%02b.json", LEVEL_SAVE_PREFIX, level_index)
+		level_save_path := fmt.tprintf("%s%02b.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
 		os.write_entire_file(level_save_path, bytes)
 		delete(bytes)
 	} else {
@@ -253,103 +286,90 @@ save_level :: proc(level_index: int) {
 
 unload_level :: proc() {
 	// delete enemies, items, barrels
-	// delete tilemap, navmesh, level geometry
-}
-
-reload_game_data :: proc() {
-	// unload
-	// load
-}
-
-load_game_data :: proc() {
-	// load player data
-	// load current level id
-	// load current level from its id
-}
-
-save_game_data :: proc() {
-	// save player data
-	// get current level id and save it
-}
-
-unload_game_data :: proc() {
-	// delete any allocated memory related to game data
-}
-
-load_entities :: proc() {
-	// Load EntityData struct from json file
-	// generate new uuid's
-
-	data := EntityData{}
-
-	if bytes, ok := os.read_entire_file(ENTITY_LOAD_FILE_PATH, context.allocator); ok {
-		if json.unmarshal(bytes, &data) != nil {
-			rl.TraceLog(.WARNING, "Error parsing entity data")
-			setup_default_entities()
-		} else {
-			set_player_data(data.player_data)
-			enemies = data.enemies
-			items = data.items
-			exploding_barrels = data.exploding_barrels
-		}
-
-		delete(bytes)
-	} else {
-		rl.TraceLog(.WARNING, "Error parsing entity data")
-		setup_default_entities()
-	}
-
-	rl.TraceLog(.INFO, "Entities Loaded")
-}
-
-save_entities :: proc() {
-	// Save EntityData struct to json file
-
-	data := EntityData{get_player_data(), enemies, items, exploding_barrels}
-
-	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
-	   err == nil {
-		os.write_entire_file(ENTITY_SAVE_FILE_PATH, bytes)
-		delete(bytes)
-	} else {
-		rl.TraceLog(.WARNING, "Error saving entity data")
-	}
-
-	rl.TraceLog(.INFO, "Entities Saved")
-}
-
-unload_entities :: proc() {
-	// Unload entity data AKA delete memory
 	delete(enemies)
 	delete(items)
 	delete(exploding_barrels)
+	delete(level.enemies)
+	delete(level.items)
+	delete(level.exploding_barrels)
+	// delete tilemap, navmesh, level geometry
+	delete(level.nav_mesh.cells)
+	delete(level.nav_mesh.nodes)
+	delete(level.walls)
+	rl.TraceLog(.INFO, "Level unloaded")
+}
 
-	rl.TraceLog(.INFO, "Entities Unloaded")
+reload_game_data :: proc(game_idx := 0) {
+	unload_game_data()
+	load_game_data(game_idx)
+}
+
+load_game_data :: proc(game_idx := 0) {
+	game_file := fmt.tprintf("%s%02b.json", GAME_FILE_PREFIX, game_idx)
+	if bytes, ok := os.read_entire_file(game_file, context.allocator); ok {
+		if json.unmarshal(bytes, &game_data) != nil {
+			rl.TraceLog(.WARNING, "Error parsing game data")
+			game_data.cur_level_idx = 0
+			game_data.player_data = PlayerData {
+				health = 100,
+			}
+		}
+		delete(bytes)
+	} else {
+		rl.TraceLog(.WARNING, "Error parsing game data")
+		game_data.cur_level_idx = 0
+		game_data.player_data = PlayerData {
+			health = 100,
+		}
+	}
+
+	set_player_data(game_data.player_data)
+
+	rl.TraceLog(.INFO, "GameData Loaded")
+}
+
+save_game_data :: proc(game_idx := 0) {
+	// save player data
+	// get current level id and save it
+	if bytes, err := json.marshal(game_data, allocator = context.allocator, opt = {pretty = true});
+	   err == nil {
+		game_save_path := fmt.tprintf("%s%02b.json", GAME_FILE_PREFIX, game_idx)
+		os.write_entire_file(game_save_path, bytes)
+		delete(bytes)
+	} else {
+		rl.TraceLog(.WARNING, "Error saving GameData")
+	}
+
+	rl.TraceLog(.INFO, "GameData Saved")
+}
+
+unload_game_data :: proc() {
+	rl.TraceLog(.INFO, "GameData Unloaded")
 }
 
 update_entity_editor :: proc(e: ^EditorState) {
 	// select entity
 	outer: if rl.IsMouseButtonPressed(.LEFT) {
-		if check_collision_shape_point(player.shape, player.pos, mouse_world_pos) {
+		if check_collision_shape_point(PLAYER_SHAPE, level.player_pos, mouse_world_pos) {
 			e.selected_phys_entity = &player.physics_entity
 			e.selected_entity = player
 			break outer
 		}
-		for &enemy in enemies {
+		for &enemy in level.enemies {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
 				e.selected_entity = enemy
 				break outer
 			}
 		}
-		for &barrel in exploding_barrels {
+		for &barrel in level.exploding_barrels {
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
 				e.selected_entity = barrel
 				break outer
 			}
 		}
-		for &item in items {
+		for &item in level.items {
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
 				e.selected_entity = item
@@ -408,16 +428,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 		}
 	}
 
-	// manual save
-	if rl.IsKeyPressed(.S) {
-		save_entities()
-	}
 
-	// manual load
-	if rl.IsKeyPressed(.L) {
-		unload_entities()
-		load_entities()
-	}
 }
 
 draw_entity_editor_world :: proc(e: EditorState) {
@@ -458,8 +469,7 @@ setup_default_entities :: proc() {
 }
 
 
-set_player_data :: proc(data: PlayerData1) {
-	player.moving_entity = data.moving_entity
+set_player_data :: proc(data: PlayerData) {
 	player.health = data.health
 	player.weapons = data.weapons
 	player.items = data.items
@@ -469,15 +479,49 @@ set_player_data :: proc(data: PlayerData1) {
 	set_player_defaults()
 }
 
-get_player_data :: proc() -> PlayerData1 {
-	return {
-		player.moving_entity,
-		player.health,
-		player.weapons,
-		player.items,
-		player.selected_weapon_idx,
-		player.selected_item_idx,
-		player.item_count,
-		player.cur_ability,
+// get_player_data :: proc() -> PlayerData {
+// 	return {
+// 		player.health,
+// 		player.weapons,
+// 		player.items,
+// 		player.selected_weapon_idx,
+// 		player.selected_item_idx,
+// 		player.item_count,
+// 		player.cur_ability,
+// 	}
+// }
+
+draw_level :: proc() {
+	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
+	draw_sprite(player_sprite, level.player_pos)
+
+	for enemy in level.enemies {
+		draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+		rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+	}
+
+	for barrel in level.exploding_barrels {
+		draw_shape(barrel.shape, barrel.pos, rl.RED)
+	}
+
+	for item in level.items {
+		tex_id := item_to_texture[item.data.id]
+		tex := loaded_textures[tex_id]
+		sprite: Sprite = {
+			tex_id,
+			{0, 0, f32(tex.width), f32(tex.height)},
+			{1, 1},
+			{f32(tex.width) / 2, f32(tex.height) / 2},
+			0,
+			rl.LIGHTGRAY, // Slight darker tint
+		}
+
+
+		draw_sprite(sprite, item.pos)
+	}
+
+	// level.tilemap_file
+	for wall in level.walls {
+		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
 }
