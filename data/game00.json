@@ -1,11 +1,11 @@
 {
 	"player_data": {
-		"health": 0.00000000,
+		"health": 100.00000000,
 		"weapons": [
 			{
-				"id": 100,
-				"count": 72,
-				"max_count": 100
+				"id": 0,
+				"count": 0,
+				"max_count": 0
 			},
 			{
 				"id": 0,

@@ -61,6 +61,7 @@ Level :: struct {
 }
 // updates made while in an editor mode will be saved here
 level: Level
+level_tilemap: Tilemap
 
 
 EditorState :: struct {
@@ -73,6 +74,8 @@ EditorState :: struct {
 	// Level editor
 	selected_wall:             ^Wall,
 	selected_wall_index:       int,
+	wall_mouse_rel_pos:        Vec2,
+
 	// Level editor ui
 	new_shape_but:             Button,
 	change_shape_but:          Button,
@@ -215,7 +218,7 @@ reload_level :: proc() {
 load_level :: proc() {
 	data := Level{}
 
-	level_file := fmt.tprintf("%s%02b.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
+	level_file := fmt.tprintf("%s%02d.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
 	if bytes, ok := os.read_entire_file(level_file, context.allocator); ok {
 		if json.unmarshal(bytes, &data) != nil {
 			rl.TraceLog(.WARNING, "Error parsing level data")
@@ -245,7 +248,11 @@ load_level :: proc() {
 	rl.TraceLog(.INFO, "Level Loaded")
 
 	level = data
-	load_tilemap(fmt.tprintf("%s%02b.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx), &tilemap)
+	load_tilemap(
+		fmt.tprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
+		&level_tilemap,
+	)
+	tilemap = level_tilemap
 
 	player.pos = level.player_pos
 
@@ -276,7 +283,7 @@ save_level :: proc() {
 	data: Level = level
 	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
-		level_save_path := fmt.tprintf("%s%02b.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
+		level_save_path := fmt.tprintf("%s%02d.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
 		os.write_entire_file(level_save_path, bytes)
 		delete(bytes)
 	} else {
@@ -310,7 +317,7 @@ reload_game_data :: proc(game_idx := 0) {
 }
 
 load_game_data :: proc(game_idx := 0) {
-	game_file := fmt.tprintf("%s%02b.json", GAME_FILE_PREFIX, game_idx)
+	game_file := fmt.tprintf("%s%02d.json", GAME_FILE_PREFIX, game_idx)
 	if bytes, ok := os.read_entire_file(game_file, context.allocator); ok {
 		if json.unmarshal(bytes, &game_data) != nil {
 			rl.TraceLog(.WARNING, "Error parsing game data")
@@ -340,7 +347,7 @@ save_game_data :: proc(game_idx := 0) {
 	// get current level id and save it
 	if bytes, err := json.marshal(game_data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
-		game_save_path := fmt.tprintf("%s%02b.json", GAME_FILE_PREFIX, game_idx)
+		game_save_path := fmt.tprintf("%s%02d.json", GAME_FILE_PREFIX, game_idx)
 		os.write_entire_file(game_save_path, bytes)
 		delete(bytes)
 	} else {
@@ -503,6 +510,7 @@ get_player_data :: proc() -> PlayerData {
 }
 
 draw_level :: proc() {
+	draw_tilemap(level_tilemap)
 	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
 	for enemy in level.enemies {

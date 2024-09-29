@@ -230,6 +230,7 @@ main :: proc() {
 				editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
 				if editor_state.mode == .None {
 					save_level()
+					reload_game_data()
 					reload_level()
 				}
 			}
@@ -868,8 +869,6 @@ main :: proc() {
 
 			rl.BeginMode2D(camera)
 
-			draw_tilemap(tilemap)
-
 
 			if editor_state.mode != .None {
 				draw_level()
@@ -883,6 +882,7 @@ main :: proc() {
 			case .Entity:
 				draw_entity_editor_world(editor_state)
 			case .None:
+				draw_tilemap(tilemap)
 				if player.surfing {
 					draw_polygon(surf_poly, rl.DARKGREEN)
 				}
@@ -1099,7 +1099,7 @@ main :: proc() {
 	save_level()
 	unload_level()
 
-	save_game_data()
+	// save_game_data() Not saving game data automatically now
 	unload_game_data()
 
 	mem.tracking_allocator_clear(&track)

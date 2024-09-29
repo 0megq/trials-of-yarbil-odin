@@ -4,7 +4,7 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
-GRID_SNAP_SIZE :: 5
+NAVMESH_GRID_SNAP_SIZE :: 5
 POINT_SNAP_RADIUS :: 3 // Radius to check for other points to snap to
 MOUSE_RADIUS :: 2 // Radius to check for mouse
 
@@ -83,7 +83,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		}
 	}
 
-	// Move point (Shift to snap)
+	// Move point (Click and drag. Shift to snap)
 	if e.selected_point != nil {
 		e.selected_point^ += mouse_world_delta
 		if rl.IsKeyDown(.LEFT_SHIFT) {
@@ -101,9 +101,9 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 			// Snapping to grid
 			if !snapped {
 				e.selected_point.x =
-					math.round(mouse_world_pos.x / GRID_SNAP_SIZE) * GRID_SNAP_SIZE
+					math.round(mouse_world_pos.x / NAVMESH_GRID_SNAP_SIZE) * NAVMESH_GRID_SNAP_SIZE
 				e.selected_point.y =
-					math.round(mouse_world_pos.y / GRID_SNAP_SIZE) * GRID_SNAP_SIZE
+					math.round(mouse_world_pos.y / NAVMESH_GRID_SNAP_SIZE) * NAVMESH_GRID_SNAP_SIZE
 			}
 		}
 	}
@@ -145,8 +145,8 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		append(&level.nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
 	}
 
-	// Delete (D)
-	if rl.IsKeyPressed(.D) && e.selected_nav_cell != nil {
+	// Delete (Delete)
+	if rl.IsKeyPressed(.DELETE) && e.selected_nav_cell != nil {
 		// if rl.IsKeyDown(.LEFT_CONTROL) {
 		// 	selected_nav_cell = nil
 		// 	selected_nav_cell_index = -1

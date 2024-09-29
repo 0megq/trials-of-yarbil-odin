@@ -93,6 +93,7 @@ Player :: struct {
 	selected_weapon_idx:   int, // should save
 	selected_item_idx:     int, // should save
 	item_count:            int, // should save
+	cur_ability:           MovementAbility, // should save
 	holding_item:          bool, // valid only while playing game
 	item_hold_time:        f32, // valid only while playing game
 	charging_weapon:       bool, // valid only while playing game
@@ -101,15 +102,14 @@ Player :: struct {
 	item_switched:         bool, // valid only while playing game
 	attacking:             bool, // valid only while playing game
 	cur_attack:            Attack, // valid only while playing game
-	cur_weapon_anim:       WeaponAnimation,
-	attack_dur_timer:      f32,
-	can_attack:            bool,
-	attack_interval_timer: f32,
-	attack_poly:           Polygon,
-	surfing:               bool,
-	can_fire_dash:         bool,
-	fire_dash_timer:       f32,
-	cur_ability:           MovementAbility,
+	cur_weapon_anim:       WeaponAnimation, // valid only while playing game
+	attack_dur_timer:      f32, // valid only while playing game
+	can_attack:            bool, // valid only while playing game
+	attack_interval_timer: f32, // valid only while playing game
+	attack_poly:           Polygon, // valid only while playing game
+	surfing:               bool, // valid only while playing game
+	can_fire_dash:         bool, // valid only while playing game
+	fire_dash_timer:       f32, // valid only while playing game
 }
 
 ZEntity :: struct {

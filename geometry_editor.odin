@@ -1,8 +1,10 @@
 package game
 
+import "core:math"
 import rl "vendor:raylib"
 
 SELECTED_OUTLINE_COLOR :: rl.GREEN
+GEOMETRY_SNAP_SIZE :: 8
 
 /*
 polygon point interface
@@ -29,6 +31,7 @@ move and/or create points with mouse
 update_geometry_editor :: proc(e: ^EditorState) {
 	update_button(&e.new_shape_but, mouse_pos)
 
+	// New shape
 	if e.new_shape_but.status == .Released {
 		append(
 			&level.walls,
@@ -39,6 +42,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		set_shape_fields_to_selected_shape(e)
 	}
 
+	// Updating fields
 	if e.selected_wall != nil {
 		update_button(&e.change_shape_but, mouse_pos)
 		if e.change_shape_but.status == .Released {
@@ -56,17 +60,17 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		update_shape_fields(e)
 	}
 
-	// Deleting shapes
-	if rl.IsKeyPressed(.D) && e.selected_wall != nil {
-		if rl.IsKeyDown(.LEFT_CONTROL) {
-			e.selected_wall = nil
-			e.selected_wall_index = -1
-		}
-		if rl.IsKeyDown(.LEFT_SHIFT) {
-			unordered_remove(&level.walls, e.selected_wall_index)
-			e.selected_wall = nil
-			e.selected_wall_index = -1
-		}
+	// Delete (delete)
+	if rl.IsKeyDown(.DELETE) {
+		unordered_remove(&level.walls, e.selected_wall_index)
+		e.selected_wall = nil
+		e.selected_wall_index = -1
+	}
+
+	// Deselect (CTRL + D)
+	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.D) && e.selected_wall != nil {
+		e.selected_wall = nil
+		e.selected_wall_index = -1
 	}
 
 	// Selecting shapes
@@ -79,8 +83,21 @@ update_geometry_editor :: proc(e: ^EditorState) {
 				break
 			}
 		}
-	} else if rl.IsMouseButtonDown(.RIGHT) && e.selected_wall != nil { 	// Moving shape
-		e.selected_wall.pos += mouse_world_delta
+	} else if rl.IsMouseButtonPressed(.RIGHT) && e.selected_wall != nil {
+		e.wall_mouse_rel_pos = e.selected_wall.pos - mouse_world_pos
+	}
+
+	// Move shape (SHIFT to snap to tile grid)
+	if rl.IsMouseButtonDown(.RIGHT) && e.selected_wall != nil {
+		snap_size: f32 = 1
+		if rl.IsKeyDown(.LEFT_SHIFT) {
+			snap_size = TILE_SIZE
+		}
+
+		e.selected_wall.pos.x =
+			math.round((e.wall_mouse_rel_pos.x + mouse_world_pos.x) / snap_size) * snap_size
+		e.selected_wall.pos.y =
+			math.round((e.wall_mouse_rel_pos.y + mouse_world_pos.y) / snap_size) * snap_size
 		set_shape_fields_to_selected_shape(e)
 	}
 }
