@@ -61,14 +61,13 @@ Level :: struct {
 }
 // updates made while in an editor mode will be saved here
 level: Level
-level_tilemap_cache: Tilemap
 
 
 EditorState :: struct {
 	mode:                      EditorMode,
 
 	// Entity editor
-	selected_entity:           EntityType,
+	selected_entity:           LevelEntityType,
 	selected_phys_entity:      ^PhysicsEntity,
 
 	// Level editor
@@ -228,13 +227,6 @@ load_level :: proc() {
 			level.nav_mesh.cells = make([dynamic]NavCell)
 			level.nav_mesh.nodes = make([dynamic]NavNode)
 			level.walls = make([dynamic]Wall)
-		} else {
-			level = data
-			load_tilemap(
-				fmt.tprintf("%s%02b.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
-				&level_tilemap_cache,
-			)
-			tilemap = level_tilemap_cache
 		}
 
 		delete(bytes)
@@ -252,16 +244,26 @@ load_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Loaded")
 
+	level = data
+	load_tilemap(fmt.tprintf("%s%02b.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx), &tilemap)
+
 	player.pos = level.player_pos
 
 	// We clone the arrays so we don't change the level data when we play the game
 	enemies = slice.clone_to_dynamic(level.enemies[:])
+	for &enemy in enemies {
+		#partial switch &en in enemy.data {
+		case MeleeEnemyData:
+			en.attack_poly.points = ENEMY_ATTACK_HITBOX_POINTS
+		}
+	}
 	items = slice.clone_to_dynamic(level.items[:])
 	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
 	// These two can stay since gameplay wont affect the navmesh or walls
-	nav_mesh = level.nav_mesh
-	walls = level.walls
+	nav_mesh.nodes = slice.clone_to_dynamic(level.nav_mesh.nodes[:])
+	nav_mesh.cells = slice.clone_to_dynamic(level.nav_mesh.cells[:])
+	walls = slice.clone_to_dynamic(level.walls[:])
 }
 
 save_level :: proc() {
@@ -285,18 +287,21 @@ save_level :: proc() {
 }
 
 unload_level :: proc() {
-	// delete enemies, items, barrels
+	// delete world data
 	delete(enemies)
 	delete(items)
 	delete(exploding_barrels)
+	delete(nav_mesh.cells)
+	delete(nav_mesh.nodes)
+	delete(walls)
+	// delete level data
 	delete(level.enemies)
 	delete(level.items)
 	delete(level.exploding_barrels)
-	// delete tilemap, navmesh, level geometry
 	delete(level.nav_mesh.cells)
 	delete(level.nav_mesh.nodes)
 	delete(level.walls)
-	rl.TraceLog(.INFO, "Level unloaded")
+	rl.TraceLog(.INFO, "Level Unloaded")
 }
 
 reload_game_data :: proc(game_idx := 0) {
@@ -330,6 +335,8 @@ load_game_data :: proc(game_idx := 0) {
 
 save_game_data :: proc(game_idx := 0) {
 	// save player data
+	game_data.player_data = get_player_data()
+
 	// get current level id and save it
 	if bytes, err := json.marshal(game_data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
@@ -351,89 +358,93 @@ update_entity_editor :: proc(e: ^EditorState) {
 	// select entity
 	outer: if rl.IsMouseButtonPressed(.LEFT) {
 		if check_collision_shape_point(PLAYER_SHAPE, level.player_pos, mouse_world_pos) {
-			e.selected_phys_entity = &player.physics_entity
-			e.selected_entity = player
+			e.selected_phys_entity = nil
+			e.selected_entity = .Player
 			break outer
 		}
 		for &enemy in level.enemies {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
-				e.selected_entity = enemy
+				e.selected_entity = .Enemy
 				break outer
 			}
 		}
 		for &barrel in level.exploding_barrels {
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
-				e.selected_entity = barrel
+				e.selected_entity = .ExplodingBarrel
 				break outer
 			}
 		}
 		for &item in level.items {
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
-				e.selected_entity = item
+				e.selected_entity = .Item
 				break outer
 			}
 		}
 		e.selected_phys_entity = nil
-		e.selected_entity = {}
+		e.selected_entity = .Nil
 	}
 
 	// move entity
-	if rl.IsMouseButtonDown(.LEFT) && e.selected_phys_entity != nil {
-		e.selected_phys_entity.pos += mouse_world_delta
+	if rl.IsMouseButtonDown(.LEFT) && e.selected_entity != .Nil {
+		if e.selected_entity == .Player {
+			level.player_pos += mouse_world_delta
+		} else {
+			e.selected_phys_entity.pos += mouse_world_delta
+		}
 	}
 
 	// delete entity
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.DELETE) {
-		#partial switch en in e.selected_entity {
-		case Enemy:
-			for enemy, i in enemies {
-				if enemy.id == en.id {
+		#partial switch e.selected_entity {
+		case .Enemy:
+			for enemy, i in level.enemies {
+				if enemy.id == e.selected_phys_entity.id {
 					unordered_remove(&enemies, i)
 					break
 				}
 			}
-		case ExplodingBarrel:
-			for barrel, i in exploding_barrels {
-				if barrel.id == en.id {
+		case .ExplodingBarrel:
+			for barrel, i in level.exploding_barrels {
+				if barrel.id == e.selected_phys_entity.id {
 					unordered_remove(&exploding_barrels, i)
 					break
 				}
 			}
-		case Item:
-			for item, i in items {
-				if item.id == en.id {
-					unordered_remove(&items, i)
+		case .Item:
+			for item, i in level.items {
+				if item.id == e.selected_phys_entity.id {
+					unordered_remove(&level.items, i)
 					break
 				}
 			}
-		case Player:
+		case .Player:
 			rl.TraceLog(.WARNING, "You can't delete the player")
 		}
 		e.selected_phys_entity = nil
-		e.selected_entity = {}
+		e.selected_entity = .Nil
 	}
 
 	// new entity
 	if rl.IsKeyDown(.N) {
 		if rl.IsKeyPressed(.ONE) {
 			// creating new enemy
-			append(&enemies, new_enemy(mouse_world_pos))
+			append(&level.enemies, new_enemy(mouse_world_pos))
 		} else if rl.IsKeyPressed(.TWO) {
-			append(&exploding_barrels, new_exploding_barrel(mouse_world_pos))
+			append(&level.exploding_barrels, new_exploding_barrel(mouse_world_pos))
 		} else if rl.IsKeyPressed(.THREE) {
-			add_item_to_world({id = .Apple, count = 1}, mouse_world_pos)
+			append(&level.items, new_item({id = .Apple, count = 1}, mouse_world_pos))
 		}
 	}
-
-
 }
 
 draw_entity_editor_world :: proc(e: EditorState) {
 	// draw selected entity outline
-	if e.selected_phys_entity != nil {
+	if e.selected_entity == .Player {
+		draw_shape_lines(PLAYER_SHAPE, level.player_pos, rl.YELLOW)
+	} else if e.selected_entity != .Nil {
 		draw_shape_lines(e.selected_phys_entity.shape, e.selected_phys_entity.pos, rl.YELLOW)
 	}
 }
@@ -446,27 +457,27 @@ draw_entity_editor_ui :: proc(e: EditorState) {
 	}
 }
 
-setup_default_entities :: proc() {
-	player = new_player({32, 32})
-	set_player_defaults()
-	pickup_item({.Sword, 100, 100})
-	pickup_item({.Bomb, 3, 16})
+// setup_default_entities :: proc() {
+// 	player = new_player({32, 32})
+// 	set_player_defaults()
+// 	pickup_item({.Sword, 100, 100})
+// 	pickup_item({.Bomb, 3, 16})
 
-	enemies = make([dynamic]Enemy, context.allocator)
-	append(&enemies, new_ranged_enemy({300, 40}))
-	append(&enemies, new_melee_enemy({200, 200}, ENEMY_ATTACK_POLY))
-	append(&enemies, new_melee_enemy({130, 200}, ENEMY_ATTACK_POLY))
-	append(&enemies, new_melee_enemy({220, 180}, ENEMY_ATTACK_POLY))
-	append(&enemies, new_melee_enemy({80, 300}, ENEMY_ATTACK_POLY))
+// 	enemies = make([dynamic]Enemy, context.allocator)
+// 	append(&enemies, new_ranged_enemy({300, 40}))
+// 	append(&enemies, new_melee_enemy({200, 200}, ENEMY_ATTACK_POLY))
+// 	append(&enemies, new_melee_enemy({130, 200}, ENEMY_ATTACK_POLY))
+// 	append(&enemies, new_melee_enemy({220, 180}, ENEMY_ATTACK_POLY))
+// 	append(&enemies, new_melee_enemy({80, 300}, ENEMY_ATTACK_POLY))
 
-	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
-	append(&exploding_barrels, new_exploding_barrel({24, 64}))
+// 	exploding_barrels = make([dynamic]ExplodingBarrel, context.allocator)
+// 	append(&exploding_barrels, new_exploding_barrel({24, 64}))
 
-	items = make([dynamic]Item, context.allocator)
-	add_item_to_world({.Sword, 10, 10}, {500, 300})
-	add_item_to_world({.Bomb, 1, 16}, {200, 50})
-	add_item_to_world({.Apple, 5, 16}, {100, 50})
-}
+// 	items = make([dynamic]Item, context.allocator)
+// 	add_item_to_world({.Sword, 10, 10}, {500, 300})
+// 	add_item_to_world({.Bomb, 1, 16}, {200, 50})
+// 	add_item_to_world({.Apple, 5, 16}, {100, 50})
+// }
 
 
 set_player_data :: proc(data: PlayerData) {
@@ -479,21 +490,20 @@ set_player_data :: proc(data: PlayerData) {
 	set_player_defaults()
 }
 
-// get_player_data :: proc() -> PlayerData {
-// 	return {
-// 		player.health,
-// 		player.weapons,
-// 		player.items,
-// 		player.selected_weapon_idx,
-// 		player.selected_item_idx,
-// 		player.item_count,
-// 		player.cur_ability,
-// 	}
-// }
+get_player_data :: proc() -> PlayerData {
+	return {
+		player.health,
+		player.weapons,
+		player.items,
+		player.selected_weapon_idx,
+		player.selected_item_idx,
+		player.item_count,
+		player.cur_ability,
+	}
+}
 
 draw_level :: proc() {
-	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
-	draw_sprite(player_sprite, level.player_pos)
+	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
 	for enemy in level.enemies {
 		draw_shape(enemy.shape, enemy.pos, rl.GREEN)

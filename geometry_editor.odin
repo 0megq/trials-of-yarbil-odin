@@ -31,11 +31,11 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	if e.new_shape_but.status == .Released {
 		append(
-			&walls,
+			&level.walls,
 			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 20, 20}},
 		)
-		e.selected_wall_index = len(walls) - 1
-		e.selected_wall = &walls[e.selected_wall_index]
+		e.selected_wall_index = len(level.walls) - 1
+		e.selected_wall = &level.walls[e.selected_wall_index]
 		set_shape_fields_to_selected_shape(e)
 	}
 
@@ -63,7 +63,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 			e.selected_wall_index = -1
 		}
 		if rl.IsKeyDown(.LEFT_SHIFT) {
-			unordered_remove(&walls, e.selected_wall_index)
+			unordered_remove(&level.walls, e.selected_wall_index)
 			e.selected_wall = nil
 			e.selected_wall_index = -1
 		}
@@ -71,7 +71,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	// Selecting shapes
 	if rl.IsMouseButtonPressed(.LEFT) {
-		for &wall, index in walls {
+		for &wall, index in level.walls {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index

@@ -152,6 +152,14 @@ Sprite :: struct {
 	tint:       rl.Color, // tint of the texture. WHITE will render the texture normally
 }
 
+LevelEntityType :: enum {
+	Nil,
+	Player,
+	Enemy,
+	ExplodingBarrel,
+	Item,
+}
+
 AttackTarget :: enum {
 	Player,
 	Enemy,
@@ -237,6 +245,10 @@ new_enemy :: proc(pos: Vec2) -> Enemy {
 
 new_exploding_barrel :: proc(pos: Vec2) -> ExplodingBarrel {
 	return {entity = new_entity(pos), shape = Circle{{}, 6}, health = 50}
+}
+
+new_item :: proc(data: ItemData, pos: Vec2) -> Item {
+	return {entity = new_entity(pos), shape = Circle{{}, 4}, data = data}
 }
 
 new_player :: proc(pos: Vec2) -> Player {

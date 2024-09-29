@@ -30,7 +30,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 			if e.test_path != nil {
 				delete(e.test_path)
 			}
-			e.test_path = find_path(e.test_path_start, e.test_path_end, nav_mesh)
+			e.test_path = find_path(e.test_path_start, e.test_path_end, level.nav_mesh)
 		} else { 	// Toggle path display
 			e.display_test_path = !e.display_test_path
 		}
@@ -66,7 +66,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 			}
 		} else if e.selected_nav_cell == nil { 	// In all cells
 			e.selected_point = nil
-			for &cell, ci in nav_mesh.cells {
+			for &cell, ci in level.nav_mesh.cells {
 				for &v in cell.verts {
 					if length(v - mouse_world_pos) <= MOUSE_RADIUS {
 						// If there is no point selected or if v is closer to the mouse than the already selected point then set it
@@ -89,7 +89,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		if rl.IsKeyDown(.LEFT_SHIFT) {
 			snapped := false
 			// Snapping to other points
-			for cell, ci in nav_mesh.cells {
+			for cell, ci in level.nav_mesh.cells {
 				for v in cell.verts {
 					if ci == e.selected_point_cell_index {continue}
 					if length(mouse_world_pos - v) <= POINT_SNAP_RADIUS {
@@ -111,7 +111,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 	// New triangle (N)
 	if rl.IsKeyPressed(.N) {
 		append(
-			&nav_mesh.cells,
+			&level.nav_mesh.cells,
 			NavCell{{mouse_world_pos, mouse_world_pos + {0, 10}, mouse_world_pos + {10, 0}}},
 		)
 		e.selected_nav_cell = nil
@@ -129,20 +129,20 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		v2 := e.selected_nav_cell.verts[2]
 
 		// Delete triangle
-		unordered_remove(&nav_mesh.cells, e.selected_nav_cell_index)
+		unordered_remove(&level.nav_mesh.cells, e.selected_nav_cell_index)
 		e.selected_nav_cell = nil
 		e.selected_nav_cell_index = -1
 		e.selected_point = nil
 		e.selected_point_cell_index = -1
 
 		// Create 4 smaller triangles
-		append(&nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
+		append(&level.nav_mesh.cells, NavCell{{edge_point0, edge_point1, edge_point2}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
+		append(&level.nav_mesh.cells, NavCell{{edge_point2, v0, edge_point0}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
+		append(&level.nav_mesh.cells, NavCell{{edge_point0, v1, edge_point1}})
 
-		append(&nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
+		append(&level.nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
 	}
 
 	// Delete (D)
@@ -152,7 +152,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		// 	selected_nav_cell_index = -1
 		// }
 		// if rl.IsKeyDown(.LEFT_SHIFT) {
-		unordered_remove(&nav_mesh.cells, e.selected_nav_cell_index)
+		unordered_remove(&level.nav_mesh.cells, e.selected_nav_cell_index)
 		e.selected_nav_cell = nil
 		e.selected_nav_cell_index = -1
 		e.selected_point = nil
@@ -163,7 +163,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 	// Select/Deselect triangle (S)
 	if !rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.S) {
 		e.selected_nav_cell_index = -1
-		for &cell, i in nav_mesh.cells {
+		for &cell, i in level.nav_mesh.cells {
 			if e.selected_nav_cell != &cell &&
 			   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 				e.selected_nav_cell = &cell
@@ -182,7 +182,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 			// Move selected triangle
 			e.selected_nav_cell.verts += {mouse_world_delta, mouse_world_delta, mouse_world_delta}
 		} else {
-			for &cell, i in nav_mesh.cells {
+			for &cell, i in level.nav_mesh.cells {
 				if e.selected_nav_cell != &cell &&
 				   check_collision_triangle_point(cell.verts, mouse_world_pos) {
 					e.selected_nav_cell = &cell
@@ -196,7 +196,7 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 
 draw_navmesh_editor_world :: proc(e: EditorState) {
 	// Draw individual cells in navmesh. Draw points, edges, and fill cells
-	for &cell in nav_mesh.cells {
+	for &cell in level.nav_mesh.cells {
 		// Fill
 		rl.DrawTriangle(cell.verts[0], cell.verts[1], cell.verts[2], Color{0, 120, 120, 150})
 
@@ -244,17 +244,17 @@ draw_navmesh_editor_world :: proc(e: EditorState) {
 
 	if e.display_nav_graph {
 		// Draw connections
-		for node in nav_mesh.nodes {
+		for node in level.nav_mesh.nodes {
 			for connection in node.connections {
 				if connection < 0 {
 					break
 				}
-				rl.DrawLineV(node.pos, nav_mesh.nodes[connection].pos, rl.GRAY)
+				rl.DrawLineV(node.pos, level.nav_mesh.nodes[connection].pos, rl.GRAY)
 			}
 		}
 
 		// Draw nodes
-		for node in nav_mesh.nodes {
+		for node in level.nav_mesh.nodes {
 			rl.DrawCircleV(node.pos, 1, rl.BLACK)
 		}
 	}
@@ -277,7 +277,7 @@ draw_navmesh_editor_ui :: proc(e: EditorState) {
 	rl.DrawText(fmt.ctprintf("%v", mouse_world_pos), 20, 20, 16, rl.WHITE)
 
 	if e.display_nav_graph {
-		for node, i in nav_mesh.nodes {
+		for node, i in level.nav_mesh.nodes {
 			rl.DrawTextEx(
 				rl.GetFontDefault(),
 				fmt.ctprintf("%v", i),

@@ -104,9 +104,11 @@ SWORD_HITBOX_POINTS := []Vec2 {
 	{SWORD_HITBOX_OFFSET, 12},
 }
 
-ENEMY_ATTACK_POLY := Polygon{{}, {{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}, 0}
+ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}
 
 SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
+
+PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
 game_data: GameData
 
@@ -186,7 +188,6 @@ main :: proc() {
 	// for &wall in level.walls {
 	// 	wall.id = uuid.generate_v4()
 	// }
-	player_sprite := Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
 	// punch_rect: Rectangle = {
 	// 	8,
@@ -227,7 +228,10 @@ main :: proc() {
 		if rl.IsKeyDown(.LEFT_CONTROL) {
 			if rl.IsKeyPressed(.H) {
 				editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
-				save_level()
+				if editor_state.mode == .None {
+					save_level()
+					reload_level()
+				}
 			}
 
 			// save level to file
@@ -866,226 +870,211 @@ main :: proc() {
 
 			draw_tilemap(tilemap)
 
-			if player.surfing {
-				draw_polygon(surf_poly, rl.DARKGREEN)
+
+			if editor_state.mode != .None {
+				draw_level()
 			}
 
-			for fire in fires {
-				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
-			}
-
-			// Draw items with slight gray tint
-			for item in items {
-				tex_id := item_to_texture[item.data.id]
-				tex := loaded_textures[tex_id]
-				sprite: Sprite = {
-					tex_id,
-					{0, 0, f32(tex.width), f32(tex.height)},
-					{1, 1},
-					{f32(tex.width) / 2, f32(tex.height) / 2},
-					0,
-					rl.LIGHTGRAY, // Slight darker tint
-				}
-
-
-				draw_sprite(sprite, item.pos)
-			}
-
-			for wall in walls {
-				draw_shape(wall.shape, wall.pos, rl.GRAY)
-			}
-
-			for enemy in enemies {
-				draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-				health_bar_length: f32 = 20
-				health_bar_height: f32 = 5
-				health_bar_base_rec := get_centered_rect(
-					{enemy.pos.x, enemy.pos.y - 20},
-					{health_bar_length, health_bar_height},
-				)
-				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-				health_bar_filled_rec := health_bar_base_rec
-				health_bar_filled_rec.width *= enemy.health / enemy.max_health
-				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-
-				attack_area_color := rl.Color{255, 255, 255, 120}
-				if enemy.just_attacked {
-					attack_area_color = rl.Color{255, 0, 0, 120}
-				}
-				if enemy.charging || enemy.just_attacked {
-					bar_length: f32 = 3
-					bar_height: f32 = 10
-					bar_base_rec := get_centered_rect(
-						{enemy.pos.x, enemy.pos.y},
-						{bar_length, bar_height},
-					)
-					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-					bar_filled_rec := bar_base_rec
-					bar_filled_rec.height *= enemy.current_charge_time / enemy.start_charge_time
-					rl.DrawRectangleRec(bar_filled_rec, rl.DARKGREEN)
-
-					switch data in enemy.data {
-					case MeleeEnemyData:
-						draw_shape(data.attack_poly, enemy.pos, attack_area_color)
-					case RangedEnemyData:
-
-					}
-				}
-
-				// Draw detection area
-				rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-				for p, i in enemy.detection_points {
-					rl.DrawLineV(
-						p,
-						enemy.detection_points[(i + 1) % len(enemy.detection_points)],
-						rl.YELLOW,
-					)
-				}
-
-				if enemy.current_path != nil {
-					for point in enemy.current_path {
-						rl.DrawCircleV(point, 2, rl.RED)
-					}
-				}
-			}
-
-			for barrel in exploding_barrels {
-				draw_shape(barrel.shape, barrel.pos, rl.RED)
-			}
-
-			// Draw Z Entities
-			// for &entity in z_entities {
-			// 	entity.sprite.scale = entity.z + 1
-			// 	draw_sprite(entity.sprite, entity.pos)
-			// }
-
-			for &entity in bombs {
-				entity.sprite.scale = entity.z + 1
-				draw_sprite(entity.sprite, entity.pos)
-			}
-
-			for &entity in projectile_weapons {
-				entity.sprite.scale = entity.z + 1
-				draw_sprite(entity.sprite, entity.pos)
-			}
-
-			for &entity in arrows {
-				entity.sprite.scale = entity.z + 1
-				draw_sprite(entity.sprite, entity.pos)
-			}
-
-			// Draw Player
-			{
-				// Player Sprite
-				draw_sprite(player_sprite, player.pos)
-
-				// Draw Item
-				if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
-					draw_item(player.items[player.selected_item_idx].id)
-				}
-
-				// Draw Weapon
-				if !player.holding_item &&
-				   player.weapons[player.selected_weapon_idx].id != .Empty {
-					draw_weapon(player.weapons[player.selected_weapon_idx].id)
-				}
-
-				/* Item hold bar */
-				if player.holding_item {
-					bar_length: f32 = 2
-					bar_height: f32 = 8
-					bar_base_rec := get_centered_rect(
-						{player.pos.x, player.pos.y},
-						{bar_length, bar_height},
-					)
-					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-					bar_filled_rec := bar_base_rec
-
-					bar_filled_rec.height *= get_item_hold_multiplier()
-					bar_filled_rec.y = bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
-					rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
-				}
-				/* End of Item hold bar */
-
-				/* Weapon charge bar */
-				if player.charging_weapon {
-					bar_length: f32 = 2
-					bar_height: f32 = 8
-					bar_base_rec := get_centered_rect(
-						{player.pos.x, player.pos.y},
-						{bar_length, bar_height},
-					)
-					rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-					bar_filled_rec := bar_base_rec
-
-					bar_filled_rec.height *= get_weapon_charge_multiplier()
-					bar_filled_rec.y = bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
-					rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
-				}
-				/* End of Weapon charge bar */
-
-
-				/* Health Bar */
-				health_bar_length: f32 = 20
-				health_bar_height: f32 = 5
-				health_bar_base_rec := get_centered_rect(
-					{player.pos.x, player.pos.y - 20},
-					{health_bar_length, health_bar_height},
-				)
-				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-				health_bar_filled_rec := health_bar_base_rec
-				health_bar_filled_rec.width *= player.health / player.max_health
-				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-				/* End of Health Bar */
-
-				// if !player.holding_item &&
-				//    player.weapons[player.selected_weapon_idx].id >= .Sword {
-				// 	attack_hitbox_color := rl.Color{255, 255, 255, 120}
-				// 	if player.attacking {
-				// 		attack_hitbox_color = rl.Color{255, 0, 0, 120}
-				// 	}
-				// 	draw_shape(attack_poly, player.pos, attack_hitbox_color)
-				// }
-
-				// Player pickup range
-				// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
-				// Collision shape
-				// draw_shape(player.shape, player.pos, rl.RED)
-			}
-
-			// Tile Circle Collision Check
-			// r := f32(10)
-			// rl.DrawCircleV(mouse_world_pos, r, {100, 100, 100, 100})
-			// tiles := get_tile_shape_collision(Circle{mouse_world_pos, r}, 0)
-			// for tile in tiles {
-			// 	rl.DrawRectangle(
-			// 		tile.x * TILE_SIZE,
-			// 		tile.y * TILE_SIZE,
-			// 		TILE_SIZE,
-			// 		TILE_SIZE,
-			// 		{100, 0, 0, 100},
-			// 	)
-			// }
-
-			#partial switch editor_state.mode {
+			switch editor_state.mode {
 			case .Level:
 				draw_geometry_editor_world(editor_state)
 			case .NavMesh:
 				draw_navmesh_editor_world(editor_state)
 			case .Entity:
 				draw_entity_editor_world(editor_state)
+			case .None:
+				if player.surfing {
+					draw_polygon(surf_poly, rl.DARKGREEN)
+				}
+
+				for fire in fires {
+					rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
+				}
+
+				// Draw items with slight gray tint
+				for item in items {
+					tex_id := item_to_texture[item.data.id]
+					tex := loaded_textures[tex_id]
+					sprite: Sprite = {
+						tex_id,
+						{0, 0, f32(tex.width), f32(tex.height)},
+						{1, 1},
+						{f32(tex.width) / 2, f32(tex.height) / 2},
+						0,
+						rl.LIGHTGRAY, // Slight darker tint
+					}
+
+
+					draw_sprite(sprite, item.pos)
+				}
+
+				for wall in walls {
+					draw_shape(wall.shape, wall.pos, rl.GRAY)
+				}
+
+				for enemy in enemies {
+					draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+					health_bar_length: f32 = 20
+					health_bar_height: f32 = 5
+					health_bar_base_rec := get_centered_rect(
+						{enemy.pos.x, enemy.pos.y - 20},
+						{health_bar_length, health_bar_height},
+					)
+					rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+					health_bar_filled_rec := health_bar_base_rec
+					health_bar_filled_rec.width *= enemy.health / enemy.max_health
+					rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+					attack_area_color := rl.Color{255, 255, 255, 120}
+					if enemy.just_attacked {
+						attack_area_color = rl.Color{255, 0, 0, 120}
+					}
+					if enemy.charging || enemy.just_attacked {
+						bar_length: f32 = 3
+						bar_height: f32 = 10
+						bar_base_rec := get_centered_rect(
+							{enemy.pos.x, enemy.pos.y},
+							{bar_length, bar_height},
+						)
+						rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+						bar_filled_rec := bar_base_rec
+						bar_filled_rec.height *=
+							enemy.current_charge_time / enemy.start_charge_time
+						rl.DrawRectangleRec(bar_filled_rec, rl.DARKGREEN)
+
+						switch data in enemy.data {
+						case MeleeEnemyData:
+							draw_shape(data.attack_poly, enemy.pos, attack_area_color)
+						case RangedEnemyData:
+
+						}
+					}
+
+					// Draw detection area
+					rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+					for p, i in enemy.detection_points {
+						rl.DrawLineV(
+							p,
+							enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+							rl.YELLOW,
+						)
+					}
+
+					if enemy.current_path != nil {
+						for point in enemy.current_path {
+							rl.DrawCircleV(point, 2, rl.RED)
+						}
+					}
+				}
+
+				for barrel in exploding_barrels {
+					draw_shape(barrel.shape, barrel.pos, rl.RED)
+				}
+
+				// Draw Z Entities
+				// for &entity in z_entities {
+				// 	entity.sprite.scale = entity.z + 1
+				// 	draw_sprite(entity.sprite, entity.pos)
+				// }
+
+				for &entity in bombs {
+					entity.sprite.scale = entity.z + 1
+					draw_sprite(entity.sprite, entity.pos)
+				}
+
+				for &entity in projectile_weapons {
+					entity.sprite.scale = entity.z + 1
+					draw_sprite(entity.sprite, entity.pos)
+				}
+
+				for &entity in arrows {
+					entity.sprite.scale = entity.z + 1
+					draw_sprite(entity.sprite, entity.pos)
+				}
+
+				// Draw Player
+				{
+					// Player Sprite
+					draw_sprite(PLAYER_SPRITE, player.pos)
+
+					// Draw Item
+					if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
+						draw_item(player.items[player.selected_item_idx].id)
+					}
+
+					// Draw Weapon
+					if !player.holding_item &&
+					   player.weapons[player.selected_weapon_idx].id != .Empty {
+						draw_weapon(player.weapons[player.selected_weapon_idx].id)
+					}
+
+					/* Item hold bar */
+					if player.holding_item {
+						bar_length: f32 = 2
+						bar_height: f32 = 8
+						bar_base_rec := get_centered_rect(
+							{player.pos.x, player.pos.y},
+							{bar_length, bar_height},
+						)
+						rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+						bar_filled_rec := bar_base_rec
+
+						bar_filled_rec.height *= get_item_hold_multiplier()
+						bar_filled_rec.y =
+							bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+						rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
+					}
+					/* End of Item hold bar */
+
+					/* Weapon charge bar */
+					if player.charging_weapon {
+						bar_length: f32 = 2
+						bar_height: f32 = 8
+						bar_base_rec := get_centered_rect(
+							{player.pos.x, player.pos.y},
+							{bar_length, bar_height},
+						)
+						rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+						bar_filled_rec := bar_base_rec
+
+						bar_filled_rec.height *= get_weapon_charge_multiplier()
+						bar_filled_rec.y =
+							bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+						rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
+					}
+					/* End of Weapon charge bar */
+
+
+					/* Health Bar */
+					health_bar_length: f32 = 20
+					health_bar_height: f32 = 5
+					health_bar_base_rec := get_centered_rect(
+						{player.pos.x, player.pos.y - 20},
+						{health_bar_length, health_bar_height},
+					)
+					rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+					health_bar_filled_rec := health_bar_base_rec
+					health_bar_filled_rec.width *= player.health / player.max_health
+					rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+					/* End of Health Bar */
+
+					// if !player.holding_item &&
+					//    player.weapons[player.selected_weapon_idx].id >= .Sword {
+					// 	attack_hitbox_color := rl.Color{255, 255, 255, 120}
+					// 	if player.attacking {
+					// 		attack_hitbox_color = rl.Color{255, 0, 0, 120}
+					// 	}
+					// 	draw_shape(attack_poly, player.pos, attack_hitbox_color)
+					// }
+
+					// Player pickup range
+					// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+					// Collision shape
+					// draw_shape(player.shape, player.pos, rl.RED)
+				}
 			}
 
-			// World center
-			// rl.DrawCircleV({}, 30, rl.RED)
-			// rl.DrawCircleV(screen_to_world({}), 5, rl.BLUE)
-
 			rl.EndMode2D()
-
-			// rl.DrawCircleV(({40, 40} - camera.target) * camera.zoom + camera.offset, 10, rl.BLUE)
-
-			draw_hud()
-
 
 			#partial switch editor_state.mode {
 			case .Level:
@@ -1098,6 +1087,7 @@ main :: proc() {
 				draw_entity_editor_ui(editor_state)
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
 			case .None:
+				draw_hud()
 				rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
 			}
 
@@ -1779,7 +1769,7 @@ is_control_released :: proc(c: Control) -> bool {
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
-	append(&items, Item{entity = new_entity(pos), shape = Circle{{}, 4}, data = data})
+	append(&items, new_item(data, pos))
 }
 
 perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
