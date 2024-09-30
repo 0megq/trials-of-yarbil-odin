@@ -101,7 +101,20 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		set_shape_fields_to_selected_shape(e)
 	}
 
-
+	// tilemap editor
+	mouse_tile_pos := world_to_tilemap(mouse_world_pos)
+	switch {
+	case rl.IsKeyDown(.ONE):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = GrassData{}
+	case rl.IsKeyDown(.TWO):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = StoneData{}
+	case rl.IsKeyDown(.THREE):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WaterData{}
+	case rl.IsKeyDown(.FOUR):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WallData{}
+	case rl.IsKeyDown(.ZERO):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = EmptyData{}
+	}
 }
 
 set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
