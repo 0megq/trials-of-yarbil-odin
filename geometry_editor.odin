@@ -35,7 +35,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 	if e.new_shape_but.status == .Released {
 		append(
 			&level.walls,
-			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 20, 20}},
+			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 8, 8}},
 		)
 		e.selected_wall_index = len(level.walls) - 1
 		e.selected_wall = &level.walls[e.selected_wall_index]
@@ -61,7 +61,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 	}
 
 	// Delete (delete)
-	if rl.IsKeyDown(.DELETE) {
+	if rl.IsKeyPressed(.DELETE) && e.selected_wall != nil {
 		unordered_remove(&level.walls, e.selected_wall_index)
 		e.selected_wall = nil
 		e.selected_wall_index = -1
@@ -100,6 +100,8 @@ update_geometry_editor :: proc(e: ^EditorState) {
 			math.round((e.wall_mouse_rel_pos.y + mouse_world_pos.y) / snap_size) * snap_size
 		set_shape_fields_to_selected_shape(e)
 	}
+
+
 }
 
 set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {

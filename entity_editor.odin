@@ -66,6 +66,7 @@ level_tilemap: Tilemap
 
 EditorState :: struct {
 	mode:                      EditorMode,
+	show_tile_grid:            bool,
 
 	// Entity editor
 	selected_entity:           LevelEntityType,
@@ -509,8 +510,8 @@ get_player_data :: proc() -> PlayerData {
 	}
 }
 
-draw_level :: proc() {
-	draw_tilemap(level_tilemap)
+draw_level :: proc(show_tile_grid := false) {
+	draw_tilemap(level_tilemap, show_tile_grid)
 	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
 	for enemy in level.enemies {

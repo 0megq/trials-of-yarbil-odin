@@ -150,7 +150,7 @@ get_tiles_on_fire :: proc() -> []Vec2i {
 	return result[:]
 }
 
-draw_tilemap :: proc(tilemap: Tilemap) {
+draw_tilemap :: proc(tilemap: Tilemap, show_grid := false) {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
@@ -196,6 +196,20 @@ draw_tilemap :: proc(tilemap: Tilemap) {
 			// 	TILE_SIZE,
 			// 	rl.BLACK,
 			// )
+		}
+	}
+
+	if show_grid {
+		for x in start.x ..= end.x {
+			for y in start.y ..= end.y {
+				rl.DrawRectangleLines(
+					i32(x) * TILE_SIZE,
+					i32(y) * TILE_SIZE,
+					TILE_SIZE,
+					TILE_SIZE,
+					{100, 100, 100, 100},
+				)
+			}
 		}
 	}
 }
@@ -254,6 +268,8 @@ load_tilemap :: proc(filename: string, tm: ^Tilemap) {
 					tm[x][y] = WaterData{}
 				case WALL_COLOR:
 					tm[x][y] = WallData{}
+				case:
+					tm[x][y] = EmptyData{}
 				}
 			}
 		}

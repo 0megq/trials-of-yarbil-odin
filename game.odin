@@ -16,7 +16,6 @@ PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
 PLAYER_BASE_HARSH_FRICTION :: 2000
-PLAYER_PUNCH_SIZE :: Vec2{12, 16}
 ENEMY_PATHFINDING_TIME :: 0.5
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
@@ -35,8 +34,8 @@ SWORD_HITBOX_OFFSET :: 4
 EditorMode :: enum {
 	None,
 	Level,
-	NavMesh,
 	Entity,
+	NavMesh,
 }
 
 Timer :: struct {
@@ -226,8 +225,12 @@ main :: proc() {
 		}
 
 		if rl.IsKeyDown(.LEFT_CONTROL) {
-			if rl.IsKeyPressed(.H) {
-				editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
+			if rl.IsKeyPressed(.Q) {
+				if rl.IsKeyDown(.LEFT_SHIFT) {
+					editor_state.mode = EditorMode((int(editor_state.mode) - 1) % len(EditorMode))
+				} else {
+					editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
+				}
 				if editor_state.mode == .None {
 					save_level()
 					reload_game_data()
@@ -236,13 +239,14 @@ main :: proc() {
 			}
 
 			// save level to file
-			if editor_state.mode != .None && rl.IsKeyPressed(.S) {
-				save_level()
-			}
-
-			// load level from file
-			if editor_state.mode != .None && rl.IsKeyPressed(.L) {
-				reload_level()
+			if editor_state.mode != .None {
+				if rl.IsKeyPressed(.S) {
+					save_level()
+				} else if rl.IsKeyPressed(.L) {
+					reload_level()
+				} else if rl.IsKeyPressed(.G) {
+					editor_state.show_tile_grid = !editor_state.show_tile_grid
+				}
 			}
 		}
 
@@ -864,6 +868,9 @@ main :: proc() {
 					}
 					camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
 					camera.zoom = max(0.1, camera.zoom)
+					if math.abs(camera.zoom - WINDOW_OVER_GAME) < 0.2 {
+						camera.zoom = WINDOW_OVER_GAME
+					}
 				}
 			}
 
@@ -871,7 +878,7 @@ main :: proc() {
 
 
 			if editor_state.mode != .None {
-				draw_level()
+				draw_level(editor_state.show_tile_grid)
 			}
 
 			switch editor_state.mode {
@@ -1076,7 +1083,28 @@ main :: proc() {
 
 			rl.EndMode2D()
 
-			#partial switch editor_state.mode {
+			if camera.zoom != WINDOW_OVER_GAME {
+				rl.DrawText(fmt.ctprintf("Zoom: x%v", camera.zoom), 24, 700, 16, rl.BLACK)
+			}
+
+			if editor_state.mode != .None {
+				// Display mouse coordinates
+				rl.DrawText(fmt.ctprintf("%v", mouse_world_pos), 20, 20, 16, rl.WHITE)
+				if editor_state.show_tile_grid {
+					rl.DrawText(
+						fmt.ctprintf(
+							"%v",
+							Vec2i{i32(mouse_world_pos.x), i32(mouse_world_pos.y)} / 8,
+						),
+						20,
+						40,
+						16,
+						rl.WHITE,
+					)
+				}
+			}
+
+			switch editor_state.mode {
 			case .Level:
 				draw_geometry_editor_ui(editor_state)
 				rl.DrawText("Level Editor", 1300, 32, 16, rl.BLACK)

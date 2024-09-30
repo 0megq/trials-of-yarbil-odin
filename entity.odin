@@ -260,5 +260,5 @@ set_player_defaults :: proc() {
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16
 	player.max_health = 100
-	player.can_attack = false
+	player.can_attack = true
 }

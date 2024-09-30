@@ -273,8 +273,6 @@ draw_navmesh_editor_world :: proc(e: EditorState) {
 }
 
 draw_navmesh_editor_ui :: proc(e: EditorState) {
-	// Display mouse coordinates
-	rl.DrawText(fmt.ctprintf("%v", mouse_world_pos), 20, 20, 16, rl.WHITE)
 
 	if e.display_nav_graph {
 		for node, i in level.nav_mesh.nodes {
