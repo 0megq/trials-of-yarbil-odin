@@ -250,7 +250,7 @@ load_level :: proc() {
 
 	level = data
 	load_tilemap(
-		fmt.tprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
+		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 		&level_tilemap,
 	)
 	tilemap = level_tilemap
@@ -282,6 +282,11 @@ save_level :: proc() {
 	calculate_graph(&level.nav_mesh)
 
 	data: Level = level
+	save_tilemap(
+		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
+		level_tilemap,
+	)
+
 	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
 	   err == nil {
 		level_save_path := fmt.tprintf("%s%02d.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)

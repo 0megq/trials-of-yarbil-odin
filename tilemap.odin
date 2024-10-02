@@ -1,7 +1,7 @@
 package game
 
 
-import "core:fmt"
+// import "core:fmt"
 import "core:math"
 import "core:reflect"
 import rl "vendor:raylib"
@@ -253,8 +253,8 @@ tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }
 
-load_tilemap :: proc(filename: string, tm: ^Tilemap) {
-	img := rl.LoadImage(fmt.ctprint(filename))
+load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
+	img := rl.LoadImage(filename)
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {
 		for x in 0 ..< TILEMAP_SIZE {
@@ -276,4 +276,53 @@ load_tilemap :: proc(filename: string, tm: ^Tilemap) {
 	} else {
 		rl.TraceLog(.WARNING, "Tilemap image not ready")
 	}
+}
+
+
+save_tilemap :: proc(filename: cstring, tm: Tilemap) {
+	img := tilemap_to_image(tm)
+
+	rl.ExportImage(img, filename)
+
+	unload_tilemap_image(img)
+}
+
+tilemap_to_image :: proc(tm: Tilemap) -> rl.Image {
+	pixels: []Color = make([]Color, TILEMAP_SIZE * TILEMAP_SIZE, context.allocator)
+
+	for x in 0 ..< TILEMAP_SIZE {
+		for y in 0 ..< TILEMAP_SIZE {
+			color: Color
+
+			switch data in tm[x][y] {
+			case GrassData:
+				color = GRASS_COLOR
+			case StoneData:
+				color = STONE_COLOR
+			case WaterData:
+				color = WATER_COLOR
+			case WallData:
+				color = WALL_COLOR
+			case EmptyData:
+				color = {}
+			}
+
+
+			pixels[x + y * TILEMAP_SIZE] = color
+		}
+	}
+
+	image := rl.Image {
+		data    = raw_data(pixels),
+		width   = TILEMAP_SIZE,
+		height  = TILEMAP_SIZE,
+		mipmaps = 1,
+		format  = .UNCOMPRESSED_R8G8B8A8,
+	}
+
+	return image
+}
+
+unload_tilemap_image :: proc(img: rl.Image) {
+	free(img.data, context.allocator)
 }
