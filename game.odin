@@ -224,6 +224,14 @@ main :: proc() {
 			}
 		}
 
+		if len(enemies) == 0 {
+			// Stop updating fire tiles
+			// LIght up blue stone
+			// Show arrow pointing to blue stone
+			fmt.println("winner winner chicken dinner")
+
+		}
+
 		if rl.IsKeyDown(.LEFT_CONTROL) {
 			if rl.IsKeyPressed(.Q) {
 				if rl.IsKeyDown(.LEFT_SHIFT) {
@@ -1508,7 +1516,7 @@ use_selected_item :: proc() {
 	case .Apple:
 		// Restore 5 health
 		if player.item_hold_time >= 1 {
-			player.health += 5
+			heal_player(5)
 			add_to_selected_item_count(-1)
 		}
 	}
@@ -2173,4 +2181,16 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 damage_player :: proc(amount: f32) {
 	player.health -= amount
 	player.health = max(player.health, 0)
+	if player.health <= 0 {
+		// Player is dead reload the level
+		// TODO: make an actual player death animation
+		fmt.println("you dead D:")
+		reload_game_data()
+		reload_level()
+	}
+}
+
+heal_player :: proc(amount: f32) {
+	player.health += amount
+	player.health = min(player.health, player.max_health)
 }
