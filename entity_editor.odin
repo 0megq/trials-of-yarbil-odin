@@ -451,6 +451,11 @@ update_entity_editor :: proc(e: ^EditorState) {
 			append(&level.items, new_item({id = .Apple, count = 1}, mouse_world_pos))
 		}
 	}
+	
+	if e.selected_phys_entity != nil && rl.IsKeyPressed(.I) {
+		// Copy the regex expression for the first two ints in the id
+		rl.SetClipboardText(fmt.ctprintf("%v,\\n\\s*%v", e.selected_phys_entity.id[0], e.selected_phys_entity.id[1]))
+	}
 }
 
 draw_entity_editor_world :: proc(e: EditorState) {
