@@ -127,6 +127,11 @@ ProjectileWeapon :: struct {
 	attack:        Attack,
 }
 
+Rock :: struct {
+	using zentity: ZEntity,
+	attack:        Attack,
+}
+
 Arrow :: struct {
 	using zentity: ZEntity,
 	attack:        Attack,
@@ -188,6 +193,7 @@ AttackData :: union {
 	ProjectileAttackData,
 	SurfAttackData,
 	ArrowAttackData,
+	RockAttackData,
 }
 
 SwordAttackData :: struct {}
@@ -206,6 +212,11 @@ ProjectileAttackData :: struct {
 
 ArrowAttackData :: struct {
 	arrow_idx:          int,
+	speed_damage_ratio: f32,
+}
+
+RockAttackData :: struct {
+	rock_idx:           int,
 	speed_damage_ratio: f32,
 }
 

@@ -30,6 +30,9 @@ ATTACK_INTERVAL :: 0.4
 SWORD_DAMAGE :: 10
 SWORD_KNOCKBACK :: 150
 SWORD_HITBOX_OFFSET :: 4
+STICK_DAMAGE :: 5
+STICK_KNOCKBACK :: 20
+STICK_HITBOX_OFFSET :: 2
 
 EditorMode :: enum {
 	None,
@@ -103,9 +106,18 @@ SWORD_HITBOX_POINTS := []Vec2 {
 	{SWORD_HITBOX_OFFSET, 12},
 }
 
+STICK_HITBOX_POINTS := []Vec2 {
+	{STICK_HITBOX_OFFSET, -10},
+	{STICK_HITBOX_OFFSET + 10, -5},
+	{STICK_HITBOX_OFFSET + 12, 0},
+	{STICK_HITBOX_OFFSET + 10, 5},
+	{STICK_HITBOX_OFFSET, 10},
+}
+
 ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}
 
 SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
+STICK_ANIMATION_DEFAULT :: WeaponAnimation{-70, -115, 70, 205, 0, 0, -70, -115}
 
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 
@@ -122,6 +134,7 @@ walls: [dynamic]Wall
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
+rocks: [dynamic]Rock
 fires: [dynamic]Fire
 
 // misc
@@ -178,6 +191,7 @@ main :: proc() {
 
 	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 	arrows = make([dynamic]Arrow, context.allocator)
+	rocks = make([dynamic]Rock, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -688,13 +702,37 @@ main :: proc() {
 				arrow.attack.shape = arrow.shape
 				arrow.attack.data = ArrowAttackData{i, speed_damage_ratio}
 
+				// if the arrow hit something while performing its attack, then delete it
 				if perform_attack(&arrow.attack) == -1 {
-					// if the arrow was deleted while performing its attack
+					delete_arrow(i)
 					continue
 				}
 
 				if arrow.z <= 0 {
 					delete_arrow(i)
+				}
+			}
+
+			#reverse for &rock, i in rocks {
+				zentity_move(&rock, delta)
+
+				speed_damage_ratio :: 15
+
+				rock.attack.pos = rock.pos
+				rock.attack.shape = rock.shape
+				rock.attack.data = RockAttackData{i, speed_damage_ratio}
+
+				// if the rock hits something while performing its attack, then delete it and create a rock item
+				if perform_attack(&rock.attack) == -1 {
+					delete_rock(i)
+					add_item_to_world({id = .Rock, count = 1}, rock.pos)
+					continue
+				}
+
+				// if the rock touches ground, then delete it and create a rock item
+				if rock.z <= 0 {
+					add_item_to_world({id = .Rock, count = 1}, rock.pos)
+					delete_rock(i)
 				}
 			}
 
@@ -1003,6 +1041,11 @@ main :: proc() {
 				}
 
 				for &entity in arrows {
+					entity.sprite.scale = entity.z + 1
+					draw_sprite(entity.sprite, entity.pos)
+				}
+
+				for &entity in rocks {
 					entity.sprite.scale = entity.z + 1
 					draw_sprite(entity.sprite, entity.pos)
 				}
@@ -1441,6 +1484,10 @@ delete_arrow :: proc(idx: int) {
 	unordered_remove(&arrows, idx)
 }
 
+delete_rock :: proc(idx: int) {
+	unordered_remove(&rocks, idx)
+}
+
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
 	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
@@ -1512,14 +1559,43 @@ use_selected_item :: proc() {
 				time_left = 1,
 			},
 		)
-		add_to_selected_item_count(-1)
 	case .Apple:
 		// Restore 5 health
 		if player.item_hold_time >= 1 {
 			heal_player(5)
-			add_to_selected_item_count(-1)
 		}
+	case .Rock:
+		tex := loaded_textures[.Rock]
+		sprite := Sprite {
+			.Rock,
+			{0, 0, f32(tex.width), f32(tex.height)},
+			{1, 1},
+			{f32(tex.width) / 2, f32(tex.height) / 2},
+			0,
+			rl.WHITE,
+		}
+
+		sprite.rotation += angle(to_mouse)
+		// 300 is an arbitrary multiplier. TODO: make a constant variable for it
+		base_vel := hold_multiplier * 300
+		append(
+			&rocks,
+			Rock {
+				entity = new_entity(
+					player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
+				),
+				shape = Circle{{}, 3},
+				vel = to_mouse * base_vel,
+				z = 0,
+				vel_z = 15,
+				rot = angle(to_mouse),
+				sprite = sprite,
+				attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
+			},
+		)
 	}
+
+	add_to_selected_item_count(-1)
 	// subtract from the count of item in the inventory. if no item is left then
 }
 
@@ -1569,6 +1645,47 @@ fire_selected_weapon :: proc() -> int {
 				shape           = player.attack_poly,
 				damage          = SWORD_DAMAGE,
 				knockback       = SWORD_KNOCKBACK,
+				direction       = normalize(mouse_world_pos - player.pos),
+				data            = SwordAttackData{},
+				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
+				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+			}
+			player.can_attack = false
+
+			// Animation
+			if player.cur_weapon_anim.pos_cur_rotation ==
+			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
+				player.cur_weapon_anim.pos_rotation_vel =
+					(player.cur_weapon_anim.cpos_bot_rotation -
+						player.cur_weapon_anim.cpos_top_rotation) /
+					ATTACK_DURATION
+				player.cur_weapon_anim.sprite_rotation_vel =
+					(player.cur_weapon_anim.csprite_bot_rotation -
+						player.cur_weapon_anim.csprite_top_rotation) /
+					ATTACK_DURATION
+			} else { 	// Animate up
+				player.cur_weapon_anim.pos_rotation_vel =
+					(player.cur_weapon_anim.cpos_top_rotation -
+						player.cur_weapon_anim.cpos_bot_rotation) /
+					ATTACK_DURATION
+				player.cur_weapon_anim.sprite_rotation_vel =
+					(player.cur_weapon_anim.csprite_top_rotation -
+						player.cur_weapon_anim.csprite_bot_rotation) /
+					ATTACK_DURATION
+			}
+		}
+	case .Stick:
+		if player.can_attack {
+			// Attack
+			player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
+			player.attack_dur_timer = ATTACK_DURATION
+			player.attack_interval_timer = ATTACK_INTERVAL
+			player.attacking = true
+			player.cur_attack = Attack {
+				pos             = player.pos,
+				shape           = player.attack_poly,
+				damage          = STICK_DAMAGE,
+				knockback       = STICK_KNOCKBACK,
 				direction       = normalize(mouse_world_pos - player.pos),
 				data            = SwordAttackData{},
 				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
@@ -1650,6 +1767,43 @@ alt_fire_selected_weapon :: proc() -> int {
 			},
 		)
 		player.weapons[player.selected_weapon_idx].id = .Empty
+	case .Stick:
+		// Throw stick here
+		tex := loaded_textures[.Stick]
+		sprite: Sprite = {
+			.Stick,
+			{0, 0, f32(tex.width), f32(tex.height)},
+			{1, 1},
+			{f32(tex.width) / 2, f32(tex.height) / 2},
+			0,
+			rl.WHITE,
+		}
+		append(
+			&projectile_weapons,
+			ProjectileWeapon {
+				entity = new_entity(
+					player.pos +
+					rotate_vector(
+						{-2, 5} +
+						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
+						angle(to_mouse),
+					),
+				),
+				shape = Circle{{}, 4},
+				vel = to_mouse * get_weapon_charge_multiplier() * 300,
+				z = 0,
+				vel_z = 12,
+				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
+				rot_vel = 1200 * get_weapon_charge_multiplier(),
+				sprite = sprite,
+				data = weapon_data,
+				attack = Attack {
+					targets = {.Enemy, .Wall, .ExplodingBarrel},
+					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+				},
+			},
+		)
+		player.weapons[player.selected_weapon_idx].id = .Empty
 	}
 	return 0
 }
@@ -1684,6 +1838,8 @@ draw_weapon :: proc(weapon: ItemId) {
 	#partial switch weapon {
 	case .Sword:
 		sprite.tex_origin = {0, 1}
+	case .Stick:
+		sprite.tex_origin = {0, 8}
 	}
 
 	sprite_pos := player.pos
@@ -1693,6 +1849,7 @@ draw_weapon :: proc(weapon: ItemId) {
 	} else {
 		// Set rotation and position based on if sword is on top or not
 		sprite.rotation = player.cur_weapon_anim.sprite_cur_rotation
+		// The value 4 and {2, 0} are both constants here
 		sprite_pos += {2, 0} + 4 * vector_from_angle(player.cur_weapon_anim.pos_cur_rotation)
 	}
 
@@ -1757,6 +1914,9 @@ select_weapon :: proc(idx: int) {
 	case .Sword:
 		player.attack_poly.points = SWORD_HITBOX_POINTS
 		player.cur_weapon_anim = SWORD_ANIMATION_DEFAULT
+	case .Stick:
+		player.attack_poly.points = STICK_HITBOX_POINTS
+		player.cur_weapon_anim = STICK_ANIMATION_DEFAULT
 	}
 }
 
@@ -2110,7 +2270,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				)
 
 				if depth > 0 {
-					delete_arrow(data.arrow_idx)
 					return -1
 				}
 			}
@@ -2133,7 +2292,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 					// Damage
 					damage_enemy(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
 
-					delete_arrow(data.arrow_idx)
 					return -1
 				}
 			}
@@ -2152,7 +2310,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 					// Damage
 					damage_exploding_barrel(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
 
-					delete_arrow(data.arrow_idx)
 					return -1
 				}
 			}
@@ -2169,8 +2326,54 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			if depth > 0 {
 				damage_player(dot(normal, arrow.vel) / data.speed_damage_ratio)
 
-				delete_arrow(data.arrow_idx)
 				return -1
+			}
+		}
+	case RockAttackData:
+		rock := &rocks[data.rock_idx]
+		if .Wall in attack.targets {
+			for wall in walls {
+				_, _, depth := resolve_collision_shapes(rock.shape, rock.pos, wall.shape, wall.pos)
+
+				if depth > 0 {
+					return -1
+				}
+			}
+		}
+
+		if .Enemy in attack.targets {
+			#reverse for enemy, i in enemies {
+				_, normal, depth := resolve_collision_shapes(
+					rock.shape,
+					rock.pos,
+					enemy.shape,
+					enemy.pos,
+				)
+
+				if depth > 0 {
+					// Damage
+					damage_enemy(i, dot(normal, rock.vel) / data.speed_damage_ratio)
+
+					return -1
+				}
+			}
+		}
+
+		if .ExplodingBarrel in attack.targets {
+			#reverse for barrel, i in exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					rock.shape,
+					rock.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+
+				if depth > 0 {
+					// Damage
+					damage_exploding_barrel(i, dot(normal, rock.vel) / data.speed_damage_ratio)
+
+					return -1
+				}
 			}
 		}
 	}
