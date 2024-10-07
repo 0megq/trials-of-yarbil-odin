@@ -535,7 +535,7 @@ main :: proc() {
 									shape = Circle{{}, 4},
 									vel = to_player * 300,
 									z = 0,
-									vel_z = 10,
+									vel_z = 8,
 									rot = angle(to_player),
 									sprite = arrow_sprite,
 									attack = Attack {
@@ -623,7 +623,7 @@ main :: proc() {
 			// }
 
 			#reverse for &bomb, i in bombs {
-				zentity_move(&bomb, delta)
+				zentity_move(&bomb, 300, 50, delta)
 				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
@@ -669,7 +669,7 @@ main :: proc() {
 			}
 
 			#reverse for &weapon, i in projectile_weapons {
-				zentity_move(&weapon, delta)
+				zentity_move(&weapon, 300, 30, delta)
 
 				speed_damage_ratio :: 15
 				speed_durablity_ratio :: 60
@@ -694,7 +694,7 @@ main :: proc() {
 			}
 
 			#reverse for &arrow, i in arrows {
-				zentity_move(&arrow, delta)
+				zentity_move(&arrow, 300, 30, delta)
 
 				speed_damage_ratio :: 15
 
@@ -714,7 +714,7 @@ main :: proc() {
 			}
 
 			#reverse for &rock, i in rocks {
-				zentity_move(&rock, delta)
+				zentity_move(&rock, 300, 40, delta)
 
 				speed_damage_ratio :: 15
 
@@ -1209,10 +1209,7 @@ generic_move :: proc(e: ^MovingEntity, friction: f32, delta: f32) {
 	e.pos += e.vel * delta
 }
 
-zentity_move :: proc(e: ^ZEntity, delta: f32) {
-	friction :: 300
-	gravity :: 50
-
+zentity_move :: proc(e: ^ZEntity, friction: f32, gravity: f32, delta: f32) {
 	// Z movement
 	{
 		// Apply gravity
@@ -1587,7 +1584,7 @@ use_selected_item :: proc() {
 				shape = Circle{{}, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
-				vel_z = 15,
+				vel_z = 10,
 				rot = angle(to_mouse),
 				sprite = sprite,
 				attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
@@ -1755,7 +1752,7 @@ alt_fire_selected_weapon :: proc() -> int {
 				shape = Circle{{}, 4},
 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
 				z = 0,
-				vel_z = 12,
+				vel_z = 8,
 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
 				rot_vel = 1200 * get_weapon_charge_multiplier(),
 				sprite = sprite,
@@ -1792,7 +1789,7 @@ alt_fire_selected_weapon :: proc() -> int {
 				shape = Circle{{}, 4},
 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
 				z = 0,
-				vel_z = 12,
+				vel_z = 8,
 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
 				rot_vel = 1200 * get_weapon_charge_multiplier(),
 				sprite = sprite,
