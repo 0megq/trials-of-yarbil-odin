@@ -224,52 +224,54 @@ new_entity :: proc(pos: Vec2) -> Entity {
 	return {uuid.generate_v4(), pos}
 }
 
-new_melee_enemy :: proc(pos: Vec2, attack_poly: Polygon) -> Enemy {
-	e := new_enemy(pos)
-	e.data = MeleeEnemyData{attack_poly}
-	return e
+setup_melee_enemy :: proc(enemy: ^Enemy) {
+	setup_enemy(enemy)
+	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
+	enemy.detection_range = 80
+	enemy.attack_charge_range = 12
+	enemy.start_charge_time = 0.3
+	enemy.start_flinch_time = 0.2
+	health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
-new_ranged_enemy :: proc(pos: Vec2) -> Enemy {
-	e := new_enemy(pos)
-	e.data = RangedEnemyData{60}
-	e.attack_charge_range = 120
-	e.detection_range = 160
-	e.health = 60
-	e.max_health = 60
-	e.start_charge_time = 0.5
-	return e
+setup_ranged_enemy :: proc(enemy: ^Enemy) {
+	setup_enemy(enemy)
+	enemy.data = RangedEnemyData{60}
+	enemy.detection_range = 160
+	enemy.attack_charge_range = 120
+	enemy.start_charge_time = 0.5
+	enemy.start_flinch_time = 0.2
+	health_setter(&enemy.health, &enemy.max_health, 60)
 }
 
-new_enemy :: proc(pos: Vec2) -> Enemy {
-	return {
-		entity = new_entity(pos),
-		shape = get_centered_rect({}, {16, 16}),
-		detection_range = 80,
-		attack_charge_range = 12,
-		start_charge_time = 0.3,
-		start_flinch_time = 0.2,
-		health = 80,
-		max_health = 80,
-	}
+setup_enemy :: proc(enemy: ^Enemy) {
+	enemy.shape = get_centered_rect({}, {16, 16})
 }
 
-new_exploding_barrel :: proc(pos: Vec2) -> ExplodingBarrel {
-	return {entity = new_entity(pos), shape = Circle{{}, 6}, health = 50}
+setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {
+	barrel.shape = Circle{{}, 6}
+	health_setter(&barrel.health, &barrel.max_health, 50)
+
 }
 
-new_item :: proc(data: ItemData, pos: Vec2) -> Item {
-	return {entity = new_entity(pos), shape = Circle{{}, 4}, data = data}
+setup_item :: proc(item: ^Item) {
+	item.shape = Circle{{}, 4}
 }
 
-new_player :: proc(pos: Vec2) -> Player {
-	return {entity = new_entity(pos), health = 100}
-}
-
-set_player_defaults :: proc() {
+setup_player :: proc(player: ^Player) {
+	player.can_fire_dash = true
 	player.can_fire_dash = true
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16
-	player.max_health = 100
 	player.can_attack = true
+	health_setter(&player.health, &player.max_health, 100)
+}
+
+health_setter :: proc(health: ^f32, cur_max_health: ^f32, new_max_health: f32) {
+	// Set health
+	if health^ == cur_max_health^ || health^ >= new_max_health {
+		health^ = new_max_health
+	}
+	// Set max health
+	cur_max_health^ = new_max_health
 }

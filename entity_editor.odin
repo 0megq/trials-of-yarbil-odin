@@ -26,6 +26,7 @@ EntityData :: struct {
 PlayerData :: struct {
 	// player health
 	health:              f32,
+	max_health:          f32,
 	// player inventory
 	weapons:             [2]ItemData,
 	items:               [6]ItemData,
@@ -246,25 +247,39 @@ load_level :: proc() {
 		level.walls = make([dynamic]Wall)
 	}
 
+	level = data
+
 	rl.TraceLog(.INFO, "Level Loaded")
 
-	level = data
+
+	// Update constants
+	for &enemy in level.enemies {
+		switch data in enemy.data {
+		case MeleeEnemyData:
+			setup_melee_enemy(&enemy)
+		case RangedEnemyData:
+			setup_ranged_enemy(&enemy)
+		}
+	}
+
+	for &barrel in level.exploding_barrels {
+		setup_exploding_barrel(&barrel)
+	}
+
+	for &item in level.items {
+		setup_item(&item)
+	}
+
+	player.pos = level.player_pos
+
 	load_tilemap(
 		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 		&level_tilemap,
 	)
 	tilemap = level_tilemap
 
-	player.pos = level.player_pos
-
 	// We clone the arrays so we don't change the level data when we play the game
 	enemies = slice.clone_to_dynamic(level.enemies[:])
-	for &enemy in enemies {
-		#partial switch &en in enemy.data {
-		case MeleeEnemyData:
-			en.attack_poly.points = ENEMY_ATTACK_HITBOX_POINTS
-		}
-	}
 	items = slice.clone_to_dynamic(level.items[:])
 	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
@@ -328,20 +343,17 @@ load_game_data :: proc(game_idx := 0) {
 		if json.unmarshal(bytes, &game_data) != nil {
 			rl.TraceLog(.WARNING, "Error parsing game data")
 			game_data.cur_level_idx = 0
-			game_data.player_data = PlayerData {
-				health = 100,
-			}
+			game_data.player_data = {}
 		}
 		delete(bytes)
 	} else {
 		rl.TraceLog(.WARNING, "Error parsing game data")
 		game_data.cur_level_idx = 0
-		game_data.player_data = PlayerData {
-			health = 100,
-		}
+		game_data.player_data = {}
 	}
 
 	set_player_data(game_data.player_data)
+	setup_player(&player)
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }
@@ -415,14 +427,14 @@ update_entity_editor :: proc(e: ^EditorState) {
 		case .Enemy:
 			for enemy, i in level.enemies {
 				if enemy.id == e.selected_phys_entity.id {
-					unordered_remove(&enemies, i)
+					unordered_remove(&level.enemies, i)
 					break
 				}
 			}
 		case .ExplodingBarrel:
 			for barrel, i in level.exploding_barrels {
 				if barrel.id == e.selected_phys_entity.id {
-					unordered_remove(&exploding_barrels, i)
+					unordered_remove(&level.exploding_barrels, i)
 					break
 				}
 			}
@@ -443,18 +455,48 @@ update_entity_editor :: proc(e: ^EditorState) {
 	// new entity
 	if rl.IsKeyDown(.N) {
 		if rl.IsKeyPressed(.ONE) {
-			// creating new enemy
-			append(&level.enemies, new_enemy(mouse_world_pos))
+			// creating new melee enemy
+			enemy: Enemy
+			enemy.entity = new_entity(mouse_world_pos)
+			setup_melee_enemy(&enemy)
+
+			append(&level.enemies, enemy)
 		} else if rl.IsKeyPressed(.TWO) {
-			append(&level.exploding_barrels, new_exploding_barrel(mouse_world_pos))
+			// creating new melee enemy
+			enemy: Enemy
+			enemy.entity = new_entity(mouse_world_pos)
+			setup_ranged_enemy(&enemy)
+
+			append(&level.enemies, enemy)
 		} else if rl.IsKeyPressed(.THREE) {
-			append(&level.items, new_item({id = .Apple, count = 1}, mouse_world_pos))
+			// creating new item
+			item: Item
+			item.entity = new_entity(mouse_world_pos)
+			item.data = {
+				id    = .Apple,
+				count = 1,
+			}
+			setup_item(&item)
+
+			append(&level.items, item)
+		} else if rl.IsKeyPressed(.FOUR) {
+			barrel: ExplodingBarrel
+			barrel.entity = new_entity(mouse_world_pos)
+			setup_exploding_barrel(&barrel)
+
+			append(&level.exploding_barrels, barrel)
 		}
 	}
-	
+
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.I) {
 		// Copy the regex expression for the first two ints in the id
-		rl.SetClipboardText(fmt.ctprintf("%v,\\n\\s*%v", e.selected_phys_entity.id[0], e.selected_phys_entity.id[1]))
+		rl.SetClipboardText(
+			fmt.ctprintf(
+				"%v,\\n\\s*%v",
+				e.selected_phys_entity.id[0],
+				e.selected_phys_entity.id[1],
+			),
+		)
 	}
 }
 
@@ -500,17 +542,19 @@ draw_entity_editor_ui :: proc(e: EditorState) {
 
 set_player_data :: proc(data: PlayerData) {
 	player.health = data.health
+	player.max_health = data.max_health
 	player.weapons = data.weapons
 	player.items = data.items
 	select_weapon(data.selected_weapon_idx)
 	player.selected_item_idx = data.selected_item_idx
 	player.item_count = data.item_count
-	set_player_defaults()
+	setup_player(&player)
 }
 
 get_player_data :: proc() -> PlayerData {
 	return {
 		player.health,
+		player.max_health,
 		player.weapons,
 		player.items,
 		player.selected_weapon_idx,

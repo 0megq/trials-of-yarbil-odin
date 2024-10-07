@@ -145,8 +145,8 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 		append(&level.nav_mesh.cells, NavCell{{edge_point1, v2, edge_point2}})
 	}
 
-	// Delete (Delete)
-	if rl.IsKeyPressed(.DELETE) && e.selected_nav_cell != nil {
+	// Delete (D)
+	if rl.IsKeyPressed(.D) && e.selected_nav_cell != nil {
 		// if rl.IsKeyDown(.LEFT_CONTROL) {
 		// 	selected_nav_cell = nil
 		// 	selected_nav_cell_index = -1

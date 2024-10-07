@@ -108,9 +108,9 @@ SWORD_HITBOX_POINTS := []Vec2 {
 
 STICK_HITBOX_POINTS := []Vec2 {
 	{STICK_HITBOX_OFFSET, -10},
-	{STICK_HITBOX_OFFSET + 10, -5},
-	{STICK_HITBOX_OFFSET + 12, 0},
-	{STICK_HITBOX_OFFSET + 10, 5},
+	{STICK_HITBOX_OFFSET + 8, -4},
+	{STICK_HITBOX_OFFSET + 10, 0},
+	{STICK_HITBOX_OFFSET + 8, 4},
 	{STICK_HITBOX_OFFSET, 10},
 }
 
@@ -1965,7 +1965,11 @@ is_control_released :: proc(c: Control) -> bool {
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
-	append(&items, new_item(data, pos))
+	item: Item
+	item.entity = new_entity(pos)
+	item.data = data
+	setup_item(&item)
+	append(&items, item)
 }
 
 perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
@@ -2379,7 +2383,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 	}
 	return
 }
-
 
 damage_player :: proc(amount: f32) {
 	player.health -= amount
