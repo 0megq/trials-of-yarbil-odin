@@ -4,6 +4,7 @@ import "core:crypto"
 import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
+import "core:math/rand"
 import "core:mem"
 import "core:slice"
 import rl "vendor:raylib"
@@ -27,11 +28,11 @@ WEAPON_CHARGE_DIVISOR :: 1 // Max time
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
 ATTACK_INTERVAL :: 0.4
-SWORD_DAMAGE :: 10
+SWORD_DAMAGE :: 20
 SWORD_KNOCKBACK :: 150
 SWORD_HITBOX_OFFSET :: 4
-STICK_DAMAGE :: 5
-STICK_KNOCKBACK :: 20
+STICK_DAMAGE :: 10
+STICK_KNOCKBACK :: 70
 STICK_HITBOX_OFFSET :: 2
 
 EditorMode :: enum {
@@ -131,11 +132,14 @@ exploding_barrels: [dynamic]ExplodingBarrel
 tilemap: Tilemap
 nav_mesh: NavMesh
 walls: [dynamic]Wall
+
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
 rocks: [dynamic]Rock
 fires: [dynamic]Fire
+
+queue_on_player_death: bool
 
 // misc
 camera: rl.Camera2D
@@ -179,8 +183,6 @@ main :: proc() {
 	// set_tile({2, 3}, GrassData{})
 	// set_tile({3, 4}, GrassData{true, 1, true})
 
-	player.cur_ability = .WATER
-
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
 	fires = make([dynamic]Fire, context.allocator)
@@ -219,6 +221,10 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
+		if queue_on_player_death {
+			on_player_death()
+			queue_on_player_death = false
+		}
 		delta = rl.GetFrameTime()
 		// Mouse movement
 		mouse_pos = rl.GetMousePosition()
@@ -298,7 +304,7 @@ main :: proc() {
 						player.can_fire_dash = false
 						player.fire_dash_timer = FIRE_DASH_COOLDOWN
 
-						player.vel = normalize(get_directional_input()) * 250
+						player.vel = normalize(get_directional_input()) * 400
 						fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
 						append(&fires, fire)
 						attack := Attack {
@@ -306,8 +312,8 @@ main :: proc() {
 							shape     = Circle{{}, FIRE_DASH_RADIUS},
 							damage    = 20,
 							knockback = 400,
-							targets   = {.Bomb, .Enemy, .ExplodingBarrel},
-							data      = ExplosionAttackData{},
+							targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
+							data      = ExplosionAttackData{true},
 						}
 						perform_attack(&attack)
 					}
@@ -458,12 +464,13 @@ main :: proc() {
 
 				#partial switch data in enemy.data {
 				case RangedEnemyData:
-					if check_collision_shapes(
-						Circle{{}, data.flee_range},
-						enemy.pos,
-						player.shape,
-						player.pos,
-					) {
+					if enemy.player_in_range &&
+					   check_collision_shapes(
+						   Circle{{}, data.flee_range},
+						   enemy.pos,
+						   player.shape,
+						   player.pos,
+					   ) {
 						// Set target to opposite of the player
 						target = enemy.pos + enemy.pos - player.pos
 					}
@@ -650,17 +657,30 @@ main :: proc() {
 						bomb.vel = slide(bomb.vel, normal)
 					}
 				}
+				for barrel in &exploding_barrels {
+					_, normal, depth := resolve_collision_shapes(
+						bomb.shape,
+						bomb.pos,
+						barrel.shape,
+						barrel.pos,
+					)
+					// fmt.printfln("%v, %v, %v", collide, normal, depth)
+					if depth > 0 {
+						bomb.pos -= normal * depth
+						bomb.vel = slide(bomb.vel, normal)
+					}
+				}
 				if bomb.z <= 0 { 	// if on ground, then start ticking
 					bomb.time_left -= delta
 					if bomb.time_left <= 0 {
 						bomb_explosion(bomb.pos, 8)
 						perform_attack(
 							&{
-								targets = {.Player, .Enemy, .ExplodingBarrel},
+								targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
 								damage = 10,
 								pos = bomb.pos,
 								shape = Circle{{}, 8},
-								data = ExplosionAttackData{},
+								data = ExplosionAttackData{true},
 							},
 						)
 						unordered_remove(&bombs, i)
@@ -1116,14 +1136,14 @@ main :: proc() {
 					rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 					/* End of Health Bar */
 
-					// if !player.holding_item &&
-					//    player.weapons[player.selected_weapon_idx].id >= .Sword {
-					// 	attack_hitbox_color := rl.Color{255, 255, 255, 120}
-					// 	if player.attacking {
-					// 		attack_hitbox_color = rl.Color{255, 0, 0, 120}
-					// 	}
-					// 	draw_shape(attack_poly, player.pos, attack_hitbox_color)
-					// }
+					if !player.holding_item &&
+					   player.weapons[player.selected_weapon_idx].id >= .Sword {
+						attack_hitbox_color := rl.Color{255, 255, 255, 120}
+						if player.attacking {
+							attack_hitbox_color = rl.Color{255, 0, 0, 120}
+						}
+						draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
+					}
 
 					// Player pickup range
 					// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
@@ -1454,7 +1474,7 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 	if barrel.health <= 0 {
 		// KABOOM!!!
 		// Visual
-		fire := Fire{Circle{barrel.pos, 24}, 2}
+		fire := Fire{Circle{barrel.pos, 60}, 2}
 		unordered_remove(&exploding_barrels, barrel_idx)
 
 		append(&fires, fire)
@@ -1462,11 +1482,11 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		perform_attack(
 			&{
 				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
-				damage = 20,
+				damage = 40,
 				knockback = 400,
 				pos = fire.pos,
 				shape = Circle{{}, fire.radius},
-				data = ExplosionAttackData{},
+				data = ExplosionAttackData{false},
 			},
 		)
 	}
@@ -2089,10 +2109,13 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		if .Tile in attack.targets {
 			tiles := get_tile_shape_collision(attack.shape, attack.pos)
 			for tile in tiles {
-				#partial switch data in tilemap[tile.x][tile.y] {
+				#partial switch tile_data in tilemap[tile.x][tile.y] {
 				case GrassData:
-					if !data.on_fire {
-						tilemap[tile.x][tile.y] = GrassData{true, 1, true}
+					if data.burn_instantly {
+						tilemap[tile.x][tile.y] = GrassData{false, 0, false, true}
+					} else {
+						tile_should_spread := rand.choice([]bool{true, false})
+						tilemap[tile.x][tile.y] = GrassData{true, 1, tile_should_spread, false}
 					}
 				}
 			}
@@ -2388,9 +2411,18 @@ damage_player :: proc(amount: f32) {
 		// Player is dead reload the level
 		// TODO: make an actual player death animation
 		fmt.println("you dead D:")
-		reload_game_data()
-		reload_level()
+		queue_on_player_death = true
 	}
+}
+
+on_player_death :: proc() {
+	clear(&bombs)
+	clear(&projectile_weapons)
+	clear(&arrows)
+	clear(&rocks)
+	clear(&fires)
+	reload_game_data()
+	reload_level()
 }
 
 heal_player :: proc(amount: f32) {

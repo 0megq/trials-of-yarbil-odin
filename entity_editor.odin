@@ -317,18 +317,31 @@ save_level :: proc() {
 unload_level :: proc() {
 	// delete world data
 	delete(enemies)
+	enemies = nil
 	delete(items)
+	items = nil
 	delete(exploding_barrels)
+	exploding_barrels = nil
 	delete(nav_mesh.cells)
+	nav_mesh.cells = nil
 	delete(nav_mesh.nodes)
+	nav_mesh.nodes = nil
 	delete(walls)
+	walls = nil
 	// delete level data
 	delete(level.enemies)
+	level.enemies = nil
 	delete(level.items)
+	level.items = nil
 	delete(level.exploding_barrels)
+	level.exploding_barrels = nil
 	delete(level.nav_mesh.cells)
+	level.nav_mesh.cells = nil
 	delete(level.nav_mesh.nodes)
+	level.nav_mesh.nodes = nil
 	delete(level.walls)
+	level.walls = nil
+
 	rl.TraceLog(.INFO, "Level Unloaded")
 }
 
@@ -352,6 +365,8 @@ load_game_data :: proc(game_idx := 0) {
 		game_data.player_data = {}
 	}
 
+	// Reset all player values
+	player = {}
 	set_player_data(game_data.player_data)
 	setup_player(&player)
 
@@ -548,6 +563,7 @@ set_player_data :: proc(data: PlayerData) {
 	select_weapon(data.selected_weapon_idx)
 	player.selected_item_idx = data.selected_item_idx
 	player.item_count = data.item_count
+	player.cur_ability = data.ability
 	setup_player(&player)
 }
 

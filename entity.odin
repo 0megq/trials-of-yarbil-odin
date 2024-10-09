@@ -202,7 +202,9 @@ FireAttackData :: struct {}
 
 SurfAttackData :: struct {}
 
-ExplosionAttackData :: struct {}
+ExplosionAttackData :: struct {
+	burn_instantly: bool,
+}
 
 ProjectileAttackData :: struct {
 	projectile_idx:        int,

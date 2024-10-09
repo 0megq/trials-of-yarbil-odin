@@ -3,6 +3,7 @@ package game
 
 // import "core:fmt"
 import "core:math"
+import "core:math/rand"
 import "core:reflect"
 import rl "vendor:raylib"
 
@@ -12,6 +13,7 @@ Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
+DIRT_COLOR :: Color{100, 50, 0, 255}
 WATER_COLOR :: Color{0, 0, 255, 255}
 WALL_COLOR :: Color{0, 0, 50, 255}
 
@@ -21,15 +23,19 @@ TileData :: union #no_nil {
 	StoneData,
 	WaterData,
 	WallData,
+	DirtData,
 }
 
 EmptyData :: struct {}
 
 GrassData :: struct {
-	on_fire:      bool,
-	spread_timer: f32,
-	spreading:    bool,
+	on_fire:       bool,
+	spread_timer:  f32,
+	should_spread: bool,
+	burnt:         bool,
 }
+
+DirtData :: struct {}
 
 StoneData :: struct {}
 
@@ -43,20 +49,31 @@ update_tilemap :: proc() {
 	for tile_pos in get_tiles_on_fire() {
 		// Update tiles
 		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
-		if tile_data.spreading {
+		if !tile_data.burnt {
 			// Decrease spread timer
 			tile_data.spread_timer -= delta
 			if tile_data.spread_timer <= 0 {
 				// Spread once timer is done
-				for t in get_neighboring_tiles(tile_pos) {
-					if is_valid_tile_pos(t) &&
-					   reflect.union_variant_typeid(tilemap[t.x][t.y]) == GrassData {
-						// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
-						set_tile(t, GrassData{true, 1, true})
+				if tile_data.should_spread {
+					for t in get_neighboring_tiles(tile_pos) {
+						if is_valid_tile_pos(t) {
+							#partial switch data in tilemap[t.x][t.y] {
+							case GrassData:
+								if data.on_fire || data.burnt {
+									continue
+								}
+								// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
+								set_tile(
+									t,
+									GrassData{true, 1, rand.choice([]bool{false, true}), false},
+								)
+							}
+
+						}
 					}
 				}
-				// Set .spreading = false
-				tile_data.spreading = false
+				tile_data.on_fire = false
+				tile_data.burnt = true
 			}
 		}
 
@@ -169,17 +186,21 @@ draw_tilemap :: proc(tilemap: Tilemap, show_grid := false) {
 
 			switch data in tilemap[x][y] {
 			case GrassData:
+				sprite.tex_region.x = 1
 				sprite.tex_region.y = 1
 				if data.on_fire {
 					sprite.tex_region.x = 2
+				} else if data.burnt {
+					sprite.tex_region.x = 3
 				}
+			case DirtData:
+				sprite.tex_region.y = 1
 			case WaterData:
 				sprite.tex_region.x = 2
 			case StoneData:
 				sprite.tex_region.x = 1
 			case WallData:
-				sprite.tex_region.x = 1
-				sprite.tex_region.y = 1
+				sprite.tex_region.x = 3
 			case EmptyData:
 
 			}
@@ -268,6 +289,8 @@ load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
 					tm[x][y] = WaterData{}
 				case WALL_COLOR:
 					tm[x][y] = WallData{}
+				case DIRT_COLOR:
+					tm[x][y] = DirtData{}
 				case:
 					tm[x][y] = EmptyData{}
 				}
@@ -303,6 +326,8 @@ tilemap_to_image :: proc(tm: Tilemap) -> rl.Image {
 				color = WATER_COLOR
 			case WallData:
 				color = WALL_COLOR
+			case DirtData:
+				color = DIRT_COLOR
 			case EmptyData:
 				color = {}
 			}

@@ -108,10 +108,12 @@ update_geometry_editor :: proc(e: ^EditorState) {
 	case rl.IsKeyDown(.ONE):
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = GrassData{}
 	case rl.IsKeyDown(.TWO):
-		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = StoneData{}
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = DirtData{}
 	case rl.IsKeyDown(.THREE):
-		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WaterData{}
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = StoneData{}
 	case rl.IsKeyDown(.FOUR):
+		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WaterData{}
+	case rl.IsKeyDown(.FIVE):
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WallData{}
 	case rl.IsKeyDown(.ZERO):
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = EmptyData{}
@@ -120,7 +122,9 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	if e.selected_wall != nil && rl.IsKeyPressed(.I) {
 		// Copy the regex expression for the first two ints in the id
-		rl.SetClipboardText(fmt.ctprintf("%v,\\n\\s*%v", e.selected_wall.id[0], e.selected_wall.id[1]))
+		rl.SetClipboardText(
+			fmt.ctprintf("%v,\\n\\s*%v", e.selected_wall.id[0], e.selected_wall.id[1]),
+		)
 	}
 }
 
