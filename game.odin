@@ -471,8 +471,8 @@ main :: proc() {
 						   player.shape,
 						   player.pos,
 					   ) {
-						// Set target to opposite of the player
-						target = enemy.pos + enemy.pos - player.pos
+						// Set target to opposite of the player. Gets a vector starting at the enemy pos pointing away from the player
+						target = enemy.pos + (enemy.pos - player.pos)
 					}
 				}
 				enemy_move(&enemy, delta, target)
@@ -956,6 +956,7 @@ main :: proc() {
 				draw_entity_editor_world(editor_state)
 			case .None:
 				draw_tilemap(tilemap)
+				// draw_navmesh_editor_world(editor_state)
 				if player.surfing {
 					draw_polygon(surf_poly, rl.DARKGREEN)
 				}
