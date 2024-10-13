@@ -9,6 +9,7 @@ import rl "vendor:raylib"
 
 TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
+
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
@@ -91,6 +92,18 @@ update_tilemap :: proc() {
 
 is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
 	return pos.x >= 0 && pos.x < TILEMAP_SIZE && pos.y >= 0 && pos.y < TILEMAP_SIZE
+}
+
+is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap) -> bool {
+	#partial switch d in tm[pos.x][pos.y] {
+	case DirtData:
+		return true
+	case StoneData:
+		return true
+	case GrassData:
+		return true
+	}
+	return false
 }
 
 get_neighboring_tile_data :: proc(pos: Vec2i) -> [4]TileData {

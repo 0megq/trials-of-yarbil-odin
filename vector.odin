@@ -2,6 +2,12 @@ package game
 
 import "core:math"
 
+VI_UP: Vec2i : {0, -1}
+VI_DOWN: Vec2i : {0, 1}
+VI_LEFT: Vec2i : {-1, 0}
+VI_RIGHT: Vec2i : {1, 0}
+DIRECTIONS_I: [4]Vec2i : {VI_UP, VI_DOWN, VI_LEFT, VI_RIGHT}
+
 Vec2i :: [2]i32
 Vec2 :: [2]f32
 
@@ -19,6 +25,26 @@ distance :: proc(v1: Vec2, v2: Vec2) -> f32 {
 
 distance_squared :: proc(v1: Vec2, v2: Vec2) -> f32 {
 	return length_squared(v1 - v2)
+}
+
+length_i :: proc(v: Vec2i) -> f32 {
+	return math.sqrt(f32(v.x * v.x + v.y * v.y))
+}
+
+length_squared_i :: proc(v: Vec2i) -> i32 {
+	return v.x * v.x + v.y * v.y
+}
+
+manhattan_i :: proc(v1: Vec2i, v2: Vec2i) -> i32 {
+	return math.abs(v1.x - v2.x + v1.y - v2.y)
+}
+
+distance_i :: proc(v1: Vec2i, v2: Vec2i) -> f32 {
+	return length_i(v1 - v2)
+}
+
+distance_squared_i :: proc(v1: Vec2i, v2: Vec2i) -> i32 {
+	return length_squared_i(v1 - v2)
 }
 
 abs :: proc(v: Vec2) -> Vec2 {

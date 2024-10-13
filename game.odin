@@ -255,9 +255,9 @@ main :: proc() {
 		if rl.IsKeyDown(.LEFT_CONTROL) {
 			if rl.IsKeyPressed(.Q) {
 				if rl.IsKeyDown(.LEFT_SHIFT) {
-					editor_state.mode = EditorMode((int(editor_state.mode) - 1) % len(EditorMode))
+					editor_state.mode = EditorMode((int(editor_state.mode) - 1) %% len(EditorMode))
 				} else {
-					editor_state.mode = EditorMode((int(editor_state.mode) + 1) % len(EditorMode))
+					editor_state.mode = EditorMode((int(editor_state.mode) + 1) %% len(EditorMode))
 				}
 				if editor_state.mode == .None {
 					save_level()
