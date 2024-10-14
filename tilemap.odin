@@ -287,6 +287,10 @@ tilemap_to_world :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE
 }
 
+tilemap_to_world_centered :: proc(pos: Vec2i) -> Vec2 {
+	return {f32(pos.x), f32(pos.y)} * TILE_SIZE + TILE_SIZE / 2
+}
+
 load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
 	img := rl.LoadImage(filename)
 	defer rl.UnloadImage(img)

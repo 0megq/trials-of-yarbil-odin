@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import "core:math"
 
 // To be used in a NavMesh
 NavCell :: struct {
@@ -23,16 +24,59 @@ NavMesh :: struct {
 
 // }
 
-// // needed: tile pos, up down left or right.
-// // useful: world pos, world pos connecting tiles and edges, which connections exist
-// NavGraphNode :: struct {
-// 	pos: Vec2,
-// 	connections: [4]
-// }
+// needed: tile pos, up down left or right.
+// useful: world pos, world pos connecting tiles and edges, which connections exist
+NavGraphNode :: struct {
+	pos:         Vec2,
+	connections: [4]int,
+}
 
-// NavGraph :: struct {
-// 	nodes: [dynamic]NavNode,
-// }
+NavGraph :: struct {
+	nodes: [dynamic]NavGraphNode,
+}
+
+nav_graph: NavGraph
+
+calculate_tile_graph :: proc() {
+	if nav_graph.nodes == nil {
+		nav_graph.nodes = make([dynamic]NavGraphNode)
+	} else {
+		clear(&nav_graph.nodes)
+	}
+	for x in 0 ..< TILEMAP_SIZE {
+		for y in 0 ..< TILEMAP_SIZE {
+			if is_tile_walkable({i32(x), i32(y)}, level_tilemap) {
+				append(
+					&nav_graph.nodes,
+					NavGraphNode{tilemap_to_world_centered({i32(x), i32(y)}), {-1, -1, -1, -1}},
+				)
+			}
+		}
+	}
+
+	for &a, ai in nav_graph.nodes {
+		for bi := ai + 1; bi < len(nav_graph.nodes); bi += 1 {
+			b := &nav_graph.nodes[bi]
+			// They are right next to each other
+			if distance_squared(b.pos, a.pos) <= TILE_SIZE * TILE_SIZE + 1 {
+				// Set the connection on a
+				for c, i in a.connections {
+					if c == -1 {
+						a.connections[i] = bi
+						break
+					}
+				}
+				// Set the connection on b
+				for c, i in b.connections {
+					if c == -1 {
+						b.connections[i] = ai
+						break
+					}
+				}
+			}
+		}
+	}
+}
 
 calculate_graph :: proc(mesh: ^NavMesh) {
 	clear(&mesh.nodes)
@@ -539,174 +583,184 @@ find_cell_index :: proc(point: Vec2, nav_mesh: NavMesh) -> int {
 	return -1
 }
 
-find_path_tiles :: proc(
-	start: Vec2,
-	end: Vec2,
-	tm: Tilemap,
-	allocator := context.allocator,
-) -> []Vec2 {
+find_path_tiles :: proc(start: Vec2, end: Vec2, allocator := context.allocator) -> []Vec2 {
 	// fmt.println("######\nSearching for path\n######")
 	// Get start and end node indices
-	start_tile: Vec2i
-	end_tile: Vec2i
+	start_index: int = -1
+	end_index: int = -1
 	{
-		start_tile = world_to_tilemap(start)
-		end_tile = world_to_tilemap(end)
+		min_dist_to_start_sqrd: f32 = math.INF_F32
+		min_dist_to_end_sqrd: f32 = math.INF_F32
+		for node, i in nav_graph.nodes {
+			dist_to_start_sqrd := distance_squared(node.pos, start)
+			if dist_to_start_sqrd < min_dist_to_start_sqrd {
+				min_dist_to_start_sqrd = dist_to_start_sqrd
+				start_index = i
+			}
+
+			dist_to_end_sqrd := distance_squared(node.pos, end)
+			if dist_to_end_sqrd < min_dist_to_end_sqrd {
+				min_dist_to_end_sqrd = dist_to_end_sqrd
+				end_index = i
+			}
+		}
+
+		for node, i in nav_graph.nodes {
+			if node.pos == start {
+				start_index = i
+				continue
+			}
+			if node.pos == end {
+				end_index = i
+				continue
+			}
+		}
+
+		if start_index == -1 || end_index == -1 {
+			return nil
+		}
 
 		// If start and end are inside same cell then exit early and return a straight line path between start and end
-		if start_tile == end_tile {
+		if start_index == end_index {
 			path := make([]Vec2, 2, allocator)
 			path[0] = start
 			path[1] = end
 			return path
 		}
-
-		// If start or end tile are out of bounds then return nil
-		if !is_valid_tile_pos(start_tile) || !is_valid_tile_pos(end_tile) {
-			return nil
-		}
 	}
 
-	fmt.println("got to astar")
 	// Get node path via A*
-	tile_path := astar_tiles(start_tile, end_tile, tm)
-	defer delete(tile_path)
-	if tile_path == nil {
+	node_path := astar_tiles(start_index, end_index, nav_graph)
+	defer delete(node_path)
+	if node_path == nil {
 		return nil
 	}
-	fmt.println("past to astar")
 
 	// Getting path without using funnel algo
-	path := make([]Vec2, len(tile_path) + 2, allocator)
+	path := make([]Vec2, len(node_path) + 2, allocator)
 	path[0] = start
-	for tile, i in tile_path {
-		// Add tile center (that's why we add TILE_SIZE / 2)
-		path[i + 1] = tilemap_to_world(tile) + TILE_SIZE / 2
+	for node, i in node_path {
+		path[i + 1] = nav_graph.nodes[node].pos
 	}
-	path[len(tile_path) + 1] = end
+	path[len(node_path) + 1] = end
 	return path
 
-	// portals := build_portals(node_path_indices, nav_mesh, start, end)
-	// // fmt.println(portals)
-	// defer delete(portals)
+	portals := build_portals(node_path_indices, nav_mesh, start, end)
+	// fmt.println(portals)
+	defer delete(portals)
 
-	// return string_pull(portals)
+	return string_pull(portals)
 }
 
-astar_tiles :: proc(start_tile: Vec2i, end_tile: Vec2i, tm: Tilemap) -> []Vec2i {
+
+// Returns slice of indices to nodes in the navmesh. Heuristic is Euclidean distance. Allocates using context.temp_allocator
+astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int {
 	// Initialize open and closed lists
-	closed_tiles := make(map[Vec2i]Vec2i, len(nav_mesh.nodes), context.temp_allocator) // Only stores came from nodes
-	open_tiles := make(map[Vec2i]struct {
-			came_from: Vec2i,
+	closed_nodes := make(map[int]int, len(graph.nodes), context.temp_allocator) // Only stores came from nodes
+	open_nodes := make(map[int]struct {
+			came_from: int,
 			f:         f32,
 			g:         f32,
-		}, len(nav_mesh.nodes), context.temp_allocator)
-	defer delete(closed_tiles)
-	defer delete(open_tiles)
+		}, len(graph.nodes), context.temp_allocator)
+	defer delete(closed_nodes)
+	defer delete(open_nodes)
+
+	end_node := graph.nodes[end_index]
 
 	// Start f is just equal to the heuristic
-	start_f := distance_i(start_tile, end_tile)
-	open_tiles[start_tile] = {start_tile, start_f, 0}
+	start_f := distance(graph.nodes[start_index].pos, graph.nodes[end_index].pos)
+	open_nodes[start_index] = {start_index, start_f, 0}
 
-	fmt.println("starting loop")
-	for len(open_tiles) > 0 {
-		fmt.printfln("******\n Open Tiles: %#v \nClosed Tiles: %#v", open_tiles, closed_tiles)
-		// Get current tile
-		current_tile: Vec2i = {-1, -1} // Note: {-1, -1} is not a valid tile pos so it's okay to use it here as a nil value
+	for len(open_nodes) > 0 {
+		// fmt.printfln("******\n Open Nodes: %#v \nClosed Nodes: %#v", open_nodes, closed_nodes)
+		// Get current index
+		current_index := -1
 		current_value: struct {
-			came_from: Vec2i,
+			came_from: int,
 			f:         f32,
 			g:         f32,
 		}
-		for tile, value in open_tiles {
-			// set current_tile if nil
-			if current_tile == {-1, -1} {
-				current_tile = tile
+		for index, value in open_nodes {
+			if current_index == -1 {
+				current_index = index
 				current_value = value
 				continue
 			}
 
-			// set current_tile if cost is less than current cost
 			if value.f < current_value.f {
-				current_tile = tile
+				current_index = index
 				current_value = value
 			}
 		}
-		fmt.printfln("Current Tile: %v, Values: %v", current_tile, current_value)
-		// Delete current tile from open tiles since we are about to fully explore it. Also add it to closed tiles.
-		delete_key(&open_tiles, current_tile)
-		closed_tiles[current_tile] = current_value.came_from
+		// fmt.printfln("Current Index: %v, Values: %v", current_index, current_value)
+		delete_key(&open_nodes, current_index)
+		closed_nodes[current_index] = current_value.came_from
 
-		// If current tile is equal to end tile then we are done
-		// Note: current tile can only equal end tile when end tile has the lowest cost out of all other open tiles
-		if current_tile == end_tile {
+		if current_index == end_index {
 			break
 		}
 
-		for direction in DIRECTIONS_I {
-			connected_tile := current_tile + direction
-			if !is_valid_tile_pos(connected_tile) ||
-			   !is_tile_walkable(connected_tile, tm) ||
-			   connected_tile in closed_tiles {
+		current_node := graph.nodes[current_index]
+
+		for connection in current_node.connections {
+			if connection == -1 {
+				break
+			}
+			// If in closed nodes
+			if connection in closed_nodes {
 				continue
 			}
 
-			// Calculate G values. Take current g and add 1. Distance between two tiles is always 1.
-			g := current_value.g + 1
+			connected_node := graph.nodes[connection]
+			// Calculate G values. Distance to next tile is always the size of a tile
+			g := current_value.g + TILE_SIZE
 
-			// If in open tiles, compare g
-			if value, ok := &open_tiles[connected_tile]; ok {
-				// If new g is less, then update the old g and f value, otherwise don't
+			// If in open nodes, compare g
+			if value, ok := &open_nodes[connection]; ok {
+				// If new g is less then update the old g and f value, otherwise don't
 				if g < value.g {
-					fmt.printfln("Replacing %v g value", connected_tile)
-					fmt.println(
-						"Replacing g value for %v from %v to %v",
-						connected_tile,
-						value.g,
-						g,
-					)
+					// fmt.printfln("Replacing %v g value", connection)
+					// fmt.println("Replacing g value for %v from %v to %v", connection, value.g, g)
 					value.g = g
-					// Take away difference in new g and old g
 					value.f -= g - value.g
-					value.came_from = current_tile
+					value.came_from = current_index
 					continue
 				}
 			} else {
-				fmt.printfln("Adding %v to open nodes", connected_tile)
+				// fmt.printfln("Adding %v to open nodes", connection)
 				// Else calculate f = g + h (distance to end), and add node to open nodes
-				open_tiles[connected_tile] = {
-					came_from = current_tile,
-					f         = g + distance_i(connected_tile, end_tile),
+				open_nodes[connection] = {
+					came_from = current_index,
+					f         = g + distance(connected_node.pos, end_node.pos),
 					g         = g,
 				}
 			}
 
-			fmt.println("------")
+			// fmt.println("------")
 		}
 	}
-	fmt.println("got out of loop")
-
-	// If end tile is in the closed tiles then tr
-	if _, ok := closed_tiles[end_tile]; ok {
-		// Trace path backwards, until start node is found
-		path := make([dynamic]Vec2i, context.temp_allocator)
+	if _, ok := closed_nodes[end_index]; ok {
+		// Trace path backwards
+		path := make([dynamic]int, context.temp_allocator)
 		defer delete(path)
-		current_tile := end_tile
-		for current_tile != start_tile {
-			append(&path, current_tile)
-			current_tile = closed_tiles[current_tile] // Set current tile to the tile it came from
+		current_index := end_index
+		for current_index != start_index {
+			append(&path, current_index)
+			current_index = closed_nodes[current_index]
 		}
-		// add the start tile to the path
-		append(&path, start_tile)
+		append(&path, start_index)
 
-		// Create slice, result and copy the path values in reverse order
+		// Create slice result and copy the path values in reverse order
 		path_length := len(path)
-		result := make([]Vec2i, path_length, context.temp_allocator)
+		result := make([]int, path_length, context.temp_allocator)
 		for v, i in path {
 			result[path_length - i - 1] = v
 		}
 		return result
+	} else {
+		// Unable to find path
+		return nil
 	}
-	// Unable to find path
-	return nil
 }
+
+// build_tile_portals :: proc()

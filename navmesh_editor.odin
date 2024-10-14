@@ -30,8 +30,12 @@ update_navmesh_editor :: proc(e: ^EditorState) {
 			if e.test_path != nil {
 				delete(e.test_path)
 			}
-			e.test_path = find_path(e.test_path_start, e.test_path_end, level.nav_mesh)
-		} else { 	// Toggle path display
+			fmt.println("calculating...")
+			e.test_path = find_path_tiles(e.test_path_start, e.test_path_end)
+			fmt.println(e.test_path)
+		} else if rl.IsKeyDown(.LEFT_CONTROL) { 	// Toggle path display
+			calculate_tile_graph()
+		} else {
 			e.display_test_path = !e.display_test_path
 		}
 	}
@@ -244,17 +248,17 @@ draw_navmesh_editor_world :: proc(e: EditorState) {
 
 	if e.display_nav_graph {
 		// Draw connections
-		for node in level.nav_mesh.nodes {
+		for node in nav_graph.nodes {
 			for connection in node.connections {
 				if connection < 0 {
 					break
 				}
-				rl.DrawLineV(node.pos, level.nav_mesh.nodes[connection].pos, rl.GRAY)
+				rl.DrawLineV(node.pos, nav_graph.nodes[connection].pos, rl.GRAY)
 			}
 		}
 
 		// Draw nodes
-		for node in level.nav_mesh.nodes {
+		for node in nav_graph.nodes {
 			rl.DrawCircleV(node.pos, 1, rl.BLACK)
 		}
 	}
