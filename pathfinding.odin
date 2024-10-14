@@ -763,4 +763,29 @@ astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int 
 	}
 }
 
-// build_tile_portals :: proc()
+build_tile_portals :: proc(path: []int, start: Vec2, end: Vec2) -> []Vec2 {
+	portals := make([dynamic]Vec2, context.temp_allocator)
+	append(&portals, start)
+	append(&portals, start)
+
+	prev_node_pos := start
+	for node_index in path {
+		node := nav_mesh.nodes[node_index]
+		v0 := node.verts[0]
+		v1 := node.verts[1]
+
+		// If vert 0 is to the left of vert 1 (AKA cross() > 0) when looking from the previous node, then vert 0 is the left side of the portal
+		if cross(v0 - prev_node_pos, v1 - prev_node_pos) > 0 {
+			append(&portals, v1)
+			append(&portals, v0)
+		} else {
+			append(&portals, v0)
+			append(&portals, v1)
+		}
+		prev_node_pos = node.pos
+	}
+
+	append(&portals, end)
+	append(&portals, end)
+	return portals[:]
+}
