@@ -1,6 +1,6 @@
 package game
 
-import "core:fmt"
+// import "core:fmt"
 import "core:math"
 
 // To be used in a NavMesh
@@ -637,19 +637,20 @@ find_path_tiles :: proc(start: Vec2, end: Vec2, allocator := context.allocator) 
 	}
 
 	// Getting path without using funnel algo
-	path := make([]Vec2, len(node_path) + 2, allocator)
-	path[0] = start
-	for node, i in node_path {
-		path[i + 1] = nav_graph.nodes[node].pos
-	}
-	path[len(node_path) + 1] = end
-	return path
+	// path := make([]Vec2, len(node_path) + 2, allocator)
+	// path[0] = start
+	// for node, i in node_path {
+	// 	path[i + 1] = nav_graph.nodes[node].pos
+	// }
+	// path[len(node_path) + 1] = end
+	// return path
 
-	portals := build_portals(node_path_indices, nav_mesh, start, end)
-	// fmt.println(portals)
-	defer delete(portals)
+	return path_smooth_tiles(node_path, start, end)
 
-	return string_pull(portals)
+	// portals := build_tile_portals(node_path, start, end)
+	// defer delete(portals)
+
+	// return string_pull(portals)
 }
 
 
@@ -763,16 +764,68 @@ astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int 
 	}
 }
 
+path_smooth_tiles :: proc(path: []int, start: Vec2, end: Vec2) -> []Vec2 {
+	result := make([dynamic]Vec2, context.allocator)
+	append(&result, start)
+	// Create a line of sight check
+	last_pos_added := start
+	prev_pos := start
+	for node_index in path {
+		node_pos := nav_graph.nodes[node_index].pos
+		if !is_tile_line_walkable(last_pos_added, node_pos, level_tilemap) {
+			append(&result, prev_pos)
+			last_pos_added = prev_pos
+		}
+		prev_pos = node_pos
+	}
+	// Check the position before the end
+	if !is_tile_line_walkable(last_pos_added, end, level_tilemap) {
+		append(&result, prev_pos)
+		last_pos_added = prev_pos
+	}
+	append(&result, end)
+
+	return result[:]
+}
+
+is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
+	// Check if points are strictly horizontal or strictly vertical
+	start_tile := world_to_tilemap(start)
+	end_tile := world_to_tilemap(end)
+	if start_tile == end_tile {
+		return is_tile_walkable(start_tile, tm)
+	} else if start_tile.y - end_tile.y == 0 { 	// horizontal. No change in y
+		for tile_x in start_tile.x ..= end_tile.x {
+			if !is_tile_walkable({tile_x, start_tile.y}, tm) {
+				return false
+			}
+		}
+	} else if start_tile.x - end_tile.x == 0 { 	// vertical. No change in x
+		for tile_y in start_tile.y ..= end_tile.y {
+			if !is_tile_walkable({start_tile.x, tile_y}, tm) {
+				return false
+			}
+		}
+	} else {
+		// Implement the diagonal check
+	}
+
+	return true
+}
+
 build_tile_portals :: proc(path: []int, start: Vec2, end: Vec2) -> []Vec2 {
-	portals := make([dynamic]Vec2, context.temp_allocator)
+	portals := make([dynamic]Vec2, context.allocator)
 	append(&portals, start)
 	append(&portals, start)
 
 	prev_node_pos := start
 	for node_index in path {
-		node := nav_mesh.nodes[node_index]
-		v0 := node.verts[0]
-		v1 := node.verts[1]
+		node := nav_graph.nodes[node_index]
+		prev_to_midpoint := (node.pos - prev_node_pos) / 2
+		midpoint := prev_node_pos + prev_to_midpoint
+
+		v0 := midpoint + perpindicular(prev_to_midpoint)
+		v1 := midpoint - perpindicular(prev_to_midpoint)
 
 		// If vert 0 is to the left of vert 1 (AKA cross() > 0) when looking from the previous node, then vert 0 is the left side of the portal
 		if cross(v0 - prev_node_pos, v1 - prev_node_pos) > 0 {
