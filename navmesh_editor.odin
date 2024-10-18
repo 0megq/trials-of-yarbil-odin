@@ -290,4 +290,16 @@ draw_navmesh_editor_ui :: proc(e: EditorState) {
 			)
 		}
 	}
+	if e.display_test_path {
+		for point in e.test_path {
+			rl.DrawTextEx(
+				rl.GetFontDefault(),
+				fmt.ctprint(point),
+				world_to_screen(point),
+				16,
+				2,
+				rl.WHITE,
+			)
+		}
+	}
 }
