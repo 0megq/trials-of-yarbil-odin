@@ -69,4 +69,5 @@ test :: proc(t: ^testing.T) {
 	}
 
 	rl.CloseWindow()
+
 }

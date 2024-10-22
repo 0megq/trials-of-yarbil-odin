@@ -20,7 +20,7 @@
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Test",
-			"command": "test.bat",
+			"command": ".\test.bat",
 		}
 	]
 }

@@ -5,7 +5,6 @@ import "core:math"
 import rl "vendor:raylib"
 
 SELECTED_OUTLINE_COLOR :: rl.GREEN
-GEOMETRY_SNAP_SIZE :: 8
 
 /*
 polygon point interface
@@ -119,6 +118,53 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = EmptyData{}
 	}
 
+	// place wall tiles based on wall geometry (CTRL + P)
+	// if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.P) {
+	// 	for wall in level.walls {
+	// 		tiles := get_tile_shape_collision(wall.shape, wall.pos, -0.1)
+	// 		for tile in tiles {
+	// 			set_tile(tile, WallData{}, &level_tilemap)
+	// 		}
+	// 	}
+	// }
+
+	// Astar test operations
+	// Set start/end (Right click, + Alt for end)
+	if e.display_test_path && rl.IsMouseButtonPressed(.RIGHT) {
+		if rl.IsKeyDown(.LEFT_SHIFT) {
+			e.test_path_end = mouse_world_pos
+		} else {
+			e.test_path_start = mouse_world_pos
+		}
+	}
+
+	if rl.IsKeyPressed(.A) {
+		if rl.IsKeyDown(.LEFT_SHIFT) { 	// Calculate path
+			if e.test_path != nil {
+				delete(e.test_path)
+			}
+			fmt.println("calculating...")
+			e.test_path = find_path_tiles(e.test_path_start, e.test_path_end)
+			fmt.println(e.test_path)
+		} else if rl.IsKeyDown(.LEFT_CONTROL) {
+			// Place wall tiles based on wall geometry
+			for wall in level.walls {
+				tiles := get_tile_shape_collision(wall.shape, wall.pos, -0.1)
+				for tile in tiles {
+					set_tile(tile, WallData{}, &level_tilemap)
+				}
+			}
+			// calculate graph
+			calculate_tile_graph()
+		} else { 	// Toggle path display
+			e.display_test_path = !e.display_test_path
+		}
+	}
+
+	// Toggle Graph Display (G)
+	if rl.IsKeyPressed(.G) {
+		e.display_nav_graph = !e.display_nav_graph
+	}
 
 	if e.selected_wall != nil && rl.IsKeyPressed(.I) {
 		// Copy the regex expression for the first two ints in the id
@@ -183,6 +229,35 @@ draw_geometry_editor_world :: proc(e: EditorState) {
 		draw_shape_lines(e.selected_wall.shape, e.selected_wall.pos, SELECTED_OUTLINE_COLOR)
 		rl.DrawCircleV(e.selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)
 	}
+
+	if e.display_nav_graph {
+		// Draw connections
+		for node in nav_graph.nodes {
+			for connection in node.connections {
+				if connection < 0 {
+					break
+				}
+				rl.DrawLineV(node.pos, nav_graph.nodes[connection].pos, rl.GRAY)
+			}
+		}
+
+		// Draw nodes
+		for node in nav_graph.nodes {
+			rl.DrawCircleV(node.pos, 1, rl.BLACK)
+		}
+	}
+
+	if e.display_test_path {
+		rl.DrawCircleV(e.test_path_start, 2, rl.BLUE)
+		rl.DrawCircleV(e.test_path_end, 2, rl.GREEN)
+
+		for i in 0 ..< len(e.test_path) - 1 {
+			rl.DrawLineV(e.test_path[i], e.test_path[i + 1], rl.ORANGE)
+		}
+		for point in e.test_path {
+			rl.DrawCircleV(point, 1, rl.RED)
+		}
+	}
 }
 
 draw_geometry_editor_ui :: proc(e: EditorState) {
@@ -191,6 +266,19 @@ draw_geometry_editor_ui :: proc(e: EditorState) {
 		draw_shape_fields(e)
 	}
 	draw_button(e.new_shape_but)
+
+	if e.display_test_path {
+		for point in e.test_path {
+			rl.DrawTextEx(
+				rl.GetFontDefault(),
+				fmt.ctprint(point),
+				world_to_screen(point),
+				16,
+				2,
+				rl.WHITE,
+			)
+		}
+	}
 }
 
 draw_shape_fields :: proc(e: EditorState) {

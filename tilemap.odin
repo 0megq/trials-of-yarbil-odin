@@ -47,7 +47,7 @@ WallData :: struct {}
 
 update_tilemap :: proc() {
 	// Fire spread for grass tiles
-	for tile_pos in get_tiles_on_fire() {
+	for tile_pos in get_tiles_on_fire(tilemap) {
 		// Update tiles
 		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
 		if !tile_data.burnt {
@@ -67,6 +67,7 @@ update_tilemap :: proc() {
 								set_tile(
 									t,
 									GrassData{true, 1, rand.choice([]bool{false, true}), false},
+									&tilemap,
 								)
 							}
 
@@ -106,49 +107,40 @@ is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap) -> bool {
 	return false
 }
 
-get_neighboring_tile_data :: proc(pos: Vec2i) -> [4]TileData {
-	return {
-		tilemap[pos.x][pos.y - 1],
-		tilemap[pos.x - 1][pos.y],
-		tilemap[pos.x][pos.y + 1],
-		tilemap[pos.x + 1][pos.y],
-	}
+get_neighboring_tile_data :: proc(pos: Vec2i, tm: Tilemap) -> [4]TileData {
+	return {tm[pos.x][pos.y - 1], tm[pos.x - 1][pos.y], tm[pos.x][pos.y + 1], tm[pos.x + 1][pos.y]}
 }
 
 get_neighboring_tiles :: proc(pos: Vec2i) -> [4]Vec2i {
 	return {{pos.x, pos.y - 1}, {pos.x - 1, pos.y}, {pos.x, pos.y + 1}, {pos.x + 1, pos.y}}
 }
 
-set_tile :: proc(pos: Vec2i, data: TileData) {
+set_tile :: proc(pos: Vec2i, data: TileData, tm: ^Tilemap) {
 	if !is_valid_tile_pos(pos) {
 		rl.TraceLog(.ERROR, "Invalid tile position")
 		return
 	}
-	tilemap[pos.x][pos.y] = data
+	tm[pos.x][pos.y] = data
 }
 
-fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData) {
+fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData, tm: ^Tilemap) {
 	if from.x > to.x || from.y > to.y {
 		rl.TraceLog(.ERROR, "Invalid range for fill_tile")
 	}
 
 	for x in from.x ..= to.x {
 		for y in from.y ..= to.y {
-			set_tile({x, y}, data)
+			set_tile({x, y}, data, tm)
 		}
 	}
 }
 
-get_tiles_with_data :: proc(
-	tilemap: Tilemap,
-	data: TileData,
-	exact_match_only := false,
-) -> []Vec2i {
+get_tiles_with_data :: proc(tm: Tilemap, data: TileData, exact_match_only := false) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	data_type := reflect.union_variant_typeid(data)
 
 	if exact_match_only {
-		for col, x in tilemap {
+		for col, x in tm {
 			for tile, y in col {
 				if reflect.union_variant_typeid(tile) == data_type && tile == data {
 					append(&result, Vec2i{i32(x), i32(y)})
@@ -158,7 +150,7 @@ get_tiles_with_data :: proc(
 		return result[:]
 	}
 
-	for col, x in tilemap {
+	for col, x in tm {
 		for tile, y in col {
 			if reflect.union_variant_typeid(tile) == data_type {
 				append(&result, Vec2i{i32(x), i32(y)})
@@ -168,9 +160,9 @@ get_tiles_with_data :: proc(
 	return result[:]
 }
 
-get_tiles_on_fire :: proc() -> []Vec2i {
+get_tiles_on_fire :: proc(tm: Tilemap) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
-	for col, x in tilemap {
+	for col, x in tm {
 		for tile, y in col {
 			if reflect.union_variant_typeid(tile) == GrassData && tile.(GrassData).on_fire {
 				append(&result, Vec2i{i32(x), i32(y)})
@@ -180,7 +172,7 @@ get_tiles_on_fire :: proc() -> []Vec2i {
 	return result[:]
 }
 
-draw_tilemap :: proc(tilemap: Tilemap, show_grid := false) {
+draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 	start := world_to_tilemap(screen_to_world({})) - 1
 	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
@@ -197,7 +189,7 @@ draw_tilemap :: proc(tilemap: Tilemap, show_grid := false) {
 				tint       = rl.WHITE,
 			}
 
-			switch data in tilemap[x][y] {
+			switch data in tm[x][y] {
 			case GrassData:
 				sprite.tex_region.x = 1
 				sprite.tex_region.y = 1
@@ -249,13 +241,13 @@ draw_tilemap :: proc(tilemap: Tilemap, show_grid := false) {
 }
 
 // Allocates using temp allocator. 
-get_tile_shape_collision :: proc(shape: Shape, pos: Vec2) -> []Vec2i {
+get_tile_shape_collision :: proc(shape: Shape, pos: Vec2, extrusion: f32 = 0) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 
 	switch s in shape {
 	case Circle:
 		center_tile := world_to_tilemap(pos + s.pos)
-		tile_radius := i32(math.ceil(s.radius / TILE_SIZE))
+		tile_radius := i32(math.ceil((s.radius + extrusion) / TILE_SIZE))
 		start := Vec2i{center_tile.x - tile_radius, center_tile.y - tile_radius}
 		end := Vec2i{center_tile.x + tile_radius, center_tile.y + tile_radius}
 
@@ -267,7 +259,7 @@ get_tile_shape_collision :: proc(shape: Shape, pos: Vec2) -> []Vec2i {
 		for x in start.x ..= end.x {
 			for y in start.y ..= end.y {
 				rect := Rectangle{f32(x * TILE_SIZE), f32(y * TILE_SIZE), TILE_SIZE, TILE_SIZE}
-				if rl.CheckCollisionCircleRec(s.pos + pos, s.radius, rect) {
+				if rl.CheckCollisionCircleRec(s.pos + pos, s.radius + extrusion, rect) {
 					append(&result, Vec2i{x, y})
 				}
 			}
@@ -275,6 +267,15 @@ get_tile_shape_collision :: proc(shape: Shape, pos: Vec2) -> []Vec2i {
 	case Polygon:
 
 	case Rectangle:
+		top_left_tile := world_to_tilemap(pos + {s.x - extrusion, s.y - extrusion})
+		bot_right_tile := world_to_tilemap(
+			pos + {s.x, s.y} + {s.width + extrusion, s.height + extrusion},
+		)
+		for x in top_left_tile.x ..= bot_right_tile.x {
+			for y in top_left_tile.y ..= bot_right_tile.y {
+				append(&result, Vec2i{x, y})
+			}
+		}
 	}
 	return result[:]
 }

@@ -39,7 +39,7 @@ EditorMode :: enum {
 	None,
 	Level,
 	Entity,
-	NavMesh,
+	// NavMesh,
 }
 
 Timer :: struct {
@@ -176,6 +176,7 @@ main :: proc() {
 	// load_entities()
 	load_game_data()
 	load_level()
+	calculate_tile_graph()
 
 	init_editor_state(&editor_state)
 
@@ -281,8 +282,8 @@ main :: proc() {
 		switch editor_state.mode {
 		case .Level:
 			update_geometry_editor(&editor_state)
-		case .NavMesh:
-			update_navmesh_editor(&editor_state)
+		// case .NavMesh:
+		// 	update_navmesh_editor(&editor_state)
 		case .Entity:
 			update_entity_editor(&editor_state)
 		case .None:
@@ -950,8 +951,8 @@ main :: proc() {
 			switch editor_state.mode {
 			case .Level:
 				draw_geometry_editor_world(editor_state)
-			case .NavMesh:
-				draw_navmesh_editor_world(editor_state)
+			// case .NavMesh:
+			// 	draw_navmesh_editor_world(editor_state)
 			case .Entity:
 				draw_entity_editor_world(editor_state)
 			case .None:
@@ -1180,9 +1181,9 @@ main :: proc() {
 			case .Level:
 				draw_geometry_editor_ui(editor_state)
 				rl.DrawText("Level Editor", 1300, 32, 16, rl.BLACK)
-			case .NavMesh:
-				draw_navmesh_editor_ui(editor_state)
-				rl.DrawText("NavMesh Editor", 1300, 32, 16, rl.BLACK)
+			// case .NavMesh:
+			// 	draw_navmesh_editor_ui(editor_state)
+			// 	rl.DrawText("NavMesh Editor", 1300, 32, 16, rl.BLACK)
 			case .Entity:
 				draw_entity_editor_ui(editor_state)
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
