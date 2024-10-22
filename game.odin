@@ -429,7 +429,7 @@ main :: proc() {
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
 					}
-					enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
+					enemy.current_path = find_path_tiles(enemy.pos, player.pos)
 					enemy.current_path_point = 1
 					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 				}
@@ -442,12 +442,12 @@ main :: proc() {
 						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 						// Find new path
 						delete(enemy.current_path)
-						enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
+						enemy.current_path = find_path_tiles(enemy.pos, player.pos)
 						enemy.current_path_point = 1
 					}
 					if enemy.current_path_point >= len(enemy.current_path) {
 						delete(enemy.current_path)
-						enemy.current_path = find_path(enemy.pos, player.pos, nav_mesh)
+						enemy.current_path = find_path_tiles(enemy.pos, player.pos)
 						enemy.current_path_point = 1
 					}
 				}
@@ -1190,6 +1190,8 @@ main :: proc() {
 				draw_hud()
 				rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
 			}
+
+			// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
 
 			rl.EndDrawing()
 		}
@@ -2164,7 +2166,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 						append(&attack.exclude_targets, wall.id)
 						// Durability
 						weapon.data.count -=
-							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(data.projectile_idx)
 							return -1
@@ -2196,10 +2198,13 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 						// Add to exclude
 						append(&attack.exclude_targets, enemy.id)
 						// Damage
-						damage_enemy(i, dot(normal, weapon.vel) / data.speed_damage_ratio)
+						damage_enemy(
+							i,
+							math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
+						)
 						// Durability
 						weapon.data.count -=
-							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(data.projectile_idx)
 							return -1
@@ -2233,11 +2238,11 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 						// Damage
 						damage_exploding_barrel(
 							i,
-							dot(normal, weapon.vel) / data.speed_damage_ratio,
+							math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
 						)
 						// Durability
 						weapon.data.count -=
-							int(dot(normal, weapon.vel)) / data.speed_durablity_ratio
+							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
 						if weapon.data.count <= 0 {
 							delete_projectile_weapon(data.projectile_idx)
 							return -1
@@ -2315,7 +2320,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 
 				if depth > 0 {
 					// Damage
-					damage_enemy(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
+					damage_enemy(i, math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio)
 
 					return -1
 				}
@@ -2333,7 +2338,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 
 				if depth > 0 {
 					// Damage
-					damage_exploding_barrel(i, dot(normal, arrow.vel) / data.speed_damage_ratio)
+					damage_exploding_barrel(
+						i,
+						math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio,
+					)
 
 					return -1
 				}
@@ -2349,7 +2357,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			)
 
 			if depth > 0 {
-				damage_player(dot(normal, arrow.vel) / data.speed_damage_ratio)
+				damage_player(math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio)
 
 				return -1
 			}
@@ -2377,7 +2385,7 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 
 				if depth > 0 {
 					// Damage
-					damage_enemy(i, dot(normal, rock.vel) / data.speed_damage_ratio)
+					damage_enemy(i, math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio)
 
 					return -1
 				}
@@ -2395,7 +2403,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 
 				if depth > 0 {
 					// Damage
-					damage_exploding_barrel(i, dot(normal, rock.vel) / data.speed_damage_ratio)
+					damage_exploding_barrel(
+						i,
+						math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio,
+					)
 
 					return -1
 				}
