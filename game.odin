@@ -130,7 +130,8 @@ enemies: [dynamic]Enemy
 items: [dynamic]Item
 exploding_barrels: [dynamic]ExplodingBarrel
 tilemap: Tilemap
-nav_mesh: NavMesh
+// nav_mesh: NavMesh
+nav_graph: NavGraph
 walls: [dynamic]Wall
 
 bombs: [dynamic]Bomb
@@ -176,7 +177,7 @@ main :: proc() {
 	// load_entities()
 	load_game_data()
 	load_level()
-	calculate_tile_graph()
+	calculate_tile_graph(&nav_graph, tilemap)
 
 	init_editor_state(&editor_state)
 
@@ -430,7 +431,7 @@ main :: proc() {
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
 					}
-					enemy.current_path = find_path_tiles(enemy.pos, player.pos)
+					enemy.current_path = find_path_tiles(enemy.pos, player.pos, nav_graph, tilemap)
 					enemy.current_path_point = 1
 					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 				}
@@ -443,12 +444,22 @@ main :: proc() {
 						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 						// Find new path
 						delete(enemy.current_path)
-						enemy.current_path = find_path_tiles(enemy.pos, player.pos)
+						enemy.current_path = find_path_tiles(
+							enemy.pos,
+							player.pos,
+							nav_graph,
+							tilemap,
+						)
 						enemy.current_path_point = 1
 					}
 					if enemy.current_path_point >= len(enemy.current_path) {
 						delete(enemy.current_path)
-						enemy.current_path = find_path_tiles(enemy.pos, player.pos)
+						enemy.current_path = find_path_tiles(
+							enemy.pos,
+							player.pos,
+							nav_graph,
+							tilemap,
+						)
 						enemy.current_path_point = 1
 					}
 				}

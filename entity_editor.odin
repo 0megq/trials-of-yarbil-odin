@@ -55,8 +55,6 @@ Level :: struct {
 	items:             [dynamic]Item,
 	// barrels
 	exploding_barrels: [dynamic]ExplodingBarrel,
-	// navmesh
-	nav_mesh:          NavMesh,
 	// walls
 	walls:             [dynamic]PhysicsEntity,
 }
@@ -66,41 +64,41 @@ level_tilemap: Tilemap
 
 
 EditorState :: struct {
-	mode:                      EditorMode,
-	show_tile_grid:            bool,
+	mode:                 EditorMode,
+	show_tile_grid:       bool,
 
 	// Entity editor
-	selected_entity:           LevelEntityType,
-	selected_phys_entity:      ^PhysicsEntity,
+	selected_entity:      LevelEntityType,
+	selected_phys_entity: ^PhysicsEntity,
 
 	// Level editor
-	selected_wall:             ^Wall,
-	selected_wall_index:       int,
-	wall_mouse_rel_pos:        Vec2,
+	selected_wall:        ^Wall,
+	selected_wall_index:  int,
+	wall_mouse_rel_pos:   Vec2,
 
 	// Level editor ui
-	new_shape_but:             Button,
-	change_shape_but:          Button,
-	entity_x_field:            NumberField,
-	entity_y_field:            NumberField,
-	shape_x_field:             NumberField,
-	shape_y_field:             NumberField,
-	width_field:               NumberField,
-	height_field:              NumberField,
-	radius_field:              NumberField,
+	new_shape_but:        Button,
+	change_shape_but:     Button,
+	entity_x_field:       NumberField,
+	entity_y_field:       NumberField,
+	shape_x_field:        NumberField,
+	shape_y_field:        NumberField,
+	width_field:          NumberField,
+	height_field:         NumberField,
+	radius_field:         NumberField,
 
-	// Navmesh editor
-	selected_nav_cell:         ^NavCell,
-	selected_nav_cell_index:   int,
-	selected_point:            ^Vec2,
-	selected_point_cell_index: int,
+	// // Navmesh editor
+	// selected_nav_cell:         ^NavCell,
+	// selected_nav_cell_index:   int,
+	// selected_point:            ^Vec2,
+	// selected_point_cell_index: int,
 
-	// Navmesh editor ui
-	display_nav_graph:         bool,
-	display_test_path:         bool,
-	test_path_start:           Vec2,
-	test_path_end:             Vec2,
-	test_path:                 []Vec2,
+	// Navgraph editor ui
+	display_nav_graph:    bool,
+	display_test_path:    bool,
+	test_path_start:      Vec2,
+	test_path_end:        Vec2,
+	test_path:            []Vec2,
 }
 editor_state: EditorState
 
@@ -206,10 +204,6 @@ init_editor_state :: proc(e: ^EditorState) {
 			{150, 255, 150, 200},
 		}
 	}
-
-	// Navmesh editor
-	e.selected_nav_cell_index = -1
-	e.selected_point_cell_index = -1
 }
 
 reload_level :: proc() {
@@ -228,9 +222,7 @@ load_level :: proc() {
 			level.enemies = make([dynamic]Enemy)
 			level.items = make([dynamic]Item)
 			level.exploding_barrels = make([dynamic]ExplodingBarrel)
-			// setup tilemap, navmesh, level geometry
-			level.nav_mesh.cells = make([dynamic]NavCell)
-			level.nav_mesh.nodes = make([dynamic]NavNode)
+			// setup level geometry
 			level.walls = make([dynamic]Wall)
 		}
 
@@ -241,9 +233,7 @@ load_level :: proc() {
 		level.enemies = make([dynamic]Enemy)
 		level.items = make([dynamic]Item)
 		level.exploding_barrels = make([dynamic]ExplodingBarrel)
-		// setup tilemap, navmesh, level geometry
-		level.nav_mesh.cells = make([dynamic]NavCell)
-		level.nav_mesh.nodes = make([dynamic]NavNode)
+		// setup level geometry
 		level.walls = make([dynamic]Wall)
 	}
 
@@ -283,18 +273,13 @@ load_level :: proc() {
 	items = slice.clone_to_dynamic(level.items[:])
 	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
-	// These two can stay since gameplay wont affect the navmesh or walls
-	nav_mesh.nodes = slice.clone_to_dynamic(level.nav_mesh.nodes[:])
-	nav_mesh.cells = slice.clone_to_dynamic(level.nav_mesh.cells[:])
 	walls = slice.clone_to_dynamic(level.walls[:])
 }
 
 save_level :: proc() {
 	// save player pos
 	// save enemies, items, barrels
-	// save tilemap, navmesh, level geometry
-
-	calculate_graph(&level.nav_mesh)
+	// save tilemap, level geometry
 
 	data: Level = level
 	save_tilemap(
@@ -322,10 +307,6 @@ unload_level :: proc() {
 	items = nil
 	delete(exploding_barrels)
 	exploding_barrels = nil
-	delete(nav_mesh.cells)
-	nav_mesh.cells = nil
-	delete(nav_mesh.nodes)
-	nav_mesh.nodes = nil
 	delete(walls)
 	walls = nil
 	// delete level data
@@ -335,10 +316,6 @@ unload_level :: proc() {
 	level.items = nil
 	delete(level.exploding_barrels)
 	level.exploding_barrels = nil
-	delete(level.nav_mesh.cells)
-	level.nav_mesh.cells = nil
-	delete(level.nav_mesh.nodes)
-	level.nav_mesh.nodes = nil
 	delete(level.walls)
 	level.walls = nil
 

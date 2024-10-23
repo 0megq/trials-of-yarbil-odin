@@ -144,7 +144,12 @@ update_geometry_editor :: proc(e: ^EditorState) {
 				delete(e.test_path)
 			}
 			fmt.println("calculating...")
-			e.test_path = find_path_tiles(e.test_path_start, e.test_path_end)
+			e.test_path = find_path_tiles(
+				e.test_path_start,
+				e.test_path_end,
+				nav_graph,
+				level_tilemap,
+			)
 			fmt.println(e.test_path)
 		} else if rl.IsKeyDown(.LEFT_CONTROL) {
 			// Place wall tiles based on wall geometry
@@ -155,7 +160,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 				}
 			}
 			// calculate graph
-			calculate_tile_graph()
+			calculate_tile_graph(&nav_graph, level_tilemap)
 		} else { 	// Toggle path display
 			e.display_test_path = !e.display_test_path
 		}
