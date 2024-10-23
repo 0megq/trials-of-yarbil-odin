@@ -421,6 +421,8 @@ main :: proc() {
 						   {player.pos, 8},
 					   ) {
 					enemy.player_in_range = false
+					// Calculate enemies path to last seen player location
+					enemy.current_path = find_path_tiles(enemy.pos, player.pos, nav_graph, tilemap)
 				} else if !enemy.player_in_range &&
 				   check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
@@ -1352,10 +1354,15 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0
 
-	input: Vec2
+	dir_to_target: Vec2
 	if !e.charging && !e.flinching && target != e.pos {
-		input = normalize(target - e.pos)
+		dir_to_target = normalize(target - e.pos)
 	}
+	input := dir_to_target
+	if e.vel != {0, 0} {
+		input -= normalize(e.vel) * 0.5
+	}
+
 	acceleration_v := normalize(input) * acceleration * delta
 
 	friction_dir: Vec2 = -normalize(e.vel)

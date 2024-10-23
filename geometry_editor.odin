@@ -154,7 +154,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		} else if rl.IsKeyDown(.LEFT_CONTROL) {
 			// Place wall tiles based on wall geometry
 			for wall in level.walls {
-				tiles := get_tile_shape_collision(wall.shape, wall.pos, -0.1)
+				tiles := get_tile_shape_collision(wall.shape, wall.pos, 0.1)
 				for tile in tiles {
 					set_tile(tile, WallData{}, &level_tilemap)
 				}

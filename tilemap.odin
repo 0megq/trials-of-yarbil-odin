@@ -115,6 +115,19 @@ get_neighboring_tiles :: proc(pos: Vec2i) -> [4]Vec2i {
 	return {{pos.x, pos.y - 1}, {pos.x - 1, pos.y}, {pos.x, pos.y + 1}, {pos.x + 1, pos.y}}
 }
 
+get_neighboring_tiles_diagonal :: proc(pos: Vec2i) -> [8]Vec2i {
+	return {
+		{pos.x, pos.y - 1},
+		{pos.x - 1, pos.y},
+		{pos.x, pos.y + 1},
+		{pos.x + 1, pos.y},
+		{pos.x - 1, pos.y - 1},
+		{pos.x - 1, pos.y + 1},
+		{pos.x + 1, pos.y + 1},
+		{pos.x + 1, pos.y - 1},
+	}
+}
+
 set_tile :: proc(pos: Vec2i, data: TileData, tm: ^Tilemap) {
 	if !is_valid_tile_pos(pos) {
 		rl.TraceLog(.ERROR, "Invalid tile position")
