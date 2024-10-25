@@ -471,11 +471,12 @@ main :: proc() {
 				   enemy.current_path_point < len(enemy.current_path) {
 					target = enemy.current_path[enemy.current_path_point]
 					if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) <
-					   10 { 	// Enemy is at the point
+					   16 { 	// Enemy is at the point (tolerance of 16)
 						enemy.current_path_point += 1
 					}
 				}
 
+				// if player in flee range
 				#partial switch data in enemy.data {
 				case RangedEnemyData:
 					if enemy.player_in_range &&
@@ -1013,6 +1014,16 @@ main :: proc() {
 					health_bar_filled_rec.width *= enemy.health / enemy.max_health
 					rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 
+					// Draw ID
+					// rl.DrawTextEx(
+					// 	rl.GetFontDefault(),
+					// 	fmt.ctprintf(uuid.to_string(enemy.id, context.temp_allocator)),
+					// 	enemy.pos + {0, -10},
+					// 	8,
+					// 	2,
+					// 	rl.YELLOW,
+					// )
+
 					attack_area_color := rl.Color{255, 255, 255, 120}
 					if enemy.just_attacked {
 						attack_area_color = rl.Color{255, 0, 0, 120}
@@ -1354,16 +1365,14 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0
 
-	dir_to_target: Vec2
+	desired_vel: Vec2
+	steering: Vec2
 	if !e.charging && !e.flinching && target != e.pos {
-		dir_to_target = normalize(target - e.pos)
-	}
-	input := dir_to_target
-	if e.vel != {0, 0} {
-		input -= normalize(e.vel) * 0.5
+		desired_vel = normalize(target - e.pos) * max_speed
+		steering = desired_vel - e.vel
 	}
 
-	acceleration_v := normalize(input) * acceleration * delta
+	acceleration_v := normalize(steering) * acceleration * delta
 
 	friction_dir: Vec2 = -normalize(e.vel)
 	if length(e.vel) > max_speed {
@@ -1394,11 +1403,14 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	}
 
 	// fmt.printfln(
-	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
-	// 	length(e.vel),
-	// 	e.vel,
-	// 	friction_v,
-	// 	acceleration_v,
+	// 	"id: %v, steering (mag): %v, steering: %v, desired vel: %v, path: %v, path_point: %v, target: %v",
+	// 	uuid.to_string(e.id, context.temp_allocator),
+	// 	length(steering),
+	// 	steering,
+	// 	desired_vel,
+	// 	e.current_path,
+	// 	e.current_path_point,
+	// 	target,
 	// )
 
 	e.pos += e.vel * delta
