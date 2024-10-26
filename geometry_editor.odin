@@ -101,6 +101,31 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		set_shape_fields_to_selected_shape(e)
 	}
 
+	// Selecting and moving portal
+	if rl.IsMouseButtonPressed(.LEFT) {
+		if check_collision_shape_point(
+			Circle{{}, PORTAL_RADIUS},
+			level.portal_pos,
+			mouse_world_pos,
+		) {
+			e.portal_selected = true
+			e.portal_mouse_rel_pos = level.portal_pos - mouse_world_pos
+		} else {
+			e.portal_selected = false
+		}
+	}
+	if e.portal_selected && rl.IsMouseButtonDown(.LEFT) {
+		snap_size: f32 = 1
+		if rl.IsKeyDown(.LEFT_SHIFT) {
+			snap_size = TILE_SIZE
+		}
+
+		level.portal_pos.x =
+			math.round((e.portal_mouse_rel_pos.x + mouse_world_pos.x) / snap_size) * snap_size
+		level.portal_pos.y =
+			math.round((e.portal_mouse_rel_pos.y + mouse_world_pos.y) / snap_size) * snap_size
+	}
+
 	// tilemap editor
 	mouse_tile_pos := world_to_tilemap(mouse_world_pos)
 	switch {
@@ -230,6 +255,10 @@ update_shape_fields :: proc(e: ^EditorState) {
 }
 
 draw_geometry_editor_world :: proc(e: EditorState) {
+	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
+	if e.portal_selected {
+		rl.DrawCircleLinesV(level.portal_pos, PORTAL_RADIUS, SELECTED_OUTLINE_COLOR)
+	}
 	if e.selected_wall != nil {
 		draw_shape_lines(e.selected_wall.shape, e.selected_wall.pos, SELECTED_OUTLINE_COLOR)
 		rl.DrawCircleV(e.selected_wall.pos, 1, SELECTED_OUTLINE_COLOR)

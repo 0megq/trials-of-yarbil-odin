@@ -24,6 +24,7 @@ FIRE_DASH_COOLDOWN :: 2
 FIRE_TILE_DAMAGE :: 1
 ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
+PORTAL_RADIUS :: 16
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -246,12 +247,19 @@ main :: proc() {
 			}
 		}
 
-		if len(enemies) == 0 {
-			// Stop updating fire tiles
-			// LIght up blue stone
-			// Show arrow pointing to blue stone
-			fmt.println("winner winner chicken dinner")
-
+		if is_level_finished() {
+			// Check player collision with portal
+			if check_collision_shapes(
+				Circle{{}, PORTAL_RADIUS},
+				level.portal_pos,
+				player.shape,
+				player.pos,
+			) {
+				// TODO: Instead of automatically going to next level, wait for player interaction with player
+				// TODO: Provide a check or have some sort of last level thing so we don't try to play a level that does not exist
+				game_data.cur_level_idx += 1
+				reload_level()
+			}
 		}
 
 		if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -1000,6 +1008,10 @@ main :: proc() {
 				for wall in walls {
 					draw_shape(wall.shape, wall.pos, rl.GRAY)
 				}
+
+				// Draw portal
+				portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
+				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
 				for enemy in enemies {
 					draw_shape(enemy.shape, enemy.pos, rl.GREEN)
@@ -2013,6 +2025,10 @@ is_control_released :: proc(c: Control) -> bool {
 		return rl.IsMouseButtonReleased(v)
 	}
 	return false
+}
+
+is_level_finished :: proc() -> bool {
+	return len(enemies) == 0
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
