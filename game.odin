@@ -122,6 +122,7 @@ SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
 STICK_ANIMATION_DEFAULT :: WeaponAnimation{-70, -115, 70, 205, 0, 0, -70, -115}
 
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
+ENEMY_SPRITE :: Sprite{.Enemy, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
 
 game_data: GameData
 
@@ -1014,7 +1015,8 @@ main :: proc() {
 				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
 				for enemy in enemies {
-					draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+					draw_sprite(ENEMY_SPRITE, enemy.pos)
 					health_bar_length: f32 = 20
 					health_bar_height: f32 = 5
 					health_bar_base_rec := get_centered_rect(
@@ -1071,11 +1073,11 @@ main :: proc() {
 						)
 					}
 
-					if enemy.current_path != nil {
-						for point in enemy.current_path {
-							rl.DrawCircleV(point, 2, rl.RED)
-						}
-					}
+					// if enemy.current_path != nil {
+					// 	for point in enemy.current_path {
+					// 		rl.DrawCircleV(point, 2, rl.RED)
+					// 	}
+					// }
 				}
 
 				for barrel in exploding_barrels {

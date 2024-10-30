@@ -10,6 +10,7 @@ TextureId :: enum {
 	Sword = 100, // 100-199 is weapons
 	Stick,
 	Player = 200, // 200-299 is entities
+	Enemy,
 	Arrow,
 	Tilemap = 300, // 300-399 is environment
 	WinCircle,
@@ -36,6 +37,7 @@ load_textures :: proc() {
 		.Sword     = rl.LoadTexture("assets/sword.png"),
 		.Stick     = rl.LoadTexture("assets/stick.png"),
 		.Player    = rl.LoadTexture("assets/samurai.png"),
+		.Enemy     = rl.LoadTexture("assets/enemy.png"),
 		.Arrow     = rl.LoadTexture("assets/arrow.png"),
 		.Tilemap   = rl.LoadTexture("assets/tileset.png"),
 		.WinCircle = rl.LoadTexture("assets/win_circle.png"),
