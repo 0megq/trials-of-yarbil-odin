@@ -159,11 +159,11 @@ draw_hud :: proc() {
 	// Display Fire Dash Status
 	if player.cur_ability == .FIRE {
 		if player.can_fire_dash {
-			rl.DrawText("Fire Dash Ready", 1000, 16, 20, rl.ORANGE)
+			rl.DrawText("Fire Dash Ready", 16, 16, 20, rl.ORANGE)
 		} else {
 			rl.DrawText(
 				fmt.ctprintf("On Cooldown: %f", player.fire_dash_timer),
-				1000,
+				16,
 				16,
 				20,
 				rl.WHITE,

@@ -263,28 +263,34 @@ main :: proc() {
 			}
 		}
 
-		if rl.IsKeyDown(.LEFT_CONTROL) {
-			if rl.IsKeyPressed(.Q) {
-				if rl.IsKeyDown(.LEFT_SHIFT) {
-					editor_state.mode = EditorMode((int(editor_state.mode) - 1) %% len(EditorMode))
-				} else {
-					editor_state.mode = EditorMode((int(editor_state.mode) + 1) %% len(EditorMode))
+		when ODIN_DEBUG {
+			if rl.IsKeyDown(.LEFT_CONTROL) {
+				if rl.IsKeyPressed(.Q) {
+					if rl.IsKeyDown(.LEFT_SHIFT) {
+						editor_state.mode = EditorMode(
+							(int(editor_state.mode) - 1) %% len(EditorMode),
+						)
+					} else {
+						editor_state.mode = EditorMode(
+							(int(editor_state.mode) + 1) %% len(EditorMode),
+						)
+					}
+					if editor_state.mode == .None {
+						save_level()
+						reload_game_data()
+						reload_level()
+					}
 				}
-				if editor_state.mode == .None {
-					save_level()
-					reload_game_data()
-					reload_level()
-				}
-			}
 
-			// save level to file
-			if editor_state.mode != .None {
-				if rl.IsKeyPressed(.S) {
-					save_level()
-				} else if rl.IsKeyPressed(.L) {
-					reload_level()
-				} else if rl.IsKeyPressed(.G) {
-					editor_state.show_tile_grid = !editor_state.show_tile_grid
+				// save level to file
+				if editor_state.mode != .None {
+					if rl.IsKeyPressed(.S) {
+						save_level()
+					} else if rl.IsKeyPressed(.L) {
+						reload_level()
+					} else if rl.IsKeyPressed(.G) {
+						editor_state.show_tile_grid = !editor_state.show_tile_grid
+					}
 				}
 			}
 		}
@@ -1064,13 +1070,15 @@ main :: proc() {
 					}
 
 					// Draw detection area
-					rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-					for p, i in enemy.detection_points {
-						rl.DrawLineV(
-							p,
-							enemy.detection_points[(i + 1) % len(enemy.detection_points)],
-							rl.YELLOW,
-						)
+					when ODIN_DEBUG {
+						rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+						for p, i in enemy.detection_points {
+							rl.DrawLineV(
+								p,
+								enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+								rl.YELLOW,
+							)
+						}
 					}
 
 					// if enemy.current_path != nil {
@@ -1176,13 +1184,15 @@ main :: proc() {
 					rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 					/* End of Health Bar */
 
-					if !player.holding_item &&
-					   player.weapons[player.selected_weapon_idx].id >= .Sword {
-						attack_hitbox_color := rl.Color{255, 255, 255, 120}
-						if player.attacking {
-							attack_hitbox_color = rl.Color{255, 0, 0, 120}
+					when ODIN_DEBUG {
+						if !player.holding_item &&
+						   player.weapons[player.selected_weapon_idx].id >= .Sword {
+							attack_hitbox_color := rl.Color{255, 255, 255, 120}
+							if player.attacking {
+								attack_hitbox_color = rl.Color{255, 0, 0, 120}
+							}
+							draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
 						}
-						draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
 					}
 
 					// Player pickup range
@@ -1227,7 +1237,9 @@ main :: proc() {
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
 			case .None:
 				draw_hud()
-				rl.DrawText(fmt.ctprintf("%v", player.pos), 30, 30, 20, rl.BLACK)
+				when ODIN_DEBUG { 	// Draw player coordinates
+					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
+				}
 			}
 
 			// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
