@@ -4,9 +4,9 @@
 	"args": [],
 	"tasks": [
 		{
-			"label": "Build",
+			"label": "Debug Build",
 			"type": "shell",
-			"command": "odin build . -debug -out:build/debug.exe -vet -strict-style",
+			"command": "odin build . -debug -out:build/build.exe -vet -strict-style",
 			"group": "build"
 		},
 	]

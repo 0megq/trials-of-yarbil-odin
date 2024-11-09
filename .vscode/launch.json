@@ -4,9 +4,9 @@
 		{
 			"type": "cppvsdbg",
 			"request": "launch",
-			"preLaunchTask": "Build",
+			"preLaunchTask": "Debug Build",
 			"name": "Debug",
-			"program": "${workspaceFolder}/build/debug.exe",
+			"program": "${workspaceFolder}/build/build.exe",
 			"args": [],
 			"cwd": "${workspaceFolder}"
 		},
@@ -14,6 +14,12 @@
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Run",
+			"command": "odin run . -debug -out:build/build.exe -vet -strict-style",
+		},
+		{
+			"type": "f5anything",
+			"request": "launch",
+			"name": "Release",
 			"command": "odin run . -out:build/build.exe -vet -strict-style",
 		},
 		{
