@@ -142,7 +142,7 @@ arrows: [dynamic]Arrow
 rocks: [dynamic]Rock
 fires: [dynamic]Fire
 
-queue_on_player_death: bool
+queue_player_death: bool
 
 // misc
 camera: rl.Camera2D
@@ -175,23 +175,17 @@ main :: proc() {
 	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
 
 	load_textures()
-	// load_navmesh()
-	// load_entities()
 	load_game_data()
 	load_level()
 	calculate_tile_graph(&nav_graph, tilemap)
 
 	init_editor_state(&editor_state)
 
-	// fill_tiles({0, 0}, {199, 199}, GrassData{})
-	// set_tile({2, 3}, GrassData{})
-	// set_tile({3, 4}, GrassData{true, 1, true})
 
 	surf_poly := Polygon{player.pos, {{10, -30}, {20, -20}, {30, 0}, {20, 20}, {10, 30}}, 0}
 
 	fires = make([dynamic]Fire, context.allocator)
 
-	// z_entities = make([dynamic]ZEntity, context.allocator)
 	bombs = make([dynamic]Bomb, context.allocator)
 
 
@@ -225,9 +219,9 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
-		if queue_on_player_death {
+		if queue_player_death {
 			on_player_death()
-			queue_on_player_death = false
+			queue_player_death = false
 		}
 		delta = rl.GetFrameTime()
 		// Mouse movement
@@ -256,10 +250,13 @@ main :: proc() {
 				player.shape,
 				player.pos,
 			) {
-				// TODO: Instead of automatically going to next level, wait for player interaction with player
-				// TODO: Provide a check or have some sort of last level thing so we don't try to play a level that does not exist
-				game_data.cur_level_idx += 1
-				reload_level()
+				// TODO: Instead of automatically going to next level, wait for player interaction with portal
+				if game_data.cur_level_idx == 1 {
+					// activate win screen display
+				} else {
+					game_data.cur_level_idx += 1
+					reload_level()
+				}
 			}
 		}
 
@@ -2484,7 +2481,7 @@ damage_player :: proc(amount: f32) {
 		// Player is dead reload the level
 		// TODO: make an actual player death animation
 		fmt.println("you dead D:")
-		queue_on_player_death = true
+		queue_player_death = true
 	}
 }
 
