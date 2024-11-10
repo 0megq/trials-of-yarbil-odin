@@ -1046,6 +1046,16 @@ main :: proc() {
 				// Draw portal
 				portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
 				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
+				// Draw arrow to portal if level finished and player is at least 64 units away
+				if is_level_finished() && length_squared(level.portal_pos - player.pos) > 32 * 32 {
+					angle_to_portal := angle(level.portal_pos - player.pos)
+					arrow_polygon := Polygon {
+						player.pos,
+						{{14, -3}, {24, 0}, {14, 3}},
+						angle_to_portal,
+					}
+					draw_polygon(arrow_polygon, rl.BLUE)
+				}
 
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
@@ -1275,6 +1285,19 @@ main :: proc() {
 						24,
 						1,
 						rl.WHITE,
+					)
+				}
+
+				if is_level_finished() {
+					message: cstring = "All enemies defeated. Head to the portal."
+					size := rl.MeasureTextEx(rl.GetFontDefault(), message, 24, 1)
+					rl.DrawTextEx(
+						rl.GetFontDefault(),
+						message,
+						{f32(WINDOW_SIZE.x) / 2, f32(WINDOW_SIZE.y)} - {size.x / 2, size.y},
+						24,
+						1,
+						rl.DARKGREEN,
 					)
 				}
 			}
