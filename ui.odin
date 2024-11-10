@@ -236,7 +236,7 @@ update_number_field :: proc(field: ^NumberField, mouse_pos: Vec2, offset := Vec2
 	return number_changed
 }
 
-// Returns true if the button status was changed
+// Returns true if the button status was changed. Offset is used to offset the button's rectangle when checking for collision with mouse
 update_button :: proc(button: ^Button, mouse_pos: Vec2, offset := Vec2{}) -> bool {
 	rect := button.rect
 	rect.x += offset.x

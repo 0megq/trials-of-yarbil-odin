@@ -17,7 +17,7 @@ PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
 PLAYER_BASE_HARSH_FRICTION :: 2000
-ENEMY_PATHFINDING_TIME :: 0.5
+ENEMY_PATHFINDING_TIME :: 0.2
 FIRE_DASH_RADIUS :: 32
 FIRE_DASH_FIRE_DURATION :: 0.5
 FIRE_DASH_COOLDOWN :: 2
@@ -71,6 +71,7 @@ Controls :: struct {
 	pickup:                 Control,
 	cancel:                 Control,
 	movement_ability:       Control,
+	use_portal:             Control,
 }
 
 WeaponAnimation :: struct {
@@ -98,6 +99,7 @@ controls: Controls = {
 	pickup                 = rl.KeyboardKey.E,
 	cancel                 = rl.KeyboardKey.LEFT_CONTROL,
 	movement_ability       = rl.KeyboardKey.SPACE,
+	use_portal             = rl.KeyboardKey.E,
 }
 
 SWORD_HITBOX_POINTS := []Vec2 {
@@ -143,6 +145,17 @@ rocks: [dynamic]Rock
 fires: [dynamic]Fire
 
 queue_player_death: bool
+player_at_portal: bool
+display_win_screen: bool
+play_again_button: Button = Button {
+	rect          = {700, 300, 200, 24},
+	text          = "Play Again",
+	hover_color   = rl.DARKGRAY,
+	normal_color  = rl.GRAY,
+	pressed_color = Color{80, 80, 80, 255},
+	status        = .Normal,
+}
+queue_play_again: bool
 
 // misc
 camera: rl.Camera2D
@@ -223,6 +236,14 @@ main :: proc() {
 			on_player_death()
 			queue_player_death = false
 		}
+		if queue_play_again {
+			play_again_button.status = .Normal
+			display_win_screen = false
+			reload_game_data()
+			reload_level()
+			queue_play_again = false
+		}
+
 		delta = rl.GetFrameTime()
 		// Mouse movement
 		mouse_pos = rl.GetMousePosition()
@@ -242,23 +263,6 @@ main :: proc() {
 			}
 		}
 
-		if is_level_finished() {
-			// Check player collision with portal
-			if check_collision_shapes(
-				Circle{{}, PORTAL_RADIUS},
-				level.portal_pos,
-				player.shape,
-				player.pos,
-			) {
-				// TODO: Instead of automatically going to next level, wait for player interaction with portal
-				if game_data.cur_level_idx == 1 {
-					// activate win screen display
-				} else {
-					game_data.cur_level_idx += 1
-					reload_level()
-				}
-			}
-		}
 
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -301,6 +305,32 @@ main :: proc() {
 			update_entity_editor(&editor_state)
 		case .None:
 			update_tilemap()
+
+			if is_level_finished() {
+				// Check player collision with portal
+				player_at_portal = check_collision_shapes(
+					Circle{{}, PORTAL_RADIUS},
+					level.portal_pos,
+					player.shape,
+					player.pos,
+				)
+				// Wait for player input
+				if is_control_pressed(controls.use_portal) && player_at_portal {
+					if game_data.cur_level_idx == 1 { 	// 1 is the last level
+						display_win_screen = true
+					} else {
+						game_data.cur_level_idx += 1
+						reload_level()
+					}
+				}
+			}
+
+			if display_win_screen {
+				update_button(&play_again_button, mouse_pos)
+				if play_again_button.status == .Released {
+					queue_play_again = true
+				}
+			}
 
 			if !player.can_fire_dash {
 				player.fire_dash_timer -= delta
@@ -1237,6 +1267,25 @@ main :: proc() {
 				when ODIN_DEBUG { 	// Draw player coordinates
 					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
 				}
+				if player_at_portal {
+					rl.DrawTextEx(
+						rl.GetFontDefault(),
+						"Press E",
+						world_to_screen(level.portal_pos) - {42, 30},
+						24,
+						1,
+						rl.WHITE,
+					)
+				}
+			}
+
+			if display_win_screen {
+				// draw background
+				rl.DrawRectangle(0, 0, WINDOW_SIZE.x, WINDOW_SIZE.y, {0, 0, 0, 100})
+				// draw text
+				rl.DrawText("Thanks for playing!", 700, 200, 24, rl.BLACK)
+				// draw button,
+				draw_button(play_again_button)
 			}
 
 			// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
