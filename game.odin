@@ -1719,10 +1719,12 @@ use_selected_item :: proc() {
 				time_left = 1,
 			},
 		)
+		add_to_selected_item_count(-1)
 	case .Apple:
 		// Restore 5 health
-		if player.item_hold_time >= 1 {
+		if player.item_hold_time >= 1 && player.health < player.max_health {
 			heal_player(5)
+			add_to_selected_item_count(-1)
 		}
 	case .Rock:
 		tex := loaded_textures[.Rock]
@@ -1753,9 +1755,9 @@ use_selected_item :: proc() {
 				attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
 			},
 		)
+		add_to_selected_item_count(-1)
 	}
 
-	add_to_selected_item_count(-1)
 	// subtract from the count of item in the inventory. if no item is left then
 }
 
