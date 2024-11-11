@@ -35,7 +35,7 @@ NavGraph :: struct {
 }
 
 
-calculate_tile_graph :: proc(graph: ^NavGraph, tm: Tilemap) {
+calculate_tile_graph :: proc(graph: ^NavGraph, tm: Tilemap, wall_tm: WallTilemap) {
 	if graph.nodes == nil {
 		graph.nodes = make([dynamic]NavGraphNode)
 	} else {
@@ -43,7 +43,7 @@ calculate_tile_graph :: proc(graph: ^NavGraph, tm: Tilemap) {
 	}
 	for x in 0 ..< TILEMAP_SIZE {
 		for y in 0 ..< TILEMAP_SIZE {
-			if is_tile_walkable({i32(x), i32(y)}, tm) {
+			if is_tile_walkable({i32(x), i32(y)}, tm, wall_tm) {
 				append(
 					&graph.nodes,
 					NavGraphNode{tilemap_to_world_centered({i32(x), i32(y)}), {-1, -1, -1, -1}},
@@ -76,7 +76,13 @@ calculate_tile_graph :: proc(graph: ^NavGraph, tm: Tilemap) {
 	}
 }
 
-find_path_tiles :: proc(start: Vec2, end: Vec2, graph: NavGraph, tm: Tilemap) -> []Vec2 {
+find_path_tiles :: proc(
+	start: Vec2,
+	end: Vec2,
+	graph: NavGraph,
+	tm: Tilemap,
+	wall_tm: WallTilemap,
+) -> []Vec2 {
 	// fmt.println("######\nSearching for path\n######")
 	// Get start and end node indices
 	start_index: int = -1
@@ -138,7 +144,7 @@ find_path_tiles :: proc(start: Vec2, end: Vec2, graph: NavGraph, tm: Tilemap) ->
 	// path[len(node_path) + 1] = end
 	// return path
 
-	return path_smooth_tiles(node_path, start, end, graph, tm)
+	return path_smooth_tiles(node_path, start, end, graph, tm, wall_tm)
 
 	// portals := build_tile_portals(node_path, start, end)
 	// defer delete(portals)
@@ -263,6 +269,7 @@ path_smooth_tiles :: proc(
 	end: Vec2,
 	graph: NavGraph,
 	tm: Tilemap,
+	wall_tm: WallTilemap,
 ) -> []Vec2 {
 	result := make([dynamic]Vec2, context.allocator)
 	append(&result, start)
@@ -271,14 +278,14 @@ path_smooth_tiles :: proc(
 	prev_pos := start
 	for node_index in path {
 		node_pos := graph.nodes[node_index].pos
-		if !is_tile_line_walkable(last_pos_added, node_pos, tm) {
+		if !is_tile_line_walkable(last_pos_added, node_pos, tm, wall_tm) {
 			append(&result, prev_pos)
 			last_pos_added = prev_pos
 		}
 		prev_pos = node_pos
 	}
 	// Check the position before the end
-	if !is_tile_line_walkable(last_pos_added, end, tm) {
+	if !is_tile_line_walkable(last_pos_added, end, tm, wall_tm) {
 		append(&result, prev_pos)
 		last_pos_added = prev_pos
 	}
@@ -287,7 +294,7 @@ path_smooth_tiles :: proc(
 	return result[:]
 }
 
-is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
+is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap, wall_tm: WallTilemap) -> bool {
 	start := start
 	end := end
 
@@ -299,13 +306,13 @@ is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
 	start_tile := world_to_tilemap(start)
 	end_tile := world_to_tilemap(end)
 	if start_tile == end_tile {
-		return is_tile_walkable(start_tile, tm)
+		return is_tile_walkable(start_tile, tm, wall_tm)
 	} else if start_tile.y == end_tile.y { 	// horizontal
 		if start_tile.x > end_tile.x { 	// Flip it!
 			start_tile.x, end_tile.x = end_tile.x, start_tile.x
 		}
 		for tile_x in start_tile.x ..= end_tile.x {
-			if !is_tile_walkable({tile_x, start_tile.y}, tm) {
+			if !is_tile_walkable({tile_x, start_tile.y}, tm, wall_tm) {
 				return false
 			}
 		}
@@ -314,7 +321,7 @@ is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
 			start_tile.y, end_tile.y = end_tile.y, start_tile.y
 		}
 		for tile_y in start_tile.y ..= end_tile.y {
-			if !is_tile_walkable({start_tile.x, tile_y}, tm) {
+			if !is_tile_walkable({start_tile.x, tile_y}, tm, wall_tm) {
 				return false
 			}
 		}
@@ -323,7 +330,7 @@ is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
 		current := start
 		current_tile := start_tile
 		// Check first tile
-		if !is_tile_walkable(current_tile, tm) {
+		if !is_tile_walkable(current_tile, tm, wall_tm) {
 			return false
 		}
 
@@ -349,7 +356,7 @@ is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap) -> bool {
 			}
 
 			// If tile is not walkable return false, otherwise keep going until end
-			if !is_tile_walkable(current_tile, tm) {
+			if !is_tile_walkable(current_tile, tm, wall_tm) {
 				return false
 			}
 		}

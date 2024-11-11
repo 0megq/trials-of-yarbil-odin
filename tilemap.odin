@@ -11,19 +11,18 @@ TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
 
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
+WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]bool
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
 DIRT_COLOR :: Color{100, 50, 0, 255}
 WATER_COLOR :: Color{0, 0, 255, 255}
-WALL_COLOR :: Color{0, 0, 50, 255}
 
 TileData :: union #no_nil {
 	EmptyData,
 	GrassData,
 	StoneData,
 	WaterData,
-	WallData,
 	DirtData,
 }
 
@@ -41,8 +40,6 @@ DirtData :: struct {}
 StoneData :: struct {}
 
 WaterData :: struct {}
-
-WallData :: struct {}
 
 
 update_tilemap :: proc() {
@@ -95,7 +92,10 @@ is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
 	return pos.x >= 0 && pos.x < TILEMAP_SIZE && pos.y >= 0 && pos.y < TILEMAP_SIZE
 }
 
-is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap) -> bool {
+is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap, wall_tm: WallTilemap) -> bool {
+	if wall_tm[pos.x][pos.y] {
+		return false
+	}
 	#partial switch d in tm[pos.x][pos.y] {
 	case DirtData:
 		return true
@@ -217,8 +217,6 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 				sprite.tex_region.x = 2
 			case StoneData:
 				sprite.tex_region.x = 1
-			case WallData:
-				sprite.tex_region.x = 3
 			case EmptyData:
 
 			}
@@ -318,8 +316,6 @@ load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
 					tm[x][y] = StoneData{}
 				case WATER_COLOR:
 					tm[x][y] = WaterData{}
-				case WALL_COLOR:
-					tm[x][y] = WallData{}
 				case DIRT_COLOR:
 					tm[x][y] = DirtData{}
 				case:
@@ -355,8 +351,6 @@ tilemap_to_image :: proc(tm: Tilemap) -> rl.Image {
 				color = STONE_COLOR
 			case WaterData:
 				color = WATER_COLOR
-			case WallData:
-				color = WALL_COLOR
 			case DirtData:
 				color = DIRT_COLOR
 			case EmptyData:

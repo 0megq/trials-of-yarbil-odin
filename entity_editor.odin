@@ -63,6 +63,7 @@ Level :: struct {
 // updates made while in an editor mode will be saved here
 level: Level
 level_tilemap: Tilemap
+wall_tilemap: WallTilemap
 
 
 EditorState :: struct {
@@ -286,6 +287,7 @@ save_level :: proc() {
 	// save tilemap, level geometry
 
 	data: Level = level
+	place_walls_and_calculate_graph()
 	save_tilemap(
 		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 		level_tilemap,

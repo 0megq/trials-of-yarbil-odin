@@ -137,8 +137,6 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = StoneData{}
 	case rl.IsKeyDown(.FOUR):
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WaterData{}
-	case rl.IsKeyDown(.FIVE):
-		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = WallData{}
 	case rl.IsKeyDown(.ZERO):
 		level_tilemap[mouse_tile_pos.x][mouse_tile_pos.y] = EmptyData{}
 	}
@@ -174,18 +172,11 @@ update_geometry_editor :: proc(e: ^EditorState) {
 				e.test_path_end,
 				nav_graph,
 				level_tilemap,
+				wall_tilemap,
 			)
 			fmt.println(e.test_path)
 		} else if rl.IsKeyDown(.LEFT_CONTROL) {
-			// Place wall tiles based on wall geometry
-			for wall in level.walls {
-				tiles := get_tile_shape_collision(wall.shape, wall.pos, 0.1)
-				for tile in tiles {
-					set_tile(tile, WallData{}, &level_tilemap)
-				}
-			}
-			// calculate graph
-			calculate_tile_graph(&nav_graph, level_tilemap)
+			place_walls_and_calculate_graph()
 		} else { 	// Toggle path display
 			e.display_test_path = !e.display_test_path
 		}
@@ -202,6 +193,19 @@ update_geometry_editor :: proc(e: ^EditorState) {
 			fmt.ctprintf("%v,\\n\\s*%v", e.selected_wall.id[0], e.selected_wall.id[1]),
 		)
 	}
+}
+
+place_walls_and_calculate_graph :: proc() {
+	// Place wall tiles based on wall geometry
+	wall_tilemap = false
+	for wall in level.walls {
+		tiles := get_tile_shape_collision(wall.shape, wall.pos, 0.1)
+		for tile in tiles {
+			wall_tilemap[tile.x][tile.y] = true
+		}
+	}
+	// calculate graph
+	calculate_tile_graph(&nav_graph, level_tilemap, wall_tilemap)
 }
 
 set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
