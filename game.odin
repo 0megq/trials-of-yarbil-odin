@@ -9,10 +9,8 @@ import "core:mem"
 import "core:slice"
 import rl "vendor:raylib"
 
-WINDOW_SIZE :: Vec2i{1440, 810}
 GAME_SIZE :: Vec2i{480, 270}
-WINDOW_OVER_GAME :: f32(WINDOW_SIZE.x) / f32(GAME_SIZE.x)
-GAME_OVER_WINDOW :: f32(GAME_SIZE.x) / f32(WINDOW_SIZE.x)
+ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
 PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
@@ -126,6 +124,10 @@ STICK_ANIMATION_DEFAULT :: WeaponAnimation{-70, -115, 70, 205, 0, 0, -70, -115}
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 ENEMY_SPRITE :: Sprite{.Enemy, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
 
+window_size := Vec2i{1440, 810}
+window_over_game: f32
+game_over_window: f32
+
 game_data: GameData
 
 // world data
@@ -184,8 +186,10 @@ main :: proc() {
 		mem.tracking_allocator_destroy(&track)
 	}
 
-	rl.SetConfigFlags({.VSYNC_HINT})
-	rl.InitWindow(WINDOW_SIZE.x, WINDOW_SIZE.y, "Trials of Yarbil")
+	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
+	rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
+	window_over_game = f32(window_size.x) / f32(GAME_SIZE.x)
+	game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
 
 	load_textures()
 	load_game_data()
@@ -227,7 +231,7 @@ main :: proc() {
 
 	camera = rl.Camera2D {
 		target = player.pos,
-		zoom   = WINDOW_OVER_GAME,
+		zoom   = window_over_game,
 		offset = ({f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2),
 	}
 
@@ -242,6 +246,32 @@ main :: proc() {
 			reload_game_data()
 			reload_level()
 			queue_play_again = false
+		}
+
+		// window sizing
+		if rl.IsWindowResized() {
+			previous_window_size := window_size
+			window_size = {rl.GetScreenWidth(), rl.GetScreenHeight()}
+			size_delta := window_size - previous_window_size
+			// If one is negative pick the lower one
+			if size_delta.x < 0 || size_delta.y < 0 {
+				if size_delta.x < size_delta.y {
+					window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
+				} else {
+					window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
+				}
+			} else {
+				// If not negative pick the larger one
+				if size_delta.x > size_delta.y {
+					window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
+				} else {
+					window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
+				}
+			}
+			rl.SetWindowSize(window_size.x, window_size.y)
+
+			window_over_game = f32(window_size.x) / f32(GAME_SIZE.x)
+			game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
 		}
 
 		delta = rl.GetFrameTime()
@@ -306,22 +336,20 @@ main :: proc() {
 		case .None:
 			update_tilemap()
 
-			if is_level_finished() {
-				// Check player collision with portal
-				player_at_portal = check_collision_shapes(
-					Circle{{}, PORTAL_RADIUS},
-					level.portal_pos,
-					player.shape,
-					player.pos,
-				)
-				// Wait for player input
-				if is_control_pressed(controls.use_portal) && player_at_portal {
-					if game_data.cur_level_idx == 1 { 	// 1 is the last level
-						display_win_screen = true
-					} else {
-						game_data.cur_level_idx += 1
-						reload_level()
-					}
+
+			// Check player collision with portal
+			player_at_portal = check_collision_shapes(
+				Circle{{}, PORTAL_RADIUS},
+				level.portal_pos,
+				player.shape,
+				player.pos,
+			)
+			if is_level_finished() && is_control_pressed(controls.use_portal) && player_at_portal {
+				if game_data.cur_level_idx == 1 { 	// 1 is the last level
+					display_win_screen = true
+				} else {
+					game_data.cur_level_idx += 1
+					reload_level()
 				}
 			}
 
@@ -997,16 +1025,16 @@ main :: proc() {
 			{
 				if editor_state.mode == .None {
 					camera.target = player.pos
-					camera.zoom = WINDOW_OVER_GAME
-					camera.offset = {f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)} / 2
+					camera.zoom = window_over_game
+					camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 				} else {
 					if rl.IsMouseButtonDown(.MIDDLE) {
 						camera.target -= mouse_world_delta
 					}
 					camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
 					camera.zoom = max(0.1, camera.zoom)
-					if math.abs(camera.zoom - WINDOW_OVER_GAME) < 0.2 {
-						camera.zoom = WINDOW_OVER_GAME
+					if math.abs(camera.zoom - window_over_game) < 0.2 {
+						camera.zoom = window_over_game
 					}
 				}
 			}
@@ -1255,7 +1283,7 @@ main :: proc() {
 
 			rl.EndMode2D()
 
-			if camera.zoom != WINDOW_OVER_GAME {
+			if camera.zoom != window_over_game {
 				rl.DrawText(fmt.ctprintf("Zoom: x%v", camera.zoom), 24, 700, 16, rl.BLACK)
 			}
 
@@ -1308,7 +1336,7 @@ main :: proc() {
 					rl.DrawTextEx(
 						rl.GetFontDefault(),
 						message,
-						{f32(WINDOW_SIZE.x) / 2, f32(WINDOW_SIZE.y)} - {size.x / 2, size.y},
+						{f32(window_size.x) / 2, f32(window_size.y)} - {size.x / 2, size.y},
 						24,
 						1,
 						rl.DARKGREEN,
@@ -1318,7 +1346,7 @@ main :: proc() {
 
 			if display_win_screen {
 				// draw background
-				rl.DrawRectangle(0, 0, WINDOW_SIZE.x, WINDOW_SIZE.y, {0, 0, 0, 100})
+				rl.DrawRectangle(0, 0, window_size.x, window_size.y, {0, 0, 0, 100})
 				// draw text
 				rl.DrawText("Thanks for playing!", 700, 200, 24, rl.BLACK)
 				// draw button,

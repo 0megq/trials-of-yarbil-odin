@@ -187,7 +187,7 @@ get_tiles_on_fire :: proc(tm: Tilemap) -> []Vec2i {
 
 draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 	start := world_to_tilemap(screen_to_world({})) - 1
-	end := world_to_tilemap(screen_to_world({f32(WINDOW_SIZE.x), f32(WINDOW_SIZE.y)})) + 1
+	end := world_to_tilemap(screen_to_world({f32(window_size.x), f32(window_size.y)})) + 1
 	start.x = clamp(start.x, 0, TILEMAP_SIZE - 1)
 	start.y = clamp(start.y, 0, TILEMAP_SIZE - 1)
 	end.x = clamp(end.x, 0, TILEMAP_SIZE - 1)
