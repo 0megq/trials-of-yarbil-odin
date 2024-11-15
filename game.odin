@@ -1320,10 +1320,16 @@ main :: proc() {
 					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
 				}
 				if player_at_portal {
+					prompt: cstring
+					prompt = "Press E"
+					if !is_level_finished() {
+						prompt = "Kill All Enemies"
+					}
+					size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 24, 1)
 					rl.DrawTextEx(
 						rl.GetFontDefault(),
-						"Press E",
-						world_to_screen(level.portal_pos) - {42, 30},
+						prompt,
+						world_to_screen(level.portal_pos) - {size.x / 2, size.y + 6},
 						24,
 						1,
 						rl.WHITE,
