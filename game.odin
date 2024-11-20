@@ -123,6 +123,7 @@ STICK_ANIMATION_DEFAULT :: WeaponAnimation{-70, -115, 70, 205, 0, 0, -70, -115}
 
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 ENEMY_SPRITE :: Sprite{.Enemy, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
+BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
 
 window_size := Vec2i{1440, 810}
 window_over_game: f32
@@ -246,6 +247,11 @@ main :: proc() {
 			reload_game_data()
 			reload_level()
 			queue_play_again = false
+		}
+		#reverse for barrel, i in exploding_barrels { 	// This needs to be in reverse since we are removing
+			if barrel.queue_free {
+				unordered_remove(&exploding_barrels, i)
+			}
 		}
 
 		// window sizing
@@ -441,6 +447,9 @@ main :: proc() {
 				}
 			}
 			for &barrel in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
 				_, normal, depth := resolve_collision_shapes(
 					player.shape,
 					player.pos,
@@ -756,7 +765,10 @@ main :: proc() {
 						bomb.vel = slide(bomb.vel, normal)
 					}
 				}
-				for barrel in &exploding_barrels {
+				for barrel in exploding_barrels {
+					if barrel.queue_free {
+						continue
+					}
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
 						bomb.pos,
@@ -1168,7 +1180,10 @@ main :: proc() {
 				}
 
 				for barrel in exploding_barrels {
-					draw_shape(barrel.shape, barrel.pos, rl.RED)
+					if barrel.queue_free {
+						continue
+					}
+					draw_sprite(BARREL_SPRITE, barrel.pos)
 				}
 
 				// Draw Z Entities
@@ -1647,12 +1662,15 @@ damage_enemy :: proc(enemy_idx: int, amount: f32, should_flinch := true) {
 
 damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 	barrel := &exploding_barrels[barrel_idx]
+	if barrel.queue_free {
+		return
+	}
 	barrel.health -= amount
 	if barrel.health <= 0 {
 		// KABOOM!!!
 		// Visual
 		fire := Fire{Circle{barrel.pos, 60}, 2}
-		unordered_remove(&exploding_barrels, barrel_idx)
+		barrel.queue_free = true
 
 		append(&fires, fire)
 		// Damage
@@ -2196,10 +2214,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			#reverse for &barrel, i in exploding_barrels {
+			for &barrel, i in exploding_barrels {
 				// Exclude
 				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
-				   exclude_found {
+				   exclude_found || barrel.queue_free {
 					continue
 				}
 
@@ -2262,7 +2280,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			#reverse for &barrel, i in exploding_barrels {
+			for &barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
@@ -2314,7 +2335,11 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			#reverse for &barrel, i in exploding_barrels {
+			for &barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
+
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					// Damage
 					damage_exploding_barrel(i, attack.damage)
@@ -2399,7 +2424,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		}
 
 		if .ExplodingBarrel in attack.targets {
-			#reverse for barrel, i in exploding_barrels {
+			for barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
 				_, normal, depth := resolve_collision_shapes(
 					weapon.shape,
 					weapon.pos,
@@ -2449,7 +2477,10 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			#reverse for &barrel, i in exploding_barrels {
+			for &barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					// Knockback
 					barrel.vel = normalize(barrel.pos - attack.pos) * attack.knockback
@@ -2508,7 +2539,11 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		}
 
 		if .ExplodingBarrel in attack.targets {
-			#reverse for barrel, i in exploding_barrels {
+			for barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
+
 				_, normal, depth := resolve_collision_shapes(
 					arrow.shape,
 					arrow.pos,
@@ -2573,7 +2608,11 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		}
 
 		if .ExplodingBarrel in attack.targets {
-			#reverse for barrel, i in exploding_barrels {
+			for barrel, i in exploding_barrels {
+				if barrel.queue_free {
+					continue
+				}
+
 				_, normal, depth := resolve_collision_shapes(
 					rock.shape,
 					rock.pos,

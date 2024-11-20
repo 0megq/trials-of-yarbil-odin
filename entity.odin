@@ -19,8 +19,9 @@ EntityType :: union {
 
 
 Entity :: struct {
-	id:  uuid.Identifier,
-	pos: Vec2,
+	id:         uuid.Identifier,
+	pos:        Vec2,
+	queue_free: bool,
 }
 
 PhysicsEntity :: struct {
@@ -223,7 +224,7 @@ RockAttackData :: struct {
 }
 
 new_entity :: proc(pos: Vec2) -> Entity {
-	return {uuid.generate_v4(), pos}
+	return {uuid.generate_v4(), pos, false}
 }
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
