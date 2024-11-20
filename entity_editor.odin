@@ -569,12 +569,12 @@ draw_level :: proc(show_tile_grid := false) {
 	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
 	for enemy in level.enemies {
-		draw_shape(enemy.shape, enemy.pos, rl.GREEN)
+		draw_sprite(ENEMY_SPRITE, enemy.pos)
 		rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
 	}
 
 	for barrel in level.exploding_barrels {
-		draw_shape(barrel.shape, barrel.pos, rl.RED)
+		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}
 
 	for item in level.items {

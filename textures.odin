@@ -12,6 +12,7 @@ TextureId :: enum {
 	Player = 200, // 200-299 is entities
 	Enemy,
 	Arrow,
+	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
 	WinCircle,
 }
@@ -30,17 +31,18 @@ item_to_texture: #sparse[ItemId]TextureId = {
 
 load_textures :: proc() {
 	loaded_textures = {
-		.Empty     = {},
-		.Bomb      = rl.LoadTexture("assets/bomb.png"),
-		.Apple     = rl.LoadTexture("assets/apple.png"),
-		.Rock      = rl.LoadTexture("assets/rock.png"),
-		.Sword     = rl.LoadTexture("assets/sword.png"),
-		.Stick     = rl.LoadTexture("assets/stick.png"),
-		.Player    = rl.LoadTexture("assets/samurai.png"),
-		.Enemy     = rl.LoadTexture("assets/enemy.png"),
-		.Arrow     = rl.LoadTexture("assets/arrow.png"),
-		.Tilemap   = rl.LoadTexture("assets/tileset.png"),
-		.WinCircle = rl.LoadTexture("assets/win_circle.png"),
+		.Empty           = {},
+		.Bomb            = rl.LoadTexture("assets/bomb.png"),
+		.Apple           = rl.LoadTexture("assets/apple.png"),
+		.Rock            = rl.LoadTexture("assets/rock.png"),
+		.Sword           = rl.LoadTexture("assets/sword.png"),
+		.Stick           = rl.LoadTexture("assets/stick.png"),
+		.Player          = rl.LoadTexture("assets/samurai.png"),
+		.Enemy           = rl.LoadTexture("assets/enemy.png"),
+		.Arrow           = rl.LoadTexture("assets/arrow.png"),
+		.ExplodingBarrel = rl.LoadTexture("assets/exploding_barrel.png"),
+		.Tilemap         = rl.LoadTexture("assets/tileset.png"),
+		.WinCircle       = rl.LoadTexture("assets/win_circle.png"),
 	}
 }
 
