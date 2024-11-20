@@ -495,6 +495,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 				e.selected_phys_entity.id[1],
 			),
 		)
+		rl.TraceLog(.INFO, "ID search copied to clipboard")
 	}
 }
 

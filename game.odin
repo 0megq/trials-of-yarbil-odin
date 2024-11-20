@@ -187,6 +187,7 @@ main :: proc() {
 	}
 
 	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
+	rl.SetWindowMaxSize(1920, 1057)
 	rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 	window_over_game = f32(window_size.x) / f32(GAME_SIZE.x)
 	game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
@@ -267,11 +268,14 @@ main :: proc() {
 				}
 			} else {
 				// If not negative pick the larger one
-				if size_delta.x > size_delta.y {
+				if size_delta.x < size_delta.y {
 					window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
 				} else {
 					window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
 				}
+			}
+			if window_size.y == 1057 {
+				window_size.x = 1920
 			}
 			rl.SetWindowSize(window_size.x, window_size.y)
 
@@ -982,7 +986,7 @@ main :: proc() {
 					targets_hit := perform_attack(&player.cur_attack)
 					player.weapons[player.selected_weapon_idx].count -= targets_hit
 					if player.weapons[player.selected_weapon_idx].count <= 0 {
-						player.weapons[player.selected_item_idx].id = .Empty
+						player.weapons[player.selected_weapon_idx].id = .Empty
 					}
 				}
 			} else if !player.can_attack { 	// If right after punch finished then tick punch rate timer until done
@@ -1356,7 +1360,7 @@ main :: proc() {
 					rl.DrawTextEx(
 						rl.GetFontDefault(),
 						message,
-						{f32(window_size.x) / 2, f32(window_size.y)} - {size.x / 2, size.y},
+						{f32(window_size.x) / 2, f32(window_size.y)} - {size.x / 2, size.y + 8},
 						24,
 						1,
 						rl.DARKGREEN,
@@ -2104,19 +2108,26 @@ pickup_item :: proc(data: ItemData) -> bool {
 			}
 		}
 	} else { 	// Is a weapon
-		for &weapon, i in player.weapons {
-			if weapon.id == .Empty {
-				weapon = data
-
-				// Select weapon if currently selected nothing
-				if player.weapons[player.selected_weapon_idx].id == .Empty ||
-				   player.selected_weapon_idx == i {
-					select_weapon(i)
-				}
-
-				return true
-			}
+		not_selected_idx: int = 0 if player.selected_weapon_idx == 1 else 1
+		if player.weapons[player.selected_weapon_idx].id == .Empty {
+			player.weapons[player.selected_weapon_idx] = data // copy data
+			select_weapon(player.selected_weapon_idx) // select weapon
+			return true // success!
+		} else if player.weapons[not_selected_idx].id == .Empty {
+			player.weapons[not_selected_idx] = data
+			// select_weapon(not_selected_idx)
+			return true
 		}
+		//  else {
+		// Drop current weapon
+		// NOTE: Create a different function. drop_item() could drop an item, not a weapon here
+		// if item_data := drop_item(); item_data.id != .Empty {
+		// 	add_item_to_world(item_data, player.pos)
+		// }
+		// player.weapons[player.selected_weapon_idx] = data // copy data
+		// select_weapon(player.selected_weapon_idx) // select weapon
+		// return true
+		// }
 	}
 	return false
 }
