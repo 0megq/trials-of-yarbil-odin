@@ -283,13 +283,31 @@ main :: proc() {
 			game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
 		}
 
+		// Camera Zooming
+		{
+			if editor_state.mode == .None {
+				camera.zoom = window_over_game
+				camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
+				camera.target = fit_target_to_camera_view(player.pos)
+			} else {
+				if rl.IsMouseButtonDown(.MIDDLE) {
+					camera.target -= mouse_world_delta
+				}
+				camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
+				camera.zoom = max(0.1, camera.zoom)
+				if math.abs(camera.zoom - window_over_game) < 0.2 {
+					camera.zoom = window_over_game
+				}
+			}
+		}
+
 		delta = rl.GetFrameTime()
 		// Mouse movement
 		mouse_pos = rl.GetMousePosition()
 		mouse_delta = rl.GetMouseDelta()
 		mouse_world_pos = screen_to_world(mouse_pos)
 		mouse_world_delta = mouse_delta / camera.zoom
-		// camera.rotation += delta * 50
+
 		#reverse for &timer, i in timers {
 			timer.time_left -= delta
 			if timer.time_left <= 0 {
@@ -1036,23 +1054,6 @@ main :: proc() {
 			rl.BeginDrawing()
 			rl.ClearBackground(rl.DARKGRAY)
 
-			// Camera Zooming
-			{
-				if editor_state.mode == .None {
-					camera.target = player.pos
-					camera.zoom = window_over_game
-					camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
-				} else {
-					if rl.IsMouseButtonDown(.MIDDLE) {
-						camera.target -= mouse_world_delta
-					}
-					camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
-					camera.zoom = max(0.1, camera.zoom)
-					if math.abs(camera.zoom - window_over_game) < 0.2 {
-						camera.zoom = window_over_game
-					}
-				}
-			}
 
 			rl.BeginMode2D(camera)
 
@@ -1092,8 +1093,25 @@ main :: proc() {
 						rl.LIGHTGRAY, // Slight darker tint
 					}
 
-
 					draw_sprite(sprite, item.pos)
+
+					if check_collision_shapes(
+						Circle{{}, player.pickup_range},
+						player.pos,
+						item.shape,
+						item.pos,
+					) {
+						prompt: cstring = "Press E"
+						size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 4, 1)
+						rl.DrawTextEx(
+							rl.GetFontDefault(),
+							prompt,
+							item.pos - {size.x / 2, size.y + 2},
+							4,
+							1,
+							rl.WHITE,
+						)
+					}
 				}
 
 				for wall in walls {
@@ -1104,7 +1122,7 @@ main :: proc() {
 				portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
 				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 				// Draw arrow to portal if level finished and player is at least 64 units away
-				if is_level_finished() && length_squared(level.portal_pos - player.pos) > 32 * 32 {
+				if is_level_finished() && !player_at_portal {
 					angle_to_portal := angle(level.portal_pos - player.pos)
 					arrow_polygon := Polygon {
 						player.pos,
@@ -1113,6 +1131,23 @@ main :: proc() {
 					}
 					draw_polygon(arrow_polygon, rl.BLUE)
 				}
+				if player_at_portal {
+					prompt: cstring
+					prompt = "Press E"
+					if !is_level_finished() {
+						prompt = "Kill All Enemies"
+					}
+					size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
+					rl.DrawTextEx(
+						rl.GetFontDefault(),
+						prompt,
+						level.portal_pos - {size.x / 2, size.y + 1},
+						6,
+						1,
+						rl.WHITE,
+					)
+				}
+
 
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
@@ -1337,22 +1372,7 @@ main :: proc() {
 				when ODIN_DEBUG { 	// Draw player coordinates
 					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
 				}
-				if player_at_portal {
-					prompt: cstring
-					prompt = "Press E"
-					if !is_level_finished() {
-						prompt = "Kill All Enemies"
-					}
-					size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 24, 1)
-					rl.DrawTextEx(
-						rl.GetFontDefault(),
-						prompt,
-						world_to_screen(level.portal_pos) - {size.x / 2, size.y + 6},
-						24,
-						1,
-						rl.WHITE,
-					)
-				}
+
 
 				if is_level_finished() {
 					message: cstring = "All enemies defeated. Head to the portal."
@@ -2669,4 +2689,21 @@ on_player_death :: proc() {
 heal_player :: proc(amount: f32) {
 	player.health += amount
 	player.health = min(player.health, player.max_health)
+}
+
+fit_target_to_camera_view :: proc(target: Vec2) -> Vec2 {
+	target := target
+
+	// Get the top left and bottom right corners
+	top_left := Vec2{level.camera_view.x, level.camera_view.y}
+	bottom_right := top_left + Vec2{level.camera_view.width, level.camera_view.height}
+
+	// Offset them
+	offset_top_left := top_left + camera.offset / camera.zoom
+	offset_bottom_right := bottom_right - camera.offset / camera.zoom
+
+	target.x = clamp(target.x, offset_top_left.x, offset_bottom_right.x)
+	target.y = clamp(target.y, offset_top_left.y, offset_bottom_right.y)
+
+	return target
 }

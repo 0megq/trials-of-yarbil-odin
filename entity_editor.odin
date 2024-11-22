@@ -59,6 +59,8 @@ Level :: struct {
 	exploding_barrels: [dynamic]ExplodingBarrel,
 	// walls
 	walls:             [dynamic]PhysicsEntity,
+	// camera bounding box
+	camera_view:       Rectangle,
 }
 // updates made while in an editor mode will be saved here
 level: Level
@@ -598,4 +600,6 @@ draw_level :: proc(show_tile_grid := false) {
 	for wall in level.walls {
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
+
+	rl.DrawRectangleRec(level.camera_view, {0, 0, 120, 100})
 }
