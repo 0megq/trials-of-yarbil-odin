@@ -288,7 +288,8 @@ main :: proc() {
 			if editor_state.mode == .None {
 				camera.zoom = window_over_game
 				camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
-				camera.target = fit_target_to_camera_view(player.pos)
+				camera.target = player.pos
+				// camera.target = fit_camera_target_to_level_bounds(player.pos)
 			} else {
 				if rl.IsMouseButtonDown(.MIDDLE) {
 					camera.target -= mouse_world_delta
@@ -2691,12 +2692,12 @@ heal_player :: proc(amount: f32) {
 	player.health = min(player.health, player.max_health)
 }
 
-fit_target_to_camera_view :: proc(target: Vec2) -> Vec2 {
+fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	target := target
 
 	// Get the top left and bottom right corners
-	top_left := Vec2{level.camera_view.x, level.camera_view.y}
-	bottom_right := top_left + Vec2{level.camera_view.width, level.camera_view.height}
+	top_left := Vec2{level.bounds.x, level.bounds.y}
+	bottom_right := top_left + Vec2{level.bounds.width, level.bounds.height}
 
 	// Offset them
 	offset_top_left := top_left + camera.offset / camera.zoom

@@ -9,9 +9,9 @@ import rl "vendor:raylib"
 ENTITY_LOAD_FILE_PATH :: "entity1.json"
 ENTITY_SAVE_FILE_PATH :: "entity1.json"
 
-LEVEL_FILE_PREFIX :: "data/level"
-TILEMAP_FILE_PREFIX :: "assets/tilemap"
-GAME_FILE_PREFIX :: "data/game"
+LEVEL_FILE_PREFIX :: "./data/level"
+TILEMAP_FILE_PREFIX :: "./assets/tilemap"
+GAME_FILE_PREFIX :: "./data/game"
 
 PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
 
@@ -60,7 +60,7 @@ Level :: struct {
 	// walls
 	walls:             [dynamic]PhysicsEntity,
 	// camera bounding box
-	camera_view:       Rectangle,
+	bounds:            Rectangle,
 }
 // updates made while in an editor mode will be saved here
 level: Level
@@ -601,5 +601,5 @@ draw_level :: proc(show_tile_grid := false) {
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
 
-	rl.DrawRectangleRec(level.camera_view, {0, 0, 120, 100})
+	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
 }
