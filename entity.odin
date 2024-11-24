@@ -234,7 +234,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	enemy.attack_charge_range = 12
 	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
-	health_setter(&enemy.health, &enemy.max_health, 80)
+	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
@@ -244,7 +244,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.2
-	health_setter(&enemy.health, &enemy.max_health, 60)
+	max_health_setter(&enemy.health, &enemy.max_health, 60)
 }
 
 setup_enemy :: proc(enemy: ^Enemy) {
@@ -253,8 +253,7 @@ setup_enemy :: proc(enemy: ^Enemy) {
 
 setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {
 	barrel.shape = Circle{{}, 6}
-	health_setter(&barrel.health, &barrel.max_health, 50)
-
+	max_health_setter(&barrel.health, &barrel.max_health, 50)
 }
 
 setup_item :: proc(item: ^Item) {
@@ -263,14 +262,13 @@ setup_item :: proc(item: ^Item) {
 
 setup_player :: proc(player: ^Player) {
 	player.can_fire_dash = true
-	player.can_fire_dash = true
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16
 	player.can_attack = true
-	health_setter(&player.health, &player.max_health, 100)
+	max_health_setter(&player.health, &player.max_health, 100)
 }
 
-health_setter :: proc(health: ^f32, cur_max_health: ^f32, new_max_health: f32) {
+max_health_setter :: proc(health: ^f32, cur_max_health: ^f32, new_max_health: f32) {
 	// Set health
 	if health^ == cur_max_health^ || health^ >= new_max_health {
 		health^ = new_max_health

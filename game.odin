@@ -195,7 +195,6 @@ main :: proc() {
 	load_textures()
 	load_game_data()
 	load_level()
-	place_walls_and_calculate_graph()
 
 	init_editor_state(&editor_state)
 

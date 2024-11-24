@@ -27,6 +27,8 @@ points field is a dynamic array of point fields
 move and/or create points with mouse
 */
 
+wall_tilemap: WallTilemap
+
 
 update_geometry_editor :: proc(e: ^EditorState) {
 	update_button(&e.new_shape_but, mouse_pos)
