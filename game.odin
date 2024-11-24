@@ -1004,11 +1004,12 @@ main :: proc() {
 
 					targets_hit := perform_attack(&player.cur_attack)
 					player.weapons[player.selected_weapon_idx].count -= targets_hit
+					// Put this line inside if player.attack_dur_timer <= 0 if we want the animation to finish before deleting the item
 					if player.weapons[player.selected_weapon_idx].count <= 0 {
 						player.weapons[player.selected_weapon_idx].id = .Empty
 					}
 				}
-			} else if !player.can_attack { 	// If right after punch finished then tick punch rate timer until done
+			} else if !player.can_attack { 	// If right after attack finished then countdown attack interval timer until done
 				if player.attack_interval_timer <= 0 {
 					player.can_attack = true
 				}
