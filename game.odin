@@ -498,9 +498,66 @@ main :: proc() {
 				}
 			}
 
+			for &enemy in enemies {
+				// VISION CONE
+				// VISION CHECK
+				// SIGNAL CHECK
+				switch enemy.state {
+				case .Idle:
+				// distracted
+				// chasing
+				case .Distracted:
+				// PATHING
+				// PATH FOLLOWING
+
+				// idle
+				// chasing
+				case .Chasing:
+				// PATHING
+				// PATH FOLLOWING
+				// FLINCHING START
+				// CHARGING START
+
+				// flinching
+				// charging
+				// idle
+				case .Charging:
+				// FLINCHING
+				// ATTACKING
+
+				// flinching
+				// attacking
+				// fleeing
+				// chasing
+				case .Attacking:
+				// perform attack
+				// charging
+				// fleeing
+				// chasing
+				// flinching
+				case .Flinching:
+				// FLINCHING again
+
+				// chasing
+				// idle
+				case .Fleeing:
+				// FLINCHING
+
+				// chasing
+				// idle
+				// flinching
+				// charging
+				}
+				// MOVEMENT AND COLLISION
+			}
+
 			// Move enemies and track player if in range
 			// if false {
 			#reverse for &enemy in enemies {
+
+				/*
+				VISION CONE
+				*/
 
 				// Update detection points
 				for &p, i in enemy.detection_points {
@@ -513,6 +570,11 @@ main :: proc() {
 					}
 				}
 
+				/*
+				VISION CHECK
+				*/
+
+				// Check if the player is no longer in range
 				// This collision detection does NOT use the player's shape, but a circle to approximate it
 				if enemy.player_in_range &&
 				   !check_collsion_circular_concave_circle(
@@ -529,12 +591,14 @@ main :: proc() {
 						tilemap,
 						wall_tilemap,
 					)
+					// Check if the player just came into range
 				} else if !enemy.player_in_range &&
 				   check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
 					   enemy.pos,
 					   {player.pos, 8},
 				   ) {
+					// Calculate new path
 					enemy.player_in_range = true
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
@@ -549,6 +613,10 @@ main :: proc() {
 					enemy.current_path_point = 1
 					enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 				}
+
+				/*
+				PATHING
+				*/
 
 				// Recalculate path based on timer or if the enemy is at the end of the path already
 				if enemy.player_in_range {
@@ -579,6 +647,11 @@ main :: proc() {
 						enemy.current_path_point = 1
 					}
 				}
+
+				/*
+				PATH FOLLOWING
+				*/
+
 				// Follow path if there exists one and the enemy is not already at the end of it
 				target := enemy.pos
 				if enemy.current_path != nil &&
@@ -589,6 +662,10 @@ main :: proc() {
 						enemy.current_path_point += 1
 					}
 				}
+
+				/*
+				FLEEING
+				*/
 
 				// if player in flee range
 				#partial switch data in enemy.data {
@@ -604,8 +681,15 @@ main :: proc() {
 						target = enemy.pos + (enemy.pos - player.pos)
 					}
 				}
+
+				/*
+				Movement and Collision
+				*/
+
+				// Move the enemy
 				enemy_move(&enemy, delta, target)
 
+				// Collision
 				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						enemy.shape,
@@ -620,6 +704,11 @@ main :: proc() {
 					}
 				}
 
+				/*
+				FLINCHING
+				*/
+
+				// Flinching
 				if enemy.flinching {
 					enemy.current_flinch_time -= delta
 					if enemy.current_flinch_time <= 0 {
@@ -627,6 +716,11 @@ main :: proc() {
 					}
 				}
 
+				/*
+				ATTACK CHARGING
+				*/
+
+				// attacking
 				enemy.just_attacked = false
 				if enemy.charging {
 					enemy.current_charge_time -= delta
@@ -684,7 +778,12 @@ main :: proc() {
 					}
 				}
 
-				// If player in attack range
+
+				/*
+				CHARGING START
+				*/
+
+				// If player in attack range and not charging or flinching, then start charging
 				if !enemy.flinching &&
 				   !enemy.charging &&
 				   enemy.player_in_range &&

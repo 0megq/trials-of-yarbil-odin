@@ -64,6 +64,17 @@ Enemy :: struct {
 	pathfinding_timer:   f32,
 	player_in_range:     bool,
 	data:                EnemyData,
+	state:               EnemyState,
+}
+
+EnemyState :: enum {
+	Idle,
+	Distracted,
+	Chasing,
+	Charging,
+	Attacking,
+	Flinching,
+	Fleeing,
 }
 
 EnemyData :: union #no_nil {
