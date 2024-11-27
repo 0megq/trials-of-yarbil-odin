@@ -297,7 +297,8 @@
 					],
 					"rotation": 0.00000000
 				}
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -588,7 +589,8 @@
 					],
 					"rotation": 0.00000000
 				}
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -851,7 +853,8 @@
 			"player_in_range": false,
 			"data": {
 				"flee_range": 60.00000000
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -1142,7 +1145,8 @@
 					],
 					"rotation": 0.00000000
 				}
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -1433,7 +1437,8 @@
 					],
 					"rotation": 0.00000000
 				}
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -1724,7 +1729,8 @@
 					],
 					"rotation": 0.00000000
 				}
-			}
+			},
+			"state": 0
 		},
 		{
 			"moving_entity": {
@@ -1987,7 +1993,8 @@
 			"player_in_range": false,
 			"data": {
 				"flee_range": 60.00000000
-			}
+			},
+			"state": 0
 		}
 	],
 	"items": [
