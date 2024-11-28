@@ -46,25 +46,27 @@ ExplodingBarrel :: struct {
 }
 
 Enemy :: struct {
-	using moving_entity: MovingEntity,
-	detection_range:     f32,
-	detection_points:    [50]Vec2,
-	attack_charge_range: f32, // Range for the enemy to start charging
-	start_charge_time:   f32,
-	current_charge_time: f32,
-	charging:            bool,
-	start_flinch_time:   f32,
-	current_flinch_time: f32,
-	flinching:           bool,
-	just_attacked:       bool,
-	health:              f32,
-	max_health:          f32,
-	current_path:        []Vec2,
-	current_path_point:  int,
-	pathfinding_timer:   f32,
-	player_in_range:     bool,
-	data:                EnemyData,
-	state:               EnemyState,
+	using moving_entity:      MovingEntity,
+	detection_range:          f32,
+	detection_points:         [50]Vec2,
+	attack_charge_range:      f32, // Range for the enemy to start charging
+	start_charge_time:        f32,
+	current_charge_time:      f32,
+	charging:                 bool,
+	start_flinch_time:        f32,
+	current_flinch_time:      f32,
+	flinching:                bool,
+	just_attacked:            bool,
+	health:                   f32,
+	max_health:               f32,
+	current_path:             []Vec2,
+	current_path_point:       int,
+	pathfinding_timer:        f32,
+	player_in_range:          bool,
+	data:                     EnemyData,
+	distracted:               bool,
+	distraction_pos:          Vec2,
+	distraction_time_emitted: f32,
 }
 
 EnemyState :: enum {
@@ -175,6 +177,13 @@ LevelEntityType :: enum {
 	Enemy,
 	ExplodingBarrel,
 	Item,
+}
+
+Distraction :: struct {
+	pos:          Vec2,
+	radius:       f32,
+	time_emitted: f32,
+	consumed:     bool,
 }
 
 AttackTarget :: enum {

@@ -146,6 +146,7 @@ projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
 rocks: [dynamic]Rock
 fires: [dynamic]Fire
+distractions: [dynamic]Distraction
 
 player_at_portal: bool
 display_win_screen: bool
@@ -308,19 +309,6 @@ main :: proc() {
 		mouse_world_pos = screen_to_world(mouse_pos)
 		mouse_world_delta = mouse_delta / camera.zoom
 
-		#reverse for &timer, i in timers {
-			timer.time_left -= delta
-			if timer.time_left <= 0 {
-				timer.callable()
-				if timer.start_time > 0 {
-					timer.time_left += timer.start_time
-				} else {
-					unordered_remove(&timers, i)
-				}
-			}
-		}
-
-
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
 				if rl.IsKeyPressed(.Q) {
@@ -361,8 +349,28 @@ main :: proc() {
 		case .Entity:
 			update_entity_editor(&editor_state)
 		case .None:
-			update_tilemap()
+			#reverse for &timer, i in timers {
+				timer.time_left -= delta
+				if timer.time_left <= 0 {
+					timer.callable()
+					if timer.start_time > 0 { 	// if timer is recurring
+						timer.time_left += timer.start_time
+					} else {
+						unordered_remove(&timers, i)
+					}
+				}
+			}
 
+			#reverse for &distraction, i in distractions {
+				// if distraction was emitted more than 2
+				if distraction.consumed {
+					unordered_remove(&distractions, i)
+				}
+				distraction.consumed = true
+			}
+
+
+			update_tilemap()
 
 			// Check player collision with portal
 			player_at_portal = check_collision_shapes(
@@ -498,58 +506,6 @@ main :: proc() {
 				}
 			}
 
-			for &enemy in enemies {
-				// VISION CONE
-				// VISION CHECK
-				// SIGNAL CHECK
-				switch enemy.state {
-				case .Idle:
-				// distracted
-				// chasing
-				case .Distracted:
-				// PATHING
-				// PATH FOLLOWING
-
-				// idle
-				// chasing
-				case .Chasing:
-				// PATHING
-				// PATH FOLLOWING
-				// FLINCHING START
-				// CHARGING START
-
-				// flinching
-				// charging
-				// idle
-				case .Charging:
-				// FLINCHING
-				// ATTACKING
-
-				// flinching
-				// attacking
-				// fleeing
-				// chasing
-				case .Attacking:
-				// perform attack
-				// charging
-				// fleeing
-				// chasing
-				// flinching
-				case .Flinching:
-				// FLINCHING again
-
-				// chasing
-				// idle
-				case .Fleeing:
-				// FLINCHING
-
-				// chasing
-				// idle
-				// flinching
-				// charging
-				}
-				// MOVEMENT AND COLLISION
-			}
 
 			// Move enemies and track player if in range
 			// if false {
@@ -598,7 +554,8 @@ main :: proc() {
 					   enemy.pos,
 					   {player.pos, 8},
 				   ) {
-					// Calculate new path
+					enemy.distracted = false
+					// Calculate new path and reset timer
 					enemy.player_in_range = true
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
@@ -621,32 +578,56 @@ main :: proc() {
 				// Recalculate path based on timer or if the enemy is at the end of the path already
 				if enemy.player_in_range {
 					enemy.pathfinding_timer -= delta
-					if enemy.pathfinding_timer < 0 {
-						// Reset timer
+					if enemy.pathfinding_timer < 0 ||
+					   enemy.current_path_point >= len(enemy.current_path) {
+						// Calculate new path and reset timer
+						delete(enemy.current_path)
+						enemy.current_path = find_path_tiles(
+							enemy.pos,
+							player.pos,
+							nav_graph,
+							tilemap,
+							wall_tilemap,
+						)
+						enemy.current_path_point = 1
 						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
-						// Find new path
-						delete(enemy.current_path)
-						enemy.current_path = find_path_tiles(
-							enemy.pos,
-							player.pos,
-							nav_graph,
-							tilemap,
-							wall_tilemap,
-						)
-						enemy.current_path_point = 1
 					}
-					if enemy.current_path_point >= len(enemy.current_path) {
-						delete(enemy.current_path)
-						enemy.current_path = find_path_tiles(
-							enemy.pos,
-							player.pos,
-							nav_graph,
-							tilemap,
-							wall_tilemap,
-						)
-						enemy.current_path_point = 1
+				} else {
+					new_distraction := false
+					for distraction in distractions {
+						if distraction.time_emitted > enemy.distraction_time_emitted &&
+						   rl.CheckCollisionPointCircle(
+							   enemy.pos,
+							   distraction.pos,
+							   distraction.radius,
+						   ) {
+							enemy.distracted = true
+							enemy.distraction_pos = distraction.pos
+							enemy.distraction_time_emitted = distraction.time_emitted
+							new_distraction = true
+						}
+					}
+					// If enemy is distracted
+					if enemy.distracted {
+						// If new distraction recalculate path
+						if new_distraction {
+							if enemy.current_path != nil {
+								delete(enemy.current_path)
+							}
+							enemy.current_path = find_path_tiles(
+								enemy.pos,
+								enemy.distraction_pos,
+								nav_graph,
+								tilemap,
+								wall_tilemap,
+							)
+							enemy.current_path_point = 1
+						} else if enemy.current_path_point >= len(enemy.current_path) {
+							enemy.distracted = false
+						}
 					}
 				}
+
 
 				/*
 				PATH FOLLOWING
@@ -973,17 +954,14 @@ main :: proc() {
 				rock.attack.shape = rock.shape
 				rock.attack.data = RockAttackData{i, speed_damage_ratio}
 
-				// if the rock hits something while performing its attack, then delete it and create a rock item
-				if perform_attack(&rock.attack) == -1 {
-					delete_rock(i)
+				// if the rock hits something while performing its attack or touches ground, then delete it and create a rock item
+				if perform_attack(&rock.attack) == -1 || rock.z <= 0 {
 					add_item_to_world({id = .Rock, count = 1}, rock.pos)
-					continue
-				}
+					delete_rock(i)
 
-				// if the rock touches ground, then delete it and create a rock item
-				if rock.z <= 0 {
-					add_item_to_world({id = .Rock, count = 1}, rock.pos)
-					delete_rock(i)
+					add_distraction(rock.pos, 64)
+
+					continue
 				}
 			}
 
@@ -1172,12 +1150,43 @@ main :: proc() {
 			case .None:
 				draw_tilemap(tilemap)
 				// draw_navmesh_editor_world(editor_state)
-				if player.surfing {
-					draw_polygon(surf_poly, rl.DARKGREEN)
-				}
 
 				for fire in fires {
 					rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
+				}
+
+				// Draw portal
+				portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
+				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
+				// Draw arrow to portal if level finished and player is at least 64 units away
+				if is_level_finished() && !player_at_portal {
+					angle_to_portal := angle(level.portal_pos - player.pos)
+					arrow_polygon := Polygon {
+						player.pos,
+						{{14, -3}, {24, 0}, {14, 3}},
+						angle_to_portal,
+					}
+					draw_polygon(arrow_polygon, rl.BLUE)
+				}
+				if player_at_portal {
+					prompt: cstring
+					prompt = "Press E"
+					if !is_level_finished() {
+						prompt = "Kill All Enemies"
+					}
+					size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
+					rl.DrawTextEx(
+						rl.GetFontDefault(),
+						prompt,
+						level.portal_pos - {size.x / 2, size.y + 1},
+						6,
+						1,
+						rl.WHITE,
+					)
+				}
+
+				if player.surfing {
+					draw_polygon(surf_poly, rl.DARKGREEN)
 				}
 
 				// Draw items with slight gray tint
@@ -1217,37 +1226,6 @@ main :: proc() {
 				for wall in walls {
 					draw_shape(wall.shape, wall.pos, rl.GRAY)
 				}
-
-				// Draw portal
-				portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
-				rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
-				// Draw arrow to portal if level finished and player is at least 64 units away
-				if is_level_finished() && !player_at_portal {
-					angle_to_portal := angle(level.portal_pos - player.pos)
-					arrow_polygon := Polygon {
-						player.pos,
-						{{14, -3}, {24, 0}, {14, 3}},
-						angle_to_portal,
-					}
-					draw_polygon(arrow_polygon, rl.BLUE)
-				}
-				if player_at_portal {
-					prompt: cstring
-					prompt = "Press E"
-					if !is_level_finished() {
-						prompt = "Kill All Enemies"
-					}
-					size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
-					rl.DrawTextEx(
-						rl.GetFontDefault(),
-						prompt,
-						level.portal_pos - {size.x / 2, size.y + 1},
-						6,
-						1,
-						rl.WHITE,
-					)
-				}
-
 
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
@@ -1315,6 +1293,12 @@ main :: proc() {
 					// 		rl.DrawCircleV(point, 2, rl.RED)
 					// 	}
 					// }
+				}
+
+				when ODIN_DEBUG {
+					for distraction in distractions {
+						rl.DrawCircleLinesV(distraction.pos, distraction.radius, rl.RED)
+					}
 				}
 
 				for barrel in exploding_barrels {
@@ -2806,4 +2790,8 @@ fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	target.y = clamp(target.y, offset_top_left.y, offset_bottom_right.y)
 
 	return target
+}
+
+add_distraction :: proc(pos: Vec2, radius: f32) {
+	append(&distractions, Distraction{pos, radius, f32(rl.GetTime()), false})
 }

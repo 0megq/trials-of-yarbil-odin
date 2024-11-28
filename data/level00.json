@@ -298,7 +298,12 @@
 					"rotation": 0.00000000
 				}
 			},
-			"state": 0
+			"distracted": false,
+			"distraction_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"distraction_time_emitted": 0.00000000
 		},
 		{
 			"moving_entity": {
@@ -590,7 +595,12 @@
 					"rotation": 0.00000000
 				}
 			},
-			"state": 0
+			"distracted": false,
+			"distraction_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"distraction_time_emitted": 0.00000000
 		},
 		{
 			"moving_entity": {
@@ -882,7 +892,12 @@
 					"rotation": 0.00000000
 				}
 			},
-			"state": 0
+			"distracted": false,
+			"distraction_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"distraction_time_emitted": 0.00000000
 		},
 		{
 			"moving_entity": {
@@ -1174,7 +1189,12 @@
 					"rotation": 0.00000000
 				}
 			},
-			"state": 0
+			"distracted": false,
+			"distraction_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"distraction_time_emitted": 0.00000000
 		}
 	],
 	"items": [
