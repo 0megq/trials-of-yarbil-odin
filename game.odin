@@ -23,6 +23,7 @@ FIRE_TILE_DAMAGE :: 1
 ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
 PORTAL_RADIUS :: 16
+BOMB_EXPLOSION_TIME :: 1
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -517,7 +518,16 @@ main :: proc() {
 
 				// Update detection points
 				for &p, i in enemy.detection_points {
-					dir := vector_from_angle(f32(i) * 360 / f32(len(enemy.detection_points)))
+					dir := vector_from_angle(
+						f32(i) *
+							enemy.detection_angle_sweep /
+							f32(len(enemy.detection_points) - 1) +
+						enemy.detection_angle,
+					)
+					if i == len(enemy.detection_points) - 1 {
+						p = enemy.pos
+						break
+					}
 					t := cast_ray_through_level(walls[:], enemy.pos, dir)
 					if t < enemy.detection_range {
 						p = enemy.pos + t * dir
@@ -597,9 +607,9 @@ main :: proc() {
 					for distraction in distractions {
 						if distraction.time_emitted > enemy.distraction_time_emitted &&
 						   rl.CheckCollisionPointCircle(
-							   enemy.pos,
 							   distraction.pos,
-							   distraction.radius,
+							   enemy.pos,
+							   enemy.detection_range,
 						   ) {
 							enemy.distracted = true
 							enemy.distraction_pos = distraction.pos
@@ -626,6 +636,14 @@ main :: proc() {
 							enemy.distracted = false
 						}
 					}
+				}
+				/*
+				DETECTION ANGLE
+				*/
+				if enemy.player_in_range {
+					enemy.detection_angle = angle(player.pos - enemy.pos)
+				} else if enemy.distracted {
+					enemy.detection_angle = angle(enemy.distraction_pos - enemy.pos)
 				}
 
 
@@ -883,6 +901,9 @@ main :: proc() {
 					}
 				}
 				if bomb.z <= 0 { 	// if on ground, then start ticking
+					if bomb.time_left == BOMB_EXPLOSION_TIME {
+						add_distraction(bomb.pos)
+					}
 					bomb.time_left -= delta
 					if bomb.time_left <= 0 {
 						bomb_explosion(bomb.pos, 8)
@@ -922,6 +943,7 @@ main :: proc() {
 				if weapon.z <= 0 {
 					add_item_to_world(weapon.data, weapon.pos)
 					delete_projectile_weapon(i)
+					add_distraction(weapon.pos)
 				}
 			}
 
@@ -959,7 +981,7 @@ main :: proc() {
 					add_item_to_world({id = .Rock, count = 1}, rock.pos)
 					delete_rock(i)
 
-					add_distraction(rock.pos, 64)
+					add_distraction(rock.pos)
 
 					continue
 				}
@@ -1297,7 +1319,7 @@ main :: proc() {
 
 				when ODIN_DEBUG {
 					for distraction in distractions {
-						rl.DrawCircleLinesV(distraction.pos, distraction.radius, rl.RED)
+						rl.DrawCircleLinesV(distraction.pos, 4, rl.RED)
 					}
 				}
 
@@ -1875,7 +1897,7 @@ use_selected_item :: proc() {
 				z = 0,
 				vel_z = 20,
 				sprite = sprite,
-				time_left = 1,
+				time_left = BOMB_EXPLOSION_TIME,
 			},
 		)
 		add_to_selected_item_count(-1)
@@ -2792,6 +2814,6 @@ fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	return target
 }
 
-add_distraction :: proc(pos: Vec2, radius: f32) {
-	append(&distractions, Distraction{pos, radius, f32(rl.GetTime()), false})
+add_distraction :: proc(pos: Vec2) {
+	append(&distractions, Distraction{pos, f32(rl.GetTime()), false})
 }

@@ -47,6 +47,8 @@ ExplodingBarrel :: struct {
 
 Enemy :: struct {
 	using moving_entity:      MovingEntity,
+	detection_angle:          f32, // direction they are looking (in degrees facing right going ccw)
+	detection_angle_sweep:    f32, // wideness (in degrees)
 	detection_range:          f32,
 	detection_points:         [50]Vec2,
 	attack_charge_range:      f32, // Range for the enemy to start charging
@@ -181,7 +183,6 @@ LevelEntityType :: enum {
 
 Distraction :: struct {
 	pos:          Vec2,
-	radius:       f32,
 	time_emitted: f32,
 	consumed:     bool,
 }
@@ -254,6 +255,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	enemy.attack_charge_range = 12
 	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
+	enemy.detection_angle_sweep = 115
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
@@ -264,6 +266,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.2
+	enemy.detection_angle_sweep = 115
 	max_health_setter(&enemy.health, &enemy.max_health, 60)
 }
 

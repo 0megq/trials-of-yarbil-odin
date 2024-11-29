@@ -48,6 +48,8 @@
 					0.00000000
 				]
 			},
+			"detection_angle": 0.00000000,
+			"detection_angle_sweep": 115.00000000,
 			"detection_range": 80.00000000,
 			"detection_points": [
 				[
@@ -345,6 +347,8 @@
 					0.00000000
 				]
 			},
+			"detection_angle": 0.00000000,
+			"detection_angle_sweep": 115.00000000,
 			"detection_range": 80.00000000,
 			"detection_points": [
 				[
@@ -642,6 +646,8 @@
 					0.00000000
 				]
 			},
+			"detection_angle": 0.00000000,
+			"detection_angle_sweep": 115.00000000,
 			"detection_range": 80.00000000,
 			"detection_points": [
 				[
@@ -939,6 +945,8 @@
 					0.00000000
 				]
 			},
+			"detection_angle": 0.00000000,
+			"detection_angle_sweep": 115.00000000,
 			"detection_range": 80.00000000,
 			"detection_points": [
 				[
