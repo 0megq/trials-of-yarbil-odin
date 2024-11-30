@@ -51,9 +51,9 @@ Timer :: struct {
 MovementAbility :: enum {
 	FIRE,
 	WATER,
-	ELECTRIC,
 	GROUND,
 	AIR,
+	ELECTRIC,
 }
 
 Control :: union {
