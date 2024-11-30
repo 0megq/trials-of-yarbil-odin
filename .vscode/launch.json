@@ -20,7 +20,7 @@
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Release",
-			"command": "odin run . -out:build/yarbil.exe -vet -strict-style",
+			"command": "odin run . -out:build/yarbil.exe -vet -strict-style -subsystem:windows",
 		},
 		{
 			"type": "f5anything",
