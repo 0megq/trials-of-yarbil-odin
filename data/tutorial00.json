@@ -1,6 +1,15 @@
 {
 	"prompts": [
-
+		{
+			"pos": [
+				640.00000000,
+				400.00000000
+			],
+			"text": "hello",
+			"condition": null
+		}
 	],
-	"flags": 0
+	"hide_hud": false,
+	"disable_ability": false,
+	"enable_enemy_dummies": false
 }

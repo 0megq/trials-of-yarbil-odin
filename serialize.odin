@@ -64,25 +64,17 @@ EntityExistsCondition :: struct {
 	id:   uuid.Identifier,
 }
 
-TutorialFlags :: enum {
-	HideHud,
-	DisableAbility,
-	EnableEnemyDummies, // turns all enemies into dummies, meaning they don't move on their own or attack
-}
-
 TutorialPrompt :: struct {
 	pos:       Vec2, // in world coordinates
 	text:      string,
-	Condition: Condition,
+	condition: Condition,
 }
 
 Tutorial :: struct {
-	prompts: [dynamic]struct {
-		pos:       Vec2,
-		text:      string,
-		condition: Condition,
-	},
-	flags:   bit_set[TutorialFlags],
+	prompts:              [dynamic]TutorialPrompt,
+	hide_hud:             bool,
+	disable_ability:      bool,
+	enable_enemy_dummies: bool,
 }
 
 // Used for serialization and level editor
@@ -102,7 +94,7 @@ Level :: struct {
 	// camera bounding box
 	bounds:            Rectangle,
 	// tutorial
-	tutorial:          bool,
+	has_tutorial:      bool,
 }
 // updates made while in an editor mode will be saved here
 level: Level
@@ -183,7 +175,7 @@ load_level :: proc() {
 	place_walls_and_calculate_graph()
 
 	// Load tutorial if it exists
-	if level.tutorial {
+	if level.has_tutorial {
 		_load_tutorial()
 	}
 }
@@ -210,13 +202,13 @@ save_level :: proc() {
 	}
 
 	rl.TraceLog(.INFO, "Level Saved")
-	if level.tutorial {
+	if level.has_tutorial {
 		_save_tutorial()
 	}
 }
 
 unload_level :: proc() {
-	if level.tutorial {
+	if level.has_tutorial {
 		_unload_tutorial()
 	}
 	// delete world data
@@ -294,15 +286,15 @@ unload_game_data :: proc() {
 _load_tutorial :: proc() {
 	tutorial_file := fmt.tprintf("%s%02d.json", TUTORIAL_FILE_PREFIX, game_data.cur_level_idx)
 	if bytes, ok := os.read_entire_file(tutorial_file, context.allocator); ok {
-		if json.unmarshal(bytes, &tutorial) != nil {
-			rl.TraceLog(.WARNING, "Error parsing tutorial data")
+		if err := json.unmarshal(bytes, &tutorial); err != nil {
+			rl.TraceLog(.WARNING, "Error parsing tutorial data:")
 		}
 		delete(bytes)
 	} else {
 		rl.TraceLog(.WARNING, "Error loading tutorial data")
 	}
 
-	rl.TraceLog(.INFO, "Tutorial Unloaded")
+	rl.TraceLog(.INFO, "Tutorial Loaded")
 }
 
 _save_tutorial :: proc() {
@@ -316,8 +308,10 @@ _save_tutorial :: proc() {
 		os.write_entire_file(tutorial_save_path, bytes)
 		delete(bytes)
 	} else {
-		rl.TraceLog(.WARNING, "Error saving GameData")
+		rl.TraceLog(.WARNING, "Error saving tutorial data")
 	}
+
+	rl.TraceLog(.INFO, "Tutorial Saved")
 }
 
 _unload_tutorial :: proc() {
