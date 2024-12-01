@@ -9,7 +9,7 @@
 			"condition": null
 		}
 	],
-	"hide_hud": false,
-	"disable_ability": false,
+	"hide_hud": true,
+	"disable_ability": true,
 	"enable_enemy_dummies": false
 }

@@ -403,7 +403,8 @@ main :: proc() {
 				}
 			}
 
-			if is_control_pressed(controls.movement_ability) {
+			if !(level.has_tutorial && tutorial.disable_ability) &&
+			   is_control_pressed(controls.movement_ability) {
 				move_successful := false
 				switch player.cur_ability {
 				case .FIRE:
@@ -1518,7 +1519,9 @@ main :: proc() {
 				draw_entity_editor_ui(editor_state)
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
 			case .None:
-				draw_hud()
+				if !(level.has_tutorial && tutorial.hide_hud) {
+					draw_hud()
+				}
 				when ODIN_DEBUG { 	// Draw player coordinates
 					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
 				}
