@@ -1,6 +1,7 @@
 package game
 
 import "core:encoding/json"
+import "core:encoding/uuid"
 import "core:fmt"
 import "core:os"
 import "core:slice"
@@ -12,6 +13,7 @@ ENTITY_SAVE_FILE_PATH :: "entity1.json"
 LEVEL_FILE_PREFIX :: "./data/level"
 TILEMAP_FILE_PREFIX :: "./data/tilemap"
 GAME_FILE_PREFIX :: "./data/game"
+TUTORIAL_FILE_PREFIX :: "./data/tutorial"
 
 PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
 
@@ -45,6 +47,44 @@ GameData :: struct {
 	cur_level_idx: int,
 }
 
+Condition :: union {
+	EntityCountCondition,
+	EntityExistsCondition,
+}
+
+// Checks the count of entities of the specified type in the active entity arrays
+EntityCountCondition :: struct {
+	type:  EntityType,
+	count: int,
+}
+
+// Checks if the entity with the given type and id exists in the active entity arrays
+EntityExistsCondition :: struct {
+	type: EntityType,
+	id:   uuid.Identifier,
+}
+
+TutorialFlags :: enum {
+	HideHud,
+	DisableAbility,
+	EnableEnemyDummies, // turns all enemies into dummies, meaning they don't move on their own or attack
+}
+
+TutorialPrompt :: struct {
+	pos:       Vec2, // in world coordinates
+	text:      string,
+	Condition: Condition,
+}
+
+Tutorial :: struct {
+	prompts: [dynamic]struct {
+		pos:       Vec2,
+		text:      string,
+		condition: Condition,
+	},
+	flags:   bit_set[TutorialFlags],
+}
+
 // Used for serialization and level editor
 Level :: struct {
 	// start player pos
@@ -61,10 +101,13 @@ Level :: struct {
 	walls:             [dynamic]PhysicsEntity,
 	// camera bounding box
 	bounds:            Rectangle,
+	// tutorial
+	tutorial:          bool,
 }
 // updates made while in an editor mode will be saved here
 level: Level
 level_tilemap: Tilemap
+tutorial: Tutorial
 
 
 reload_level :: proc() {
@@ -89,7 +132,7 @@ load_level :: proc() {
 
 		delete(bytes)
 	} else {
-		rl.TraceLog(.WARNING, "Error parsing level data")
+		rl.TraceLog(.WARNING, "Error loading level data")
 		// setup enemies, items, barrels
 		level.enemies = make([dynamic]Enemy)
 		level.items = make([dynamic]Item)
@@ -138,6 +181,11 @@ load_level :: proc() {
 
 	walls = slice.clone_to_dynamic(level.walls[:])
 	place_walls_and_calculate_graph()
+
+	// Load tutorial if it exists
+	if level.tutorial {
+		_load_tutorial()
+	}
 }
 
 save_level :: proc() {
@@ -162,9 +210,15 @@ save_level :: proc() {
 	}
 
 	rl.TraceLog(.INFO, "Level Saved")
+	if level.tutorial {
+		_save_tutorial()
+	}
 }
 
 unload_level :: proc() {
+	if level.tutorial {
+		_unload_tutorial()
+	}
 	// delete world data
 	delete(enemies)
 	enemies = nil
@@ -202,7 +256,7 @@ load_game_data :: proc(game_idx := 0) {
 		}
 		delete(bytes)
 	} else {
-		rl.TraceLog(.WARNING, "Error parsing game data")
+		rl.TraceLog(.WARNING, "Error loading game data")
 		game_data.cur_level_idx = 0
 		game_data.player_data = {}
 	}
@@ -234,6 +288,42 @@ save_game_data :: proc(game_idx := 0) {
 
 unload_game_data :: proc() {
 	rl.TraceLog(.INFO, "GameData Unloaded")
+}
+
+
+_load_tutorial :: proc() {
+	tutorial_file := fmt.tprintf("%s%02d.json", TUTORIAL_FILE_PREFIX, game_data.cur_level_idx)
+	if bytes, ok := os.read_entire_file(tutorial_file, context.allocator); ok {
+		if json.unmarshal(bytes, &tutorial) != nil {
+			rl.TraceLog(.WARNING, "Error parsing tutorial data")
+		}
+		delete(bytes)
+	} else {
+		rl.TraceLog(.WARNING, "Error loading tutorial data")
+	}
+
+	rl.TraceLog(.INFO, "Tutorial Unloaded")
+}
+
+_save_tutorial :: proc() {
+	if bytes, err := json.marshal(tutorial, allocator = context.allocator, opt = {pretty = true});
+	   err == nil {
+		tutorial_save_path := fmt.tprintf(
+			"%s%02d.json",
+			TUTORIAL_FILE_PREFIX,
+			game_data.cur_level_idx,
+		)
+		os.write_entire_file(tutorial_save_path, bytes)
+		delete(bytes)
+	} else {
+		rl.TraceLog(.WARNING, "Error saving GameData")
+	}
+}
+
+_unload_tutorial :: proc() {
+	delete(tutorial.prompts)
+	tutorial = {}
+	rl.TraceLog(.INFO, "Tutorial Unloaded")
 }
 
 

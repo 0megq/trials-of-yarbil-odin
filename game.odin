@@ -2817,3 +2817,8 @@ fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 add_distraction :: proc(pos: Vec2) {
 	append(&distractions, Distraction{pos, f32(rl.GetTime()), false})
 }
+
+// returns the position of the given text centered at center
+get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
+	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
+}

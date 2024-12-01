@@ -3,20 +3,31 @@ package game
 import "core:encoding/uuid"
 import rl "vendor:raylib"
 
-EntityType :: union {
-	Entity,
-	PhysicsEntity,
-	MovingEntity,
-	ExplodingBarrel,
-	Enemy,
+// EntityType :: union {
+// 	Entity,
+// 	PhysicsEntity,
+// 	MovingEntity,
+// 	ExplodingBarrel,
+// 	Enemy,
+// 	Player,
+// 	Item,
+// 	ZEntity,
+// 	ProjectileWeapon,
+// 	Arrow,
+// 	Bomb,
+// }
+
+EntityType :: enum {
 	Player,
+	MeleeEnemy,
+	RangedEnemy,
 	Item,
-	ZEntity,
-	ProjectileWeapon,
 	Arrow,
 	Bomb,
+	ExplodingBarrel,
+	ProjectileWeapon,
+	Wall,
 }
-
 
 Entity :: struct {
 	id:         uuid.Identifier,
