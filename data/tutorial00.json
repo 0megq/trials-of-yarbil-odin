@@ -3,9 +3,9 @@
 		{
 			"pos": [
 				640.00000000,
-				400.00000000
+				550.00000000
 			],
-			"text": "hello",
+			"text": "Use WASD to move",
 			"condition": null
 		}
 	],

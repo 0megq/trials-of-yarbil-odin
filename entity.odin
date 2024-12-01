@@ -19,8 +19,7 @@ import rl "vendor:raylib"
 
 EntityType :: enum {
 	Player,
-	MeleeEnemy,
-	RangedEnemy,
+	Enemy,
 	Item,
 	Arrow,
 	Bomb,

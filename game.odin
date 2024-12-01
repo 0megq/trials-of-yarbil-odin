@@ -1249,6 +1249,50 @@ main :: proc() {
 					draw_shape(wall.shape, wall.pos, rl.GRAY)
 				}
 
+				if level.has_tutorial {
+					for prompt in tutorial.prompts {
+						passed_condition := false
+						switch condition in prompt.condition {
+						case EntityCountCondition:
+							#partial switch condition.type {
+							case .Enemy:
+								passed_condition = len(enemies) == condition.count
+							case:
+							}
+
+						case EntityExistsCondition:
+							#partial switch condition.type {
+							case .Enemy:
+								for enemy in enemies {
+									if enemy.id == condition.id {
+										passed_condition = true
+										break
+									}
+								}
+							case:
+							}
+						case:
+							passed_condition = true
+						}
+
+						if passed_condition {
+							font_size: f32 = 6
+							spacing: f32 = 1
+							text := fmt.ctprint(prompt.text)
+							pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
+							rl.DrawTextEx(
+								rl.GetFontDefault(),
+								text,
+								pos,
+								font_size,
+								spacing,
+								rl.WHITE,
+							)
+						}
+					}
+
+				}
+
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
 					draw_sprite(ENEMY_SPRITE, enemy.pos)
