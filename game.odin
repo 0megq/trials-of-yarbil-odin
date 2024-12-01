@@ -523,7 +523,8 @@ main :: proc() {
 						f32(i) *
 							enemy.detection_angle_sweep /
 							f32(len(enemy.detection_points) - 1) +
-						enemy.detection_angle,
+						enemy.detection_angle -
+						enemy.detection_angle_sweep / 2,
 					)
 					if i == len(enemy.detection_points) - 1 {
 						p = enemy.pos
