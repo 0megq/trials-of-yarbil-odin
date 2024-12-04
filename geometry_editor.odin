@@ -103,6 +103,45 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		set_shape_fields_to_selected_shape(e)
 	}
 
+	// Increasing/decreasing size of rectangle walls by tile size
+	if e.selected_wall != nil {
+		#partial switch &wall in e.selected_wall.shape {
+		case Rectangle:
+			{
+				original_width := wall.width
+				original_height := wall.height
+				if rl.IsKeyDown(.LEFT_SHIFT) {
+					if rl.IsKeyDown(.LEFT) {
+						wall.width -= TILE_SIZE
+					} else if rl.IsKeyDown(.RIGHT) {
+						wall.width += TILE_SIZE
+					}
+
+					if rl.IsKeyDown(.UP) {
+						wall.height -= TILE_SIZE
+					} else if rl.IsKeyDown(.DOWN) {
+						wall.height += TILE_SIZE
+					}
+				} else {
+					if rl.IsKeyPressed(.LEFT) {
+						wall.width -= TILE_SIZE
+					} else if rl.IsKeyPressed(.RIGHT) {
+						wall.width += TILE_SIZE
+					}
+
+					if rl.IsKeyPressed(.UP) {
+						wall.height -= TILE_SIZE
+					} else if rl.IsKeyPressed(.DOWN) {
+						wall.height += TILE_SIZE
+					}
+				}
+				if original_height != wall.height || original_width != wall.width {
+					set_shape_fields_to_selected_shape(e)
+				}
+			}
+		}
+	}
+
 	// Selecting and moving portal
 	if rl.IsMouseButtonPressed(.LEFT) {
 		if check_collision_shape_point(

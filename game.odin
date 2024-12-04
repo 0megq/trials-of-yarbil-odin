@@ -381,7 +381,7 @@ main :: proc() {
 				player.pos,
 			)
 			if is_level_finished() && is_control_pressed(controls.use_portal) && player_at_portal {
-				if game_data.cur_level_idx == 1 { 	// 1 is the last level
+				if game_data.cur_level_idx == -1 { 	// no win screen for now
 					display_win_screen = true
 				} else {
 					game_data.cur_level_idx += 1
@@ -511,8 +511,10 @@ main :: proc() {
 
 			// Move enemies and track player if in range
 			// if false {
-			#reverse for &enemy in enemies {
-
+			#reverse for &enemy, idx in enemies {
+				if level.has_tutorial && tutorial.enable_enemy_dummies {
+					damage_enemy(idx, 0)
+				}
 				/*
 				VISION CONE
 				*/
@@ -1014,7 +1016,8 @@ main :: proc() {
 					player.holding_item = false // Cancel item hold
 					player.charging_weapon = false // cancel charge
 				}
-			} else if is_control_pressed(controls.alt_fire) &&
+			} else if !(level.has_tutorial && tutorial.disable_throwing) &&
+			   is_control_pressed(controls.alt_fire) &&
 			   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
 				stop_player_attack() // Cancel attack
 				player.holding_item = false // Cancel item hold
@@ -1276,6 +1279,9 @@ main :: proc() {
 						case:
 							passed_condition = true
 						}
+						// this is a shortcut for inverting the value of passed_condition using XOR
+						passed_condition ~= prompt.invert_condition
+
 
 						if passed_condition {
 							font_size: f32 = 6
@@ -1520,7 +1526,7 @@ main :: proc() {
 				draw_entity_editor_ui(editor_state)
 				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
 			case .None:
-				if !(level.has_tutorial && tutorial.hide_hud) {
+				if !(level.has_tutorial && tutorial.hide_all_hud) {
 					draw_hud()
 				}
 				when ODIN_DEBUG { 	// Draw player coordinates

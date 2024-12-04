@@ -65,16 +65,20 @@ EntityExistsCondition :: struct {
 }
 
 TutorialPrompt :: struct {
-	pos:       Vec2, // in world coordinates
-	text:      string,
-	condition: Condition,
+	pos:              Vec2, // in world coordinates
+	text:             string,
+	condition:        Condition,
+	invert_condition: bool,
 }
 
 Tutorial :: struct {
 	prompts:              [dynamic]TutorialPrompt,
-	hide_hud:             bool,
+	hide_item_hud:        bool,
+	hide_weapon_hud:      bool,
 	disable_ability:      bool,
+	hide_all_hud:         bool,
 	enable_enemy_dummies: bool,
+	disable_throwing:     bool,
 }
 
 // Used for serialization and level editor

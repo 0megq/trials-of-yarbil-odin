@@ -6,10 +6,13 @@
 				550.00000000
 			],
 			"text": "Use WASD to move",
-			"condition": null
+			"condition": null,
+			"invert_condition": false
 		}
 	],
-	"hide_hud": true,
+	"hide_item_hud": false,
+	"hide_weapon_hud": false,
 	"disable_ability": true,
-	"enable_enemy_dummies": false
+	"hide_all_hud": true,
+	"enable_enemy_dummies": true
 }
