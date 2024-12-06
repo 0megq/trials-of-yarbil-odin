@@ -17,6 +17,7 @@ import rl "vendor:raylib"
 // 	Bomb,
 // }
 
+
 EntityType :: enum {
 	Player,
 	Enemy,

@@ -17,14 +17,6 @@ TUTORIAL_FILE_PREFIX :: "./data/tutorial"
 
 PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
 
-// This is the only data that gets saved for entities
-EntityData :: struct {
-	player_data:       PlayerData,
-	enemies:           [dynamic]Enemy,
-	items:             [dynamic]Item,
-	exploding_barrels: [dynamic]ExplodingBarrel,
-}
-
 PlayerData :: struct {
 	// player health
 	health:              f32,
@@ -65,14 +57,33 @@ EntityExistsCondition :: struct {
 }
 
 TutorialPrompt :: struct {
-	pos:              Vec2, // in world coordinates
-	text:             string,
+	pos:                         Vec2,
+	text:                        string,
+	condition:                   Condition,
+	invert_condition:            bool,
+	deactivate_condition:        Condition,
+	invert_deactivate_condition: bool,
+	on_screen:                   bool, // if true, the prompt will appear on screen instead of in world
+}
+
+TutorialAction :: struct {
+	action:           ActionData,
 	condition:        Condition,
 	invert_condition: bool,
 }
 
+ActionData :: union {
+	SpawnItemAction,
+}
+
+SpawnItemAction :: struct {
+	pos:  Vec2,
+	data: ItemData,
+}
+
 Tutorial :: struct {
 	prompts:              [dynamic]TutorialPrompt,
+	// actions:              [dynamic]TutorialAction,
 	hide_item_hud:        bool,
 	hide_weapon_hud:      bool,
 	disable_ability:      bool,
@@ -207,7 +218,7 @@ save_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Saved")
 	if level.has_tutorial {
-		// _save_tutorial() not saving tutorial since we shouldn't be changing it at all
+		// _save_tutorial() 
 	}
 }
 
@@ -320,6 +331,7 @@ _save_tutorial :: proc() {
 
 _unload_tutorial :: proc() {
 	delete(tutorial.prompts)
+	// delete(tutorial.actions)
 	tutorial = {}
 	rl.TraceLog(.INFO, "Tutorial Unloaded")
 }

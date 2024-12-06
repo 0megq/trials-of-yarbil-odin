@@ -1,6 +1,129 @@
 {
 	"prompts": [
-
+		{
+			"pos": [
+				760.00000000,
+				900.00000000
+			],
+			"text": "Pick Up the Stick",
+			"condition": {
+				"type": 2,
+				"id": [
+					252,
+					200,
+					234,
+					252,
+					169,
+					208,
+					74,
+					227,
+					137,
+					35,
+					140,
+					208,
+					194,
+					112,
+					87,
+					179
+				]
+			},
+			"invert_condition": false,
+			"deactivate_condition" : null,
+			"invert_deactivate_condition": true,
+			"on_screen": false
+		},
+		{
+			"pos": [
+				900.00000000,
+				780.00000000
+			],
+			"text": "Left Click to Attack",
+			"condition": {
+				"type": 2,
+				"id": [
+					252,
+					200,
+					234,
+					252,
+					169,
+					208,
+					74,
+					227,
+					137,
+					35,
+					140,
+					208,
+					194,
+					112,
+					87,
+					179
+				]
+			},
+			"invert_condition": true,
+			"deactivate_condition" : {
+				"type": 1,
+				"id":[
+					39,
+					8,
+					2,
+					59,
+					126,
+					243,
+					74,
+					177,
+					173,
+					214,
+					253,
+					51,
+					75,
+					71,
+					95,
+					120
+				]
+			},
+			"invert_deactivate_condition": true,
+			"on_screen": false
+		},
+		{
+			"pos": [
+				640.00000000,
+				550.00000000
+			],
+			"text": "Left Click to Attack",
+			"condition": {
+				"type": 2,
+				"id": [
+					252,
+					200,
+					234,
+					252,
+					169,
+					208,
+					74,
+					227,
+					137,
+					35,
+					140,
+					208,
+					194,
+					112,
+					87,
+					179
+				]
+			},
+			"invert_condition": true,
+			"on_screen": false
+		},
+		{
+			"pos": [
+				640.00000000,
+				550.00000000
+			],
+			"text": "Use WASD to move",
+			"condition": null,
+			"invert_condition": true,
+			"on_screen": false
+		}
 	],
 	"hide_item_hud": true,
 	"hide_weapon_hud": false,
