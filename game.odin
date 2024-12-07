@@ -372,37 +372,6 @@ main :: proc() {
 				distraction.consumed = true
 			}
 
-
-			// Enabling
-			// #reverse for item, i in disabled_items {
-			// 	if !item.disabled {
-			// 		append(&items, item)
-			// 		unordered_remove(&disabled_items, i)
-			// 	}
-			// }
-
-			// #reverse for enemy, i in disabled_enemies {
-			// 	if !enemy.disabled {
-			// 		append(&enemies, enemy)
-			// 		unordered_remove(&disabled_enemies, i)
-			// 	}
-			// }
-
-			// // Disabling
-			// #reverse for item, i in items {
-			// 	if item.disabled {
-			// 		append(&disabled_items, item)
-			// 		unordered_remove(&items, i)
-			// 	}
-			// }
-
-			// #reverse for enemy, i in enemies {
-			// 	if enemy.disabled {
-			// 		append(&disabled_enemies, enemy)
-			// 		unordered_remove(&enemies, i)
-			// 	}
-			// }
-
 			// TUTORIAL ACTIONS
 			for action in tutorial.actions {
 				if check_condition(action.condition, action.invert_condition) &&
@@ -1324,10 +1293,8 @@ main :: proc() {
 							pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
 
 							if check_condition(prompt.condition, prompt.invert_condition) &&
-							   !check_condition(
-									   prompt.deactivate_condition,
-									   prompt.invert_deactivate_condition,
-								   ) {
+							   check_condition(prompt.condition2, prompt.invert_condition2) &&
+							   check_condition(prompt.condition3, prompt.invert_condition3) {
 								rl.DrawTextEx(
 									rl.GetFontDefault(),
 									text,
@@ -2951,11 +2918,27 @@ check_condition :: proc(condition: Condition, invert_condition: bool) -> bool {
 					break
 				}
 			}
+			if c.check_disabled {
+				for enemy in enemies {
+					if enemy.id == c.id {
+						passed_condition = true
+						break
+					}
+				}
+			}
 		case .Item:
 			for item in items {
 				if item.id == c.id {
 					passed_condition = true
 					break
+				}
+			}
+			if c.check_disabled {
+				for item in disabled_items {
+					if item.id == c.id {
+						passed_condition = true
+						break
+					}
 				}
 			}
 		case:

@@ -33,7 +33,7 @@ Entity :: struct {
 	id:         uuid.Identifier,
 	pos:        Vec2,
 	queue_free: bool,
-	disabled:   bool,
+	start_disabled:   bool,
 }
 
 PhysicsEntity :: struct {

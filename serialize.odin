@@ -53,8 +53,9 @@ EntityCountCondition :: struct {
 
 // Checks if the entity with the given type and id exists in the active entity arrays
 EntityExistsCondition :: struct {
-	type: EntityType,
-	id:   uuid.Identifier,
+	type:           EntityType,
+	id:             uuid.Identifier,
+	check_disabled: bool,
 }
 
 InventorySlotsFilledCondition :: struct {
@@ -63,13 +64,15 @@ InventorySlotsFilledCondition :: struct {
 }
 
 TutorialPrompt :: struct {
-	pos:                         Vec2,
-	text:                        string,
-	condition:                   Condition,
-	invert_condition:            bool,
-	deactivate_condition:        Condition,
-	invert_deactivate_condition: bool,
-	on_screen:                   bool, // if true, the prompt will appear on screen instead of in world
+	pos:               Vec2,
+	text:              string,
+	condition:         Condition,
+	invert_condition:  bool,
+	condition2:        Condition,
+	invert_condition2: bool,
+	condition3:        Condition,
+	invert_condition3: bool,
+	on_screen:         bool, // if true, the prompt will appear on screen instead of in world
 }
 
 TutorialAction :: struct {
@@ -193,7 +196,7 @@ load_level :: proc() {
 	enemies = slice.clone_to_dynamic(level.enemies[:])
 	disabled_enemies = make([dynamic]Enemy)
 	#reverse for enemy, i in enemies {
-		if enemy.disabled {
+		if enemy.start_disabled {
 			append(&disabled_enemies, enemy)
 			unordered_remove(&enemies, i)
 		}
@@ -201,7 +204,7 @@ load_level :: proc() {
 	items = slice.clone_to_dynamic(level.items[:])
 	disabled_items = make([dynamic]Item)
 	#reverse for item, i in items {
-		if item.disabled {
+		if item.start_disabled {
 			append(&disabled_items, item)
 			unordered_remove(&items, i)
 		}

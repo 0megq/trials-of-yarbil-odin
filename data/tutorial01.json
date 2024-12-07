@@ -28,8 +28,8 @@
 				]
 			},
 			"invert_condition": false,
-			"deactivate_condition" : null,
-			"invert_deactivate_condition": true,
+			"condition2": null,
+			"invert_condition2": false,
 			"on_screen": false
 		},
 		{
@@ -60,11 +60,34 @@
 				]
 			},
 			"invert_condition": true,
-			"deactivate_condition" : {
-				"type": 1,
-				"count": 0
+			"condition2" : {
+				"count": 1,
+				"weapon": true
 			},
-			"invert_deactivate_condition": false,
+			"invert_condition2": false,
+			"condition3" : {
+				"type": 2,
+				"id": [
+					120,
+					154,
+					160,
+					53,
+					164,
+					81,
+					73,
+					73,
+					131,
+					204,
+					242,
+					138,
+					204,
+					53,
+					54,
+					59
+				],
+				"check_disabled": true
+			},
+			"invert_condition3": false,
 			"on_screen": false
 		}
 	],
