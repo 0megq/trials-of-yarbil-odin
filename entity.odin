@@ -261,6 +261,10 @@ new_entity :: proc(pos: Vec2) -> Entity {
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	setup_enemy(enemy)
+	if type_of(enemy.data) == MeleeEnemyData &&
+	   enemy.data.(MeleeEnemyData).attack_poly.points != nil {
+		delete(enemy.data.(MeleeEnemyData).attack_poly.points)
+	}
 	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
 	enemy.detection_range = 80
 	enemy.attack_charge_range = 12
