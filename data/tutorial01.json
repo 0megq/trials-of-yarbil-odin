@@ -62,7 +62,17 @@
 			"invert_condition": true,
 			"deactivate_condition" : {
 				"type": 1,
-				"id":[
+				"count": 0
+			},
+			"invert_deactivate_condition": false,
+			"on_screen": false
+		}
+	],
+	"actions": [
+		{
+			"action": {
+				"type": 1,
+				"id": [
 					39,
 					8,
 					2,
@@ -81,15 +91,6 @@
 					120
 				]
 			},
-			"invert_deactivate_condition": true,
-			"on_screen": false
-		},
-		{
-			"pos": [
-				640.00000000,
-				550.00000000
-			],
-			"text": "Left Click to Attack",
 			"condition": {
 				"type": 2,
 				"id": [
@@ -111,18 +112,57 @@
 					179
 				]
 			},
-			"invert_condition": true,
-			"on_screen": false
+			"invert_condition": true
 		},
 		{
-			"pos": [
-				640.00000000,
-				550.00000000
-			],
-			"text": "Use WASD to move",
-			"condition": null,
-			"invert_condition": true,
-			"on_screen": false
+			"action": {
+				"type": 2,
+				"id": [
+					120,
+					154,
+					160,
+					53,
+					164,
+					81,
+					73,
+					73,
+					131,
+					204,
+					242,
+					138,
+					204,
+					53,
+					54,
+					59
+				]
+			},
+			"condition": {
+				"count": 0,
+				"weapon": true
+			},
+			"invert_condition": false,
+			"condition2": {
+				"type": 2,
+				"id": [
+					252,
+					200,
+					234,
+					252,
+					169,
+					208,
+					74,
+					227,
+					137,
+					35,
+					140,
+					208,
+					194,
+					112,
+					87,
+					179
+				]
+			},
+			"invert_condition2": true
 		}
 	],
 	"hide_item_hud": true,

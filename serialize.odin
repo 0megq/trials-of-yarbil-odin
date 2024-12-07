@@ -42,6 +42,7 @@ GameData :: struct {
 Condition :: union {
 	EntityCountCondition,
 	EntityExistsCondition,
+	InventorySlotsFilledCondition,
 }
 
 // Checks the count of entities of the specified type in the active entity arrays
@@ -56,6 +57,11 @@ EntityExistsCondition :: struct {
 	id:   uuid.Identifier,
 }
 
+InventorySlotsFilledCondition :: struct {
+	count:  int,
+	weapon: bool, // if true, this will check the weapon slots instead of the item slots
+}
+
 TutorialPrompt :: struct {
 	pos:                         Vec2,
 	text:                        string,
@@ -67,23 +73,25 @@ TutorialPrompt :: struct {
 }
 
 TutorialAction :: struct {
-	action:           ActionData,
-	condition:        Condition,
-	invert_condition: bool,
+	action:            ActionData,
+	condition:         Condition,
+	invert_condition:  bool,
+	condition2:        Condition,
+	invert_condition2: bool,
 }
 
 ActionData :: union {
-	SpawnItemAction,
+	EnableEntityAction,
 }
 
-SpawnItemAction :: struct {
-	pos:  Vec2,
-	data: ItemData,
+EnableEntityAction :: struct {
+	type: EntityType,
+	id:   uuid.Identifier,
 }
 
 Tutorial :: struct {
 	prompts:              [dynamic]TutorialPrompt,
-	// actions:              [dynamic]TutorialAction,
+	actions:              [dynamic]TutorialAction,
 	hide_item_hud:        bool,
 	hide_weapon_hud:      bool,
 	disable_ability:      bool,
@@ -183,7 +191,21 @@ load_level :: proc() {
 
 	// We clone the arrays so we don't change the level data when we play the game
 	enemies = slice.clone_to_dynamic(level.enemies[:])
+	disabled_enemies = make([dynamic]Enemy)
+	#reverse for enemy, i in enemies {
+		if enemy.disabled {
+			append(&disabled_enemies, enemy)
+			unordered_remove(&enemies, i)
+		}
+	}
 	items = slice.clone_to_dynamic(level.items[:])
+	disabled_items = make([dynamic]Item)
+	#reverse for item, i in items {
+		if item.disabled {
+			append(&disabled_items, item)
+			unordered_remove(&items, i)
+		}
+	}
 	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
 	walls = slice.clone_to_dynamic(level.walls[:])
@@ -229,8 +251,12 @@ unload_level :: proc() {
 	// delete world data
 	delete(enemies)
 	enemies = nil
+	delete(disabled_enemies)
+	disabled_enemies = nil
 	delete(items)
 	items = nil
+	delete(disabled_items)
+	disabled_items = nil
 	delete(exploding_barrels)
 	exploding_barrels = nil
 	delete(walls)

@@ -135,7 +135,9 @@ game_data: GameData
 // world data
 player: Player
 enemies: [dynamic]Enemy
+disabled_enemies: [dynamic]Enemy
 items: [dynamic]Item
+disabled_items: [dynamic]Item
 exploding_barrels: [dynamic]ExplodingBarrel
 tilemap: Tilemap
 // nav_mesh: NavMesh
@@ -368,6 +370,65 @@ main :: proc() {
 					unordered_remove(&distractions, i)
 				}
 				distraction.consumed = true
+			}
+
+
+			// Enabling
+			// #reverse for item, i in disabled_items {
+			// 	if !item.disabled {
+			// 		append(&items, item)
+			// 		unordered_remove(&disabled_items, i)
+			// 	}
+			// }
+
+			// #reverse for enemy, i in disabled_enemies {
+			// 	if !enemy.disabled {
+			// 		append(&enemies, enemy)
+			// 		unordered_remove(&disabled_enemies, i)
+			// 	}
+			// }
+
+			// // Disabling
+			// #reverse for item, i in items {
+			// 	if item.disabled {
+			// 		append(&disabled_items, item)
+			// 		unordered_remove(&items, i)
+			// 	}
+			// }
+
+			// #reverse for enemy, i in enemies {
+			// 	if enemy.disabled {
+			// 		append(&disabled_enemies, enemy)
+			// 		unordered_remove(&enemies, i)
+			// 	}
+			// }
+
+			// TUTORIAL ACTIONS
+			for action in tutorial.actions {
+				if check_condition(action.condition, action.invert_condition) &&
+				   check_condition(action.condition2, action.invert_condition2) {
+					switch data in action.action {
+					case EnableEntityAction:
+						#partial switch data.type {
+						case .Item:
+							#reverse for item, i in disabled_items {
+								if item.id == data.id {
+									append(&items, item)
+									unordered_remove(&disabled_items, i)
+									break
+								}
+							}
+						case .Enemy:
+							#reverse for enemy, i in disabled_enemies {
+								if enemy.id == data.id {
+									append(&enemies, enemy)
+									unordered_remove(&disabled_enemies, i)
+									break
+								}
+							}
+						}
+					}
+				}
 			}
 
 
@@ -1262,7 +1323,11 @@ main :: proc() {
 							text := fmt.ctprint(prompt.text)
 							pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
 
-							if check_condition(prompt.condition, prompt.invert_condition) && !check_condition(prompt.deactivate_condition, prompt.invert_deactivate_condition) {
+							if check_condition(prompt.condition, prompt.invert_condition) &&
+							   !check_condition(
+									   prompt.deactivate_condition,
+									   prompt.invert_deactivate_condition,
+								   ) {
 								rl.DrawTextEx(
 									rl.GetFontDefault(),
 									text,
@@ -2359,7 +2424,7 @@ is_control_released :: proc(c: Control) -> bool {
 }
 
 is_level_finished :: proc() -> bool {
-	return len(enemies) == 0
+	return len(enemies) + len(disabled_enemies) == 0
 }
 
 add_item_to_world :: proc(data: ItemData, pos: Vec2) {
@@ -2895,9 +2960,43 @@ check_condition :: proc(condition: Condition, invert_condition: bool) -> bool {
 			}
 		case:
 		}
+	case InventorySlotsFilledCondition:
+		if c.weapon {
+			count := 0
+			for weapon in player.weapons {
+				if weapon.id != .Empty {
+					count += 1
+				}
+			}
+			passed_condition = count == c.count
+
+		} else {
+			passed_condition = player.item_count == c.count
+		}
 	case:
 		passed_condition = true
 	}
 	// this is a shortcut for inverting the value of passed_condition using XOR
 	return passed_condition ~ invert_condition
 }
+
+// // This is called whenever a event happens. 
+// handle_event :: proc(event: Event) {
+// 	switch event.type {
+// 	case .EnemyDeath:
+// 		event.id
+// 	case .AbilityUsed:
+
+// 	case .ItemDropped:
+
+// 	case .ItemPickedUp:
+
+// 	case .ItemUsed:
+
+// 	case .WeaponAttackedWith:
+
+// 	case .WeaponDropped:
+
+// 	case .WeaponThrown:
+// 	}
+// }

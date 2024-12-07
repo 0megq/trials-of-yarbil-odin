@@ -34,7 +34,8 @@
 							893.45605469,
 							810.79302979
 						],
-						"queue_free": false
+						"queue_free": false,
+						"disabled": true
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -335,7 +336,8 @@
 							755.72784424,
 							919.55529785
 						],
-						"queue_free": false
+						"queue_free": false,
+						"disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -382,7 +384,8 @@
 							752.75897217,
 							716.51116943
 						],
-						"queue_free": false
+						"queue_free": false,
+						"disabled": true
 					},
 					"shape": {
 						"pos": [
@@ -432,7 +435,8 @@
 					712.00000000,
 					616.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -465,7 +469,8 @@
 					712.00000000,
 					616.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -498,7 +503,8 @@
 					984.00000000,
 					696.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -531,7 +537,8 @@
 					712.00000000,
 					1056.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -564,7 +571,8 @@
 					792.00000000,
 					920.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -597,7 +605,8 @@
 					784.00000000,
 					688.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -630,7 +639,8 @@
 					784.00000000,
 					616.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
