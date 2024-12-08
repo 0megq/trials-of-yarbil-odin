@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import "core:math"
 import rl "vendor:raylib"
 
 
@@ -10,12 +11,14 @@ update_entity_editor :: proc(e: ^EditorState) {
 		if check_collision_shape_point(PLAYER_SHAPE, level.player_pos, mouse_world_pos) {
 			e.selected_phys_entity = nil
 			e.selected_entity = .Player
+			e.entity_mouse_rel_pos = level.player_pos - mouse_world_pos
 			break outer
 		}
 		for &enemy in level.enemies {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
 				e.selected_entity = .Enemy
+				e.entity_mouse_rel_pos = enemy.pos - mouse_world_pos
 				break outer
 			}
 		}
@@ -23,6 +26,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
 				e.selected_entity = .ExplodingBarrel
+				e.entity_mouse_rel_pos = barrel.pos - mouse_world_pos
 				break outer
 			}
 		}
@@ -30,6 +34,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
 				e.selected_entity = .Item
+				e.entity_mouse_rel_pos = item.pos - mouse_world_pos
 				break outer
 			}
 		}
@@ -39,11 +44,21 @@ update_entity_editor :: proc(e: ^EditorState) {
 
 	// move entity
 	if rl.IsMouseButtonDown(.LEFT) && e.selected_entity != .Nil {
+		pos: ^Vec2
+
 		if e.selected_entity == .Player {
-			level.player_pos += mouse_world_delta
+			pos = &level.player_pos
 		} else {
-			e.selected_phys_entity.pos += mouse_world_delta
+			pos = &e.selected_phys_entity.pos
 		}
+
+		snap_size: f32 = 1
+		if rl.IsKeyDown(.LEFT_SHIFT) {
+			snap_size = TILE_SIZE / 2
+		}
+
+		pos.x = math.round((e.entity_mouse_rel_pos.x + mouse_world_pos.x) / snap_size) * snap_size
+		pos.y = math.round((e.entity_mouse_rel_pos.y + mouse_world_pos.y) / snap_size) * snap_size
 	}
 
 	// delete entity

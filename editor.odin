@@ -7,6 +7,7 @@ EditorState :: struct {
 	// Entity editor
 	selected_entity:      LevelEntityType,
 	selected_phys_entity: ^PhysicsEntity,
+	entity_mouse_rel_pos: Vec2,
 
 	// Level editor
 	portal_selected:      bool,
