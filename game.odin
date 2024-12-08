@@ -10,6 +10,8 @@ import "core:slice"
 import rl "vendor:raylib"
 
 GAME_SIZE :: Vec2i{480, 270}
+UI_SIZE :: Vec2i{1440, 810}
+UI_OVER_GAME :: f32(UI_SIZE.x) / f32(GAME_SIZE.x)
 ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
 PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
@@ -126,7 +128,7 @@ PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE
 ENEMY_SPRITE :: Sprite{.Enemy, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
 BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
 
-window_size := Vec2i{1440, 810}
+window_size := UI_SIZE
 window_over_game: f32
 game_over_window: f32
 
@@ -288,10 +290,11 @@ main :: proc() {
 
 		// Camera Zooming
 		{
+			camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 			if editor_state.mode == .None {
 				camera.zoom = window_over_game
-				camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 				camera.target = player.pos
+				// camera.target = 0
 				// camera.target = fit_camera_target_to_level_bounds(player.pos)
 			} else {
 				if rl.IsMouseButtonDown(.MIDDLE) {
@@ -1516,6 +1519,12 @@ main :: proc() {
 
 			rl.EndMode2D()
 
+			// ***START UI CAMERA***
+			zoom := window_over_game / UI_OVER_GAME
+			target := Vec2{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2
+			offset := Vec2{f32(window_size.x), f32(window_size.y)} / 2
+			rl.BeginMode2D(rl.Camera2D{offset, target, 0, zoom})
+
 			if camera.zoom != window_over_game {
 				rl.DrawText(fmt.ctprintf("Zoom: x%v", camera.zoom), 24, 700, 16, rl.BLACK)
 			}
@@ -1562,7 +1571,7 @@ main :: proc() {
 					rl.DrawTextEx(
 						rl.GetFontDefault(),
 						message,
-						{f32(window_size.x) / 2, f32(window_size.y)} - {size.x / 2, size.y + 8},
+						{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y)} - {size.x / 2, size.y + 8},
 						24,
 						1,
 						rl.DARKGREEN,
@@ -1572,8 +1581,8 @@ main :: proc() {
 				if level.has_tutorial {
 					for prompt in tutorial.prompts {
 						if prompt.on_screen {
-							center := prompt.pos * {f32(window_size.x), f32(window_size.y)}
-							font_size: f32 = 6 * window_over_game
+							center := prompt.pos * {f32(UI_SIZE.x), f32(UI_SIZE.y)}
+							font_size: f32 = 6 * UI_OVER_GAME
 							spacing: f32 = 1
 							text := fmt.ctprint(prompt.text)
 							pos := get_centered_text_pos(center, text, font_size, spacing)
@@ -1606,7 +1615,6 @@ main :: proc() {
 							}
 						}
 					}
-
 				}
 			}
 
@@ -1621,6 +1629,7 @@ main :: proc() {
 
 			// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
 
+			rl.EndMode2D()
 			rl.EndDrawing()
 		}
 		free_all(context.temp_allocator)

@@ -13,7 +13,7 @@ draw_hud :: proc() {
 		{
 			selected_item := player.items[player.selected_item_idx]
 
-			pos := Vec2{16, f32(window_size.y) - slot_size * 2 - margin}
+			pos := Vec2{16, f32(UI_SIZE.y) - slot_size * 2 - margin}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			rl.DrawRectangleLinesEx({pos.x, pos.y, slot_size, slot_size}, 2, rl.GOLD)
 			tex := loaded_textures[item_to_texture[selected_item.id]]
@@ -47,7 +47,7 @@ draw_hud :: proc() {
 		// Show next and prev item when holding item
 		// prev item slot
 		{
-			pos := Vec2{16, f32(window_size.y) - slot_size * 3 - margin}
+			pos := Vec2{16, f32(UI_SIZE.y) - slot_size * 3 - margin}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			if player.item_count > 2 {
 				tex :=
@@ -72,7 +72,7 @@ draw_hud :: proc() {
 
 		// next item slot
 		{
-			pos := Vec2{16, f32(window_size.y) - slot_size - margin}
+			pos := Vec2{16, f32(UI_SIZE.y) - slot_size - margin}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			if player.item_count > 1 {
 				tex :=
@@ -100,10 +100,7 @@ draw_hud :: proc() {
 	if !(level.has_tutorial && tutorial.hide_weapon_hud) {
 		// Show 1st (bottom) slot
 		{
-			pos := Vec2 {
-				f32(window_size.x) - slot_size - margin,
-				f32(window_size.y) - slot_size - margin,
-			}
+			pos := Vec2{f32(UI_SIZE.x) - slot_size - margin, f32(UI_SIZE.y) - slot_size - margin}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			tex := loaded_textures[item_to_texture[player.weapons[0].id]]
 			src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
@@ -119,8 +116,8 @@ draw_hud :: proc() {
 		// Show 2nd (top) slot
 		{
 			pos := Vec2 {
-				f32(window_size.x) - slot_size - margin,
-				f32(window_size.y) - slot_size * 2 - margin,
+				f32(UI_SIZE.x) - slot_size - margin,
+				f32(UI_SIZE.y) - slot_size * 2 - margin,
 			}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			tex := loaded_textures[item_to_texture[player.weapons[1].id]]
@@ -137,8 +134,8 @@ draw_hud :: proc() {
 		// Show weapon selection
 		{
 			pos := Vec2 {
-				f32(window_size.x) - slot_size - margin,
-				f32(window_size.y) - slot_size * (1 + f32(player.selected_weapon_idx)) - margin,
+				f32(UI_SIZE.x) - slot_size - margin,
+				f32(UI_SIZE.y) - slot_size * (1 + f32(player.selected_weapon_idx)) - margin,
 			}
 
 			// Show durability
