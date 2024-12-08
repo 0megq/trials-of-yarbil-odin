@@ -426,4 +426,17 @@ draw_level :: proc(show_tile_grid := false) {
 	}
 
 	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
+
+	if level.has_tutorial {
+		for prompt in tutorial.prompts {
+			if !prompt.on_screen {
+				font_size: f32 = 6
+				spacing: f32 = 1
+				text := fmt.ctprint(prompt.text)
+				pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
+				text_size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
+				rl.DrawRectangleLinesEx({pos.x, pos.y, text_size.x, text_size.y}, 0.5, rl.YELLOW)
+			}
+		}
+	}
 }

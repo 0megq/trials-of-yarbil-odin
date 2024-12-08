@@ -1568,6 +1568,46 @@ main :: proc() {
 						rl.DARKGREEN,
 					)
 				}
+
+				if level.has_tutorial {
+					for prompt in tutorial.prompts {
+						if prompt.on_screen {
+							center := prompt.pos * {f32(window_size.x), f32(window_size.y)}
+							font_size: f32 = 6 * window_over_game
+							spacing: f32 = 1
+							text := fmt.ctprint(prompt.text)
+							pos := get_centered_text_pos(center, text, font_size, spacing)
+
+							if check_condition(prompt.condition, prompt.invert_condition) &&
+							   check_condition(prompt.condition2, prompt.invert_condition2) &&
+							   check_condition(prompt.condition3, prompt.invert_condition3) {
+								rl.DrawTextEx(
+									rl.GetFontDefault(),
+									text,
+									pos,
+									font_size,
+									spacing,
+									rl.WHITE,
+								)
+							} else {
+								when ODIN_DEBUG {
+									text_size := rl.MeasureTextEx(
+										rl.GetFontDefault(),
+										text,
+										font_size,
+										spacing,
+									)
+									rl.DrawRectangleLinesEx(
+										{pos.x, pos.y, text_size.x, text_size.y},
+										1,
+										rl.YELLOW,
+									)
+								}
+							}
+						}
+					}
+
+				}
 			}
 
 			if display_win_screen {
