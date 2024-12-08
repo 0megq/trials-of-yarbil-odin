@@ -11,7 +11,7 @@ import rl "vendor:raylib"
 
 GAME_SIZE :: Vec2i{480, 270}
 UI_SIZE :: Vec2i{1440, 810}
-UI_OVER_GAME :: f32(UI_SIZE.x) / f32(GAME_SIZE.x)
+UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
 ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
 PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
@@ -130,7 +130,6 @@ BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.
 
 window_size := UI_SIZE
 window_over_game: f32
-game_over_window: f32
 
 game_data: GameData
 
@@ -195,8 +194,7 @@ main :: proc() {
 	rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 	rl.SetWindowMaxSize(1920, 1057)
 	rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
-	window_over_game = f32(window_size.x) / f32(GAME_SIZE.x)
-	game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
+	window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 
 	load_textures()
 	load_game_data()
@@ -284,8 +282,7 @@ main :: proc() {
 			}
 			rl.SetWindowSize(window_size.x, window_size.y)
 
-			window_over_game = f32(window_size.x) / f32(GAME_SIZE.x)
-			game_over_window = f32(GAME_SIZE.x) / f32(window_size.x)
+			window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 		}
 
 		// Camera Zooming
@@ -1077,7 +1074,8 @@ main :: proc() {
 			}
 
 			// Item drop
-			if is_control_pressed(controls.drop) {
+			if is_control_pressed(controls.drop) &&
+			   !(level.has_tutorial && tutorial.disable_dropping) {
 				if item_data := drop_item(); item_data.id != .Empty {
 					add_item_to_world(item_data, player.pos)
 				}
@@ -1094,7 +1092,8 @@ main :: proc() {
 
 			// Weapon switching
 			player.weapon_switched = false
-			if is_control_pressed(controls.switch_selected_weapon) {
+			if is_control_pressed(controls.switch_selected_weapon) &&
+			   !(level.has_tutorial && tutorial.disable_switching) {
 				select_weapon(0 if player.selected_weapon_idx == 1 else 1)
 				stop_player_attack() // Cancel attack
 				player.weapon_switched = true
@@ -1571,7 +1570,7 @@ main :: proc() {
 					rl.DrawTextEx(
 						rl.GetFontDefault(),
 						message,
-						{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y)} - {size.x / 2, size.y + 8},
+						{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y)} - {size.x / 2, size.y + 16},
 						24,
 						1,
 						rl.DARKGREEN,

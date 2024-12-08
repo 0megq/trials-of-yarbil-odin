@@ -101,6 +101,8 @@ Tutorial :: struct {
 	hide_all_hud:         bool,
 	enable_enemy_dummies: bool,
 	disable_throwing:     bool,
+	disable_switching:    bool,
+	disable_dropping:     bool,
 }
 
 // Used for serialization and level editor
