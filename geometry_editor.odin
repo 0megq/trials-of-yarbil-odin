@@ -31,13 +31,13 @@ wall_tilemap: WallTilemap
 
 
 update_geometry_editor :: proc(e: ^EditorState) {
-	update_button(&e.new_shape_but, mouse_pos)
+	update_button(&e.new_shape_but, mouse_ui_pos)
 
 	// New shape
 	if e.new_shape_but.status == .Released {
 		append(
 			&level.walls,
-			PhysicsEntity{entity = new_entity(camera.target), shape = Rectangle{0, 0, 8, 8}},
+			PhysicsEntity{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
 		)
 		e.selected_wall_index = len(level.walls) - 1
 		e.selected_wall = &level.walls[e.selected_wall_index]
@@ -46,7 +46,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	// Updating fields
 	if e.selected_wall != nil {
-		update_button(&e.change_shape_but, mouse_pos)
+		update_button(&e.change_shape_but, mouse_ui_pos)
 		if e.change_shape_but.status == .Released {
 			switch shape in e.selected_wall.shape {
 			case Circle:
@@ -273,27 +273,27 @@ set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
 }
 
 update_shape_fields :: proc(e: ^EditorState) {
-	update_number_field(&e.entity_x_field, mouse_pos)
-	update_number_field(&e.entity_y_field, mouse_pos)
+	update_number_field(&e.entity_x_field, mouse_ui_pos)
+	update_number_field(&e.entity_y_field, mouse_ui_pos)
 	e.selected_wall.pos.x = e.entity_x_field.number
 	e.selected_wall.pos.y = e.entity_y_field.number
-	update_number_field(&e.shape_x_field, mouse_pos)
-	update_number_field(&e.shape_y_field, mouse_pos)
+	update_number_field(&e.shape_x_field, mouse_ui_pos)
+	update_number_field(&e.shape_y_field, mouse_ui_pos)
 	switch &shape in e.selected_wall.shape {
 	case Circle:
-		update_number_field(&e.radius_field, mouse_pos)
+		update_number_field(&e.radius_field, mouse_ui_pos)
 		shape.pos.x = e.shape_x_field.number
 		shape.pos.y = e.shape_y_field.number
 		shape.radius = e.radius_field.number
 	case Polygon:
 	// No longer supporting polygon in level editor
-	// update_number_field(&rotation_field, mouse_pos)
+	// update_number_field(&rotation_field, mouse_ui_pos)
 	// shape.pos.x = e.shape_x_field.number
 	// shape.pos.y = e.shape_y_field.number
 	// shape.rotation = e.rotation_field.number
 	case Rectangle:
-		update_number_field(&e.width_field, mouse_pos)
-		update_number_field(&e.height_field, mouse_pos)
+		update_number_field(&e.width_field, mouse_ui_pos)
+		update_number_field(&e.height_field, mouse_ui_pos)
 		shape.x = e.shape_x_field.number
 		shape.y = e.shape_y_field.number
 		shape.width = e.width_field.number
@@ -353,7 +353,7 @@ draw_geometry_editor_ui :: proc(e: EditorState) {
 			rl.DrawTextEx(
 				rl.GetFontDefault(),
 				fmt.ctprint(point),
-				world_to_screen(point),
+				world_to_ui(point),
 				16,
 				2,
 				rl.WHITE,

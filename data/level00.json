@@ -41,7 +41,8 @@
 					456.00000000,
 					296.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -74,7 +75,8 @@
 					456.00000000,
 					296.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -107,7 +109,8 @@
 					848.00000000,
 					296.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -140,7 +143,8 @@
 					456.00000000,
 					688.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,

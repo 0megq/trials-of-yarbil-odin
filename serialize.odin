@@ -43,6 +43,7 @@ Condition :: union {
 	EntityCountCondition,
 	EntityExistsCondition,
 	InventorySlotsFilledCondition,
+	KeyPressedCondition,
 }
 
 // Checks the count of entities of the specified type in the active entity arrays
@@ -63,16 +64,21 @@ InventorySlotsFilledCondition :: struct {
 	weapon: bool, // if true, this will check the weapon slots instead of the item slots
 }
 
+KeyPressedCondition :: struct {
+	key: rl.KeyboardKey,
+	fulfilled: bool,
+}
+
 TutorialPrompt :: struct {
-	pos:               Vec2,
-	text:              string,
-	condition:         Condition,
-	invert_condition:  bool,
-	condition2:        Condition,
-	invert_condition2: bool,
-	condition3:        Condition,
-	invert_condition3: bool,
-	on_screen:         bool, // if true, the prompt will appear on screen instead of in world
+	pos:                      Vec2,
+	text:                     string,
+	condition:                Condition,
+	invert_condition:         bool,
+	condition2:               Condition,
+	invert_condition2:        bool,
+	condition3:               Condition,
+	invert_condition3:        bool,
+	on_screen:                bool, // if true, the prompt will appear on screen instead of in world
 }
 
 TutorialAction :: struct {

@@ -128,9 +128,6 @@ PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE
 ENEMY_SPRITE :: Sprite{.Enemy, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
 BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
 
-window_size := UI_SIZE
-window_over_game: f32
-
 game_data: GameData
 
 // world data
@@ -165,14 +162,21 @@ play_again_button: Button = Button {
 queue_play_again: bool
 
 // misc
-camera: rl.Camera2D
+world_camera: rl.Camera2D
+ui_camera: rl.Camera2D
 
-delta: f32
-mouse_pos: Vec2
-mouse_delta: Vec2
+window_size := UI_SIZE
+window_over_game: f32
+window_over_ui: f32
+
+mouse_window_pos: Vec2
+mouse_window_delta: Vec2
+mouse_ui_pos: Vec2
+mouse_ui_delta: Vec2
 mouse_world_pos: Vec2
 mouse_world_delta: Vec2
 
+delta: f32
 
 main :: proc() {
 	context.random_generator = crypto.random_generator()
@@ -195,6 +199,7 @@ main :: proc() {
 	rl.SetWindowMaxSize(1920, 1057)
 	rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 	window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
+	window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 
 	load_textures()
 	load_game_data()
@@ -233,10 +238,16 @@ main :: proc() {
 
 	// attack_poly.points = punch_points[:]
 
-	camera = rl.Camera2D {
+	world_camera = rl.Camera2D {
 		target = player.pos,
 		zoom   = window_over_game,
-		offset = ({f32(GAME_SIZE.x), f32(GAME_SIZE.y)} / 2),
+		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
+	}
+
+	ui_camera = rl.Camera2D {
+		target = Vec2{f32(window_size.x), f32(window_size.y)} / 2,
+		zoom   = window_over_ui,
+		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
 
 	for !rl.WindowShouldClose() {
@@ -283,34 +294,43 @@ main :: proc() {
 			rl.SetWindowSize(window_size.x, window_size.y)
 
 			window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
+			window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 		}
 
-		// Camera Zooming
+		// Camera stuff
 		{
-			camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
+			world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 			if editor_state.mode == .None {
-				camera.zoom = window_over_game
-				camera.target = player.pos
+				world_camera.zoom = window_over_game
+				world_camera.target = player.pos
 				// camera.target = 0
 				// camera.target = fit_camera_target_to_level_bounds(player.pos)
 			} else {
-				if rl.IsMouseButtonDown(.MIDDLE) {
-					camera.target -= mouse_world_delta
+				world_camera.zoom += rl.GetMouseWheelMove() * 0.2 * world_camera.zoom
+				world_camera.zoom = max(0.1, world_camera.zoom)
+				if math.abs(world_camera.zoom - window_over_game) < 0.2 {
+					world_camera.zoom = window_over_game
 				}
-				camera.zoom += rl.GetMouseWheelMove() * 0.2 * camera.zoom
-				camera.zoom = max(0.1, camera.zoom)
-				if math.abs(camera.zoom - window_over_game) < 0.2 {
-					camera.zoom = window_over_game
+				
+				if rl.IsMouseButtonDown(.MIDDLE) {
+					world_camera.target -= mouse_world_delta
 				}
 			}
+
+			ui_camera.offset = Vec2{f32(window_size.x), f32(window_size.y)} / 2
+			ui_camera.zoom = window_over_ui
+			ui_camera.target = Vec2{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2
 		}
 
-		delta = rl.GetFrameTime()
 		// Mouse movement
-		mouse_pos = rl.GetMousePosition()
-		mouse_delta = rl.GetMouseDelta()
-		mouse_world_pos = screen_to_world(mouse_pos)
-		mouse_world_delta = mouse_delta / camera.zoom
+		mouse_window_pos = rl.GetMousePosition()
+		mouse_window_delta = rl.GetMouseDelta()
+		mouse_ui_pos = window_to_ui(mouse_window_pos)
+		mouse_ui_delta = mouse_window_delta / ui_camera.zoom
+		mouse_world_pos = window_to_world(mouse_window_pos)
+		mouse_world_delta = mouse_window_delta / world_camera.zoom
+
+		delta = rl.GetFrameTime()
 
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -373,9 +393,9 @@ main :: proc() {
 			}
 
 			// TUTORIAL ACTIONS
-			for action in tutorial.actions {
-				if check_condition(action.condition, action.invert_condition) &&
-				   check_condition(action.condition2, action.invert_condition2) {
+			for &action in tutorial.actions {
+				if check_condition(&action.condition, action.invert_condition) &&
+				   check_condition(&action.condition2, action.invert_condition2) {
 					switch data in action.action {
 					case EnableEntityAction:
 						#partial switch data.type {
@@ -420,7 +440,7 @@ main :: proc() {
 			}
 
 			if display_win_screen {
-				update_button(&play_again_button, mouse_pos)
+				update_button(&play_again_button, mouse_ui_pos)
 				if play_again_button.status == .Released {
 					queue_play_again = true
 				}
@@ -1192,8 +1212,8 @@ main :: proc() {
 			rl.ClearBackground(rl.DARKGRAY)
 
 
-			rl.BeginMode2D(camera)
-
+			/*** WORLD CAMERA ***/
+			rl.BeginMode2D(world_camera)
 
 			if editor_state.mode != .None {
 				draw_level(editor_state.show_tile_grid)
@@ -1287,16 +1307,16 @@ main :: proc() {
 				}
 
 				if level.has_tutorial {
-					for prompt in tutorial.prompts {
+					for &prompt in tutorial.prompts {
 						if !prompt.on_screen {
 							font_size: f32 = 6
 							spacing: f32 = 1
 							text := fmt.ctprint(prompt.text)
 							pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
 
-							if check_condition(prompt.condition, prompt.invert_condition) &&
-							   check_condition(prompt.condition2, prompt.invert_condition2) &&
-							   check_condition(prompt.condition3, prompt.invert_condition3) {
+							if check_condition(&prompt.condition, prompt.invert_condition) &&
+							   check_condition(&prompt.condition2, prompt.invert_condition2) &&
+							   check_condition(&prompt.condition3, prompt.invert_condition3) {
 								rl.DrawTextEx(
 									rl.GetFontDefault(),
 									text,
@@ -1518,14 +1538,12 @@ main :: proc() {
 
 			rl.EndMode2D()
 
-			// ***START UI CAMERA***
-			zoom := window_over_game / UI_OVER_GAME
-			target := Vec2{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2
-			offset := Vec2{f32(window_size.x), f32(window_size.y)} / 2
-			rl.BeginMode2D(rl.Camera2D{offset, target, 0, zoom})
+			/***START UI CAMERA***/
 
-			if camera.zoom != window_over_game {
-				rl.DrawText(fmt.ctprintf("Zoom: x%v", camera.zoom), 24, 700, 16, rl.BLACK)
+			rl.BeginMode2D(ui_camera)
+
+			if world_camera.zoom != window_over_game {
+				rl.DrawText(fmt.ctprintf("Zoom: x%v", world_camera.zoom), 24, 700, 16, rl.BLACK)
 			}
 
 			if editor_state.mode != .None {
@@ -1578,17 +1596,17 @@ main :: proc() {
 				}
 
 				if level.has_tutorial {
-					for prompt in tutorial.prompts {
+					#reverse for &prompt in tutorial.prompts {
 						if prompt.on_screen {
 							center := prompt.pos * {f32(UI_SIZE.x), f32(UI_SIZE.y)}
-							font_size: f32 = 6 * UI_OVER_GAME
+							font_size: f32 = 24
 							spacing: f32 = 1
 							text := fmt.ctprint(prompt.text)
 							pos := get_centered_text_pos(center, text, font_size, spacing)
 
-							if check_condition(prompt.condition, prompt.invert_condition) &&
-							   check_condition(prompt.condition2, prompt.invert_condition2) &&
-							   check_condition(prompt.condition3, prompt.invert_condition3) {
+							if check_condition(&prompt.condition, prompt.invert_condition) &&
+							   check_condition(&prompt.condition2, prompt.invert_condition2) &&
+							   check_condition(&prompt.condition3, prompt.invert_condition3) {
 								rl.DrawTextEx(
 									rl.GetFontDefault(),
 									text,
@@ -1619,7 +1637,7 @@ main :: proc() {
 
 			if display_win_screen {
 				// draw background
-				rl.DrawRectangle(0, 0, window_size.x, window_size.y, {0, 0, 0, 100})
+				rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 				// draw text
 				rl.DrawText("Thanks for playing!", 700, 200, 24, rl.BLACK)
 				// draw button,
@@ -1629,6 +1647,7 @@ main :: proc() {
 			// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
 
 			rl.EndMode2D()
+
 			rl.EndDrawing()
 		}
 		free_all(context.temp_allocator)
@@ -1975,13 +1994,30 @@ turn_off_surf :: proc() {
 	player.surfing = false
 }
 
-world_to_screen :: proc(point: Vec2) -> Vec2 {
-	return (point - camera.target) * camera.zoom + camera.offset
+world_to_window :: proc(point: Vec2) -> Vec2 {
+	return (point - world_camera.target) * world_camera.zoom + world_camera.offset
 }
 
-screen_to_world :: proc(point: Vec2) -> Vec2 {
-	return (point - camera.offset) / camera.zoom + camera.target
+window_to_world :: proc(point: Vec2) -> Vec2 {
+	return (point - world_camera.offset) / world_camera.zoom + world_camera.target
 }
+
+ui_to_window :: proc(point: Vec2) -> Vec2 {
+	return (point - ui_camera.target) * ui_camera.zoom + ui_camera.offset
+}
+
+window_to_ui :: proc(point: Vec2) -> Vec2 {
+	return (point - ui_camera.offset) / ui_camera.zoom + ui_camera.target
+}
+
+ui_to_world :: proc(point: Vec2) -> Vec2 {
+	return window_to_world(ui_to_window(point))
+}
+
+world_to_ui :: proc(point: Vec2) -> Vec2 {
+	return window_to_ui(world_to_window(point))
+}
+
 
 use_selected_item :: proc() {
 	// get selected item ItemId
@@ -2921,7 +2957,7 @@ heal_player :: proc(amount: f32) {
 	player.health = min(player.health, player.max_health)
 }
 
-fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
+fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	target := target
 
 	// Get the top left and bottom right corners
@@ -2929,8 +2965,8 @@ fit_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	bottom_right := top_left + Vec2{level.bounds.width, level.bounds.height}
 
 	// Offset them
-	offset_top_left := top_left + camera.offset / camera.zoom
-	offset_bottom_right := bottom_right - camera.offset / camera.zoom
+	offset_top_left := top_left + world_camera.offset / world_camera.zoom
+	offset_bottom_right := bottom_right - world_camera.offset / world_camera.zoom
 
 	target.x = clamp(target.x, offset_top_left.x, offset_bottom_right.x)
 	target.y = clamp(target.y, offset_top_left.y, offset_bottom_right.y)
@@ -2947,9 +2983,9 @@ get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spaci
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
 }
 
-check_condition :: proc(condition: Condition, invert_condition: bool) -> bool {
+check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 	passed_condition := false
-	switch c in condition {
+	switch &c in condition {
 	case EntityCountCondition:
 		#partial switch c.type {
 		case .Enemy:
@@ -3004,6 +3040,11 @@ check_condition :: proc(condition: Condition, invert_condition: bool) -> bool {
 		} else {
 			passed_condition = player.item_count == c.count
 		}
+	case KeyPressedCondition:
+		if rl.IsKeyPressed(c.key) {
+			c.fulfilled = true
+		}
+		passed_condition = c.fulfilled
 	case:
 		passed_condition = true
 	}

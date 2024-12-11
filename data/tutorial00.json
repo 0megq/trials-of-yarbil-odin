@@ -14,5 +14,6 @@
 	"hide_weapon_hud": false,
 	"disable_ability": true,
 	"hide_all_hud": true,
-	"enable_enemy_dummies": true
+	"enable_enemy_dummies": true,
+	"disable_switching": true
 }

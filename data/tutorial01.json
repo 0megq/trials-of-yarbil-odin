@@ -37,7 +37,7 @@
 				0.5,
 				0.9
 			],
-			"text": "Oops your stick broke",
+			"text": "Oops your stick broke. Pick up another",
 			"condition": null,
 			"invert_condition": false,
 			"condition2" : null,
@@ -179,6 +179,61 @@
 			},
 			"invert_condition3": true,
 			"on_screen": false
+		},
+		{
+			"pos": [
+				0.92000000,
+				0.97000000
+			],
+			"text": "Durability ->",	
+			"condition": null,
+			"invert_condition": false,
+			"condition2" : {
+				"type": 1,
+				"id": [
+					39,
+					8,
+					2,
+					59,
+					126,
+					243,
+					74,
+					177,
+					173,
+					214,
+					253,
+					51,
+					75,
+					71,
+					95,
+					120
+				]
+			},
+			"invert_condition2": false,
+			"condition3" : {
+				"type": 2,
+				"id": [
+					120,
+					154,
+					160,
+					53,
+					164,
+					81,
+					73,
+					73,
+					131,
+					204,
+					242,
+					138,
+					204,
+					53,
+					54,
+					59
+				],
+				"check_disabled": true
+			},
+			"invert_condition3": true,
+			"on_screen": true
 		}
 	],
 	"actions": [
