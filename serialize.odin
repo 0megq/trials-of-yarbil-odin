@@ -65,20 +65,20 @@ InventorySlotsFilledCondition :: struct {
 }
 
 KeyPressedCondition :: struct {
-	key: rl.KeyboardKey,
+	key:       rl.KeyboardKey,
 	fulfilled: bool,
 }
 
 TutorialPrompt :: struct {
-	pos:                      Vec2,
-	text:                     string,
-	condition:                Condition,
-	invert_condition:         bool,
-	condition2:               Condition,
-	invert_condition2:        bool,
-	condition3:               Condition,
-	invert_condition3:        bool,
-	on_screen:                bool, // if true, the prompt will appear on screen instead of in world
+	pos:               Vec2,
+	text:              string,
+	condition:         Condition,
+	invert_condition:  bool,
+	condition2:        Condition,
+	invert_condition2: bool,
+	condition3:        Condition,
+	invert_condition3: bool,
+	on_screen:         bool, // if true, the prompt will appear on screen instead of in world
 }
 
 TutorialAction :: struct {
@@ -124,7 +124,7 @@ Level :: struct {
 	// barrels
 	exploding_barrels: [dynamic]ExplodingBarrel,
 	// walls
-	walls:             [dynamic]PhysicsEntity,
+	walls:             [dynamic]Wall,
 	// camera bounding box
 	bounds:            Rectangle,
 	// tutorial
@@ -168,6 +168,10 @@ load_level :: proc() {
 	}
 
 	level = data
+
+	// for wall in level.walls {
+	// 	append(&level.new_walls, NewWall{wall, 0})
+	// }
 
 	rl.TraceLog(.INFO, "Level Loaded")
 
@@ -251,7 +255,7 @@ save_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Saved")
 	if level.has_tutorial {
-		// _save_tutorial() 
+		// _save_tutorial()
 	}
 }
 
@@ -339,7 +343,7 @@ _load_tutorial :: proc() {
 	tutorial_file := fmt.tprintf("%s%02d.json", TUTORIAL_FILE_PREFIX, game_data.cur_level_idx)
 	if bytes, ok := os.read_entire_file(tutorial_file, context.allocator); ok {
 		if err := json.unmarshal(bytes, &tutorial); err != nil {
-			rl.TraceLog(.WARNING, "Error parsing tutorial data:")
+			rl.TraceLog(.WARNING, "Error parsing tutorial data")
 		}
 		delete(bytes)
 	} else {

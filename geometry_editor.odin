@@ -37,7 +37,7 @@ update_geometry_editor :: proc(e: ^EditorState) {
 	if e.new_shape_but.status == .Released {
 		append(
 			&level.walls,
-			PhysicsEntity{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
+			Wall{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
 		)
 		e.selected_wall_index = len(level.walls) - 1
 		e.selected_wall = &level.walls[e.selected_wall_index]
