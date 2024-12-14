@@ -30,10 +30,10 @@ EntityType :: enum {
 }
 
 Entity :: struct {
-	id:             uuid.Identifier,
-	pos:            Vec2,
-	queue_free:     bool,
-	start_disabled: bool,
+	id:         uuid.Identifier,
+	pos:        Vec2,
+	queue_free: bool,
+	start_disabled:   bool,
 }
 
 PhysicsEntity :: struct {
@@ -48,12 +48,7 @@ MovingEntity :: struct {
 	vel:                  Vec2,
 }
 
-// Wall :: PhysicsEntity
-
-Wall :: struct {
-	using physics_entity: PhysicsEntity,
-	height: f32,
-}
+Wall :: PhysicsEntity
 
 ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,

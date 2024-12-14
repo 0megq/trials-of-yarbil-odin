@@ -311,7 +311,7 @@ main :: proc() {
 				if math.abs(world_camera.zoom - window_over_game) < 0.2 {
 					world_camera.zoom = window_over_game
 				}
-
+				
 				if rl.IsMouseButtonDown(.MIDDLE) {
 					world_camera.target -= mouse_world_delta
 				}
@@ -582,7 +582,6 @@ main :: proc() {
 						p = enemy.pos
 						break
 					}
-					// TODO: Change ray cast to check for height of walls
 					t := cast_ray_through_level(walls[:], enemy.pos, dir)
 					if t < enemy.detection_range {
 						p = enemy.pos + t * dir
@@ -914,10 +913,6 @@ main :: proc() {
 			#reverse for &bomb, i in bombs {
 				zentity_move(&bomb, 300, 50, delta)
 				for wall in walls {
-					// bomb will pass over top of the wall
-					if wall.height > 0 || wall.height < bomb.z {
-						continue
-					}
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
 						bomb.pos,
@@ -1851,7 +1846,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	e.pos += e.vel * delta
 }
 
-cast_ray_through_level :: proc(walls: []Wall, start: Vec2, dir: Vec2) -> f32 {
+cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -> f32 {
 	min_t := math.INF_F32
 	for wall in walls {
 		t := cast_ray(start, dir, wall.shape, wall.pos)
@@ -2657,9 +2652,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		weapon := &projectile_weapons[data.projectile_idx]
 		if .Wall in attack.targets {
 			for wall in walls {
-				if wall.height > 0 || wall.height < weapon.z {
-					continue
-				}
 				_, normal, depth := resolve_collision_shapes(
 					weapon.shape,
 					weapon.pos,
@@ -2807,9 +2799,6 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		arrow := &arrows[data.arrow_idx]
 		if .Wall in attack.targets {
 			for wall in walls {
-				if wall.height > 0 || wall.height < arrow.z {
-					continue
-				}
 				_, _, depth := resolve_collision_shapes(
 					arrow.shape,
 					arrow.pos,
@@ -2888,21 +2877,9 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 		rock := &rocks[data.rock_idx]
 		if .Wall in attack.targets {
 			for wall in walls {
-				if wall.height > 0 && wall.height < rock.z {
-					continue
-				}
-				fmt.println(rock.z)
-				_, normal, depth := resolve_collision_shapes(
-					rock.shape,
-					rock.pos,
-					wall.shape,
-					wall.pos,
-				)
+				_, _, depth := resolve_collision_shapes(rock.shape, rock.pos, wall.shape, wall.pos)
 
 				if depth > 0 {
-					// Resolve collision
-					rock.pos -= normal * depth
-					rock.vel = slide(rock.vel, normal)
 					return -1
 				}
 			}
