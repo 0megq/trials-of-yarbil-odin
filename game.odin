@@ -303,7 +303,13 @@ main :: proc() {
 			world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 			if editor_state.mode == .None {
 				world_camera.zoom = window_over_game
-				world_camera.target = player.pos
+				world_camera.target = exp_decay(
+					world_camera.target,
+					player.pos + normalize(mouse_world_pos - player.pos) * 32,
+					2,
+					delta,
+				)
+
 				// camera.target = 0
 				// camera.target = fit_camera_target_to_level_bounds(player.pos)
 			} else {
@@ -2042,6 +2048,10 @@ get_directional_input :: proc() -> Vec2 {
 	}
 
 	return dir
+}
+
+exp_decay :: proc(a, b: $T, decay: f32, delta: f32) -> T {
+	return b + (a - b) * math.exp(-decay * delta)
 }
 
 turn_off_surf :: proc() {
