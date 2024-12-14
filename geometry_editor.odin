@@ -247,6 +247,12 @@ place_walls_and_calculate_graph :: proc() {
 			wall_tilemap[tile.x][tile.y] = true
 		}
 	}
+	for half_wall in level.half_walls {
+		tiles := get_tile_shape_collision(half_wall.shape, half_wall.pos, -0.1)
+		for tile in tiles {
+			wall_tilemap[tile.x][tile.y] = true
+		}
+	}
 	// calculate graph
 	calculate_tile_graph(&nav_graph, level_tilemap, wall_tilemap)
 }

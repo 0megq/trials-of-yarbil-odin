@@ -141,6 +141,7 @@ tilemap: Tilemap
 // nav_mesh: NavMesh
 nav_graph: NavGraph
 walls: [dynamic]Wall
+half_walls: [dynamic]HalfWall
 
 bombs: [dynamic]Bomb
 projectile_weapons: [dynamic]ProjectileWeapon
@@ -311,7 +312,7 @@ main :: proc() {
 				if math.abs(world_camera.zoom - window_over_game) < 0.2 {
 					world_camera.zoom = window_over_game
 				}
-				
+
 				if rl.IsMouseButtonDown(.MIDDLE) {
 					world_camera.target -= mouse_world_delta
 				}
@@ -515,6 +516,19 @@ main :: proc() {
 
 			player_move(&player, delta)
 			for wall in walls {
+				_, normal, depth := resolve_collision_shapes(
+					player.shape,
+					player.pos,
+					wall.shape,
+					wall.pos,
+				)
+				// fmt.printfln("%v, %v, %v", collide, normal, depth)
+				if depth > 0 {
+					player.pos -= normal * depth
+					player.vel = slide(player.vel, normal)
+				}
+			}
+			for wall in half_walls {
 				_, normal, depth := resolve_collision_shapes(
 					player.shape,
 					player.pos,
@@ -756,6 +770,19 @@ main :: proc() {
 						enemy.vel = slide(enemy.vel, normal)
 					}
 				}
+				for wall in half_walls {
+					_, normal, depth := resolve_collision_shapes(
+						enemy.shape,
+						enemy.pos,
+						wall.shape,
+						wall.pos,
+					)
+					// fmt.printfln("%v, %v, %v", collide, normal, depth)
+					if depth > 0 {
+						enemy.pos -= normal * depth
+						enemy.vel = slide(enemy.vel, normal)
+					}
+				}
 
 				/*
 				FLINCHING
@@ -870,6 +897,28 @@ main :: proc() {
 			#reverse for &entity in exploding_barrels {
 				generic_move(&entity, 1000, delta)
 				for wall in walls {
+					_, normal, depth := resolve_collision_shapes(
+						entity.shape,
+						entity.pos,
+						wall.shape,
+						wall.pos,
+					)
+					// fmt.printfln("%v, %v, %v", collide, normal, depth)
+					if depth > 0 {
+						entity.pos -= normal * depth
+						entity.vel = slide(entity.vel, normal)
+					}
+					_, pnormal, pdepth := resolve_collision_shapes(
+						entity.shape,
+						entity.pos,
+						player.shape,
+						player.pos,
+					)
+					if pdepth > 0 {
+						player.pos += pnormal * pdepth
+					}
+				}
+				for wall in half_walls {
 					_, normal, depth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
@@ -1264,6 +1313,10 @@ main :: proc() {
 					)
 				}
 
+				for wall in half_walls {
+					draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
+				}
+
 				if player.surfing {
 					draw_polygon(surf_poly, rl.DARKGREEN)
 				}
@@ -1305,6 +1358,7 @@ main :: proc() {
 				for wall in walls {
 					draw_shape(wall.shape, wall.pos, rl.GRAY)
 				}
+
 
 				if level.has_tutorial {
 					for &prompt in tutorial.prompts {

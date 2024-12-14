@@ -65,20 +65,20 @@ InventorySlotsFilledCondition :: struct {
 }
 
 KeyPressedCondition :: struct {
-	key: rl.KeyboardKey,
+	key:       rl.KeyboardKey,
 	fulfilled: bool,
 }
 
 TutorialPrompt :: struct {
-	pos:                      Vec2,
-	text:                     string,
-	condition:                Condition,
-	invert_condition:         bool,
-	condition2:               Condition,
-	invert_condition2:        bool,
-	condition3:               Condition,
-	invert_condition3:        bool,
-	on_screen:                bool, // if true, the prompt will appear on screen instead of in world
+	pos:               Vec2,
+	text:              string,
+	condition:         Condition,
+	invert_condition:  bool,
+	condition2:        Condition,
+	invert_condition2: bool,
+	condition3:        Condition,
+	invert_condition3: bool,
+	on_screen:         bool, // if true, the prompt will appear on screen instead of in world
 }
 
 TutorialAction :: struct {
@@ -125,6 +125,8 @@ Level :: struct {
 	exploding_barrels: [dynamic]ExplodingBarrel,
 	// walls
 	walls:             [dynamic]PhysicsEntity,
+	// half walls
+	half_walls:        [dynamic]HalfWall,
 	// camera bounding box
 	bounds:            Rectangle,
 	// tutorial
@@ -154,6 +156,7 @@ load_level :: proc() {
 			level.exploding_barrels = make([dynamic]ExplodingBarrel)
 			// setup level geometry
 			level.walls = make([dynamic]Wall)
+			level.half_walls = make([dynamic]HalfWall)
 		}
 
 		delete(bytes)
@@ -165,6 +168,7 @@ load_level :: proc() {
 		level.exploding_barrels = make([dynamic]ExplodingBarrel)
 		// setup level geometry
 		level.walls = make([dynamic]Wall)
+		level.half_walls = make([dynamic]HalfWall)
 	}
 
 	level = data
@@ -220,6 +224,7 @@ load_level :: proc() {
 	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
 	walls = slice.clone_to_dynamic(level.walls[:])
+	half_walls = slice.clone_to_dynamic(level.half_walls[:])
 	place_walls_and_calculate_graph()
 
 	// Load tutorial if it exists
@@ -272,6 +277,8 @@ unload_level :: proc() {
 	exploding_barrels = nil
 	delete(walls)
 	walls = nil
+	delete(half_walls)
+	half_walls = nil
 	// delete level data
 	delete(level.enemies)
 	level.enemies = nil
@@ -281,6 +288,8 @@ unload_level :: proc() {
 	level.exploding_barrels = nil
 	delete(level.walls)
 	level.walls = nil
+	delete(level.half_walls)
+	level.half_walls = nil
 
 	rl.TraceLog(.INFO, "Level Unloaded")
 }
@@ -401,15 +410,9 @@ get_player_data :: proc() -> PlayerData {
 
 draw_level :: proc(show_tile_grid := false) {
 	draw_tilemap(level_tilemap, show_tile_grid)
-	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
-	for enemy in level.enemies {
-		draw_sprite(ENEMY_SPRITE, enemy.pos)
-		rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-	}
-
-	for barrel in level.exploding_barrels {
-		draw_sprite(BARREL_SPRITE, barrel.pos)
+	for wall in level.half_walls {
+		draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
 	}
 
 	for item in level.items {
@@ -432,6 +435,17 @@ draw_level :: proc(show_tile_grid := false) {
 	for wall in level.walls {
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
+
+	for enemy in level.enemies {
+		draw_sprite(ENEMY_SPRITE, enemy.pos)
+		rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
+	}
+
+	for barrel in level.exploding_barrels {
+		draw_sprite(BARREL_SPRITE, barrel.pos)
+	}
+
+	draw_sprite(PLAYER_SPRITE, level.player_pos)
 
 	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
 
