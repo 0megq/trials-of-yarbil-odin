@@ -35,12 +35,26 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	// New shape
 	if e.new_shape_but.status == .Released {
-		append(
-			&level.walls,
-			PhysicsEntity{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
-		)
-		e.selected_wall_index = len(level.walls) - 1
-		e.selected_wall = &level.walls[e.selected_wall_index]
+		if rl.IsKeyDown(.LEFT_CONTROL) {
+			append(
+				&level.half_walls,
+				HalfWall{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
+			)
+			e.selected_wall_index = len(level.half_walls) - 1
+			e.selected_wall = &level.half_walls[e.selected_wall_index]
+			e.half_wall_selected = true
+		} else {
+			append(
+				&level.walls,
+				PhysicsEntity {
+					entity = new_entity(world_camera.target),
+					shape = Rectangle{0, 0, 8, 8},
+				},
+			)
+			e.selected_wall_index = len(level.walls) - 1
+			e.selected_wall = &level.walls[e.selected_wall_index]
+			e.half_wall_selected = false
+		}
 		set_shape_fields_to_selected_shape(e)
 	}
 
@@ -64,7 +78,11 @@ update_geometry_editor :: proc(e: ^EditorState) {
 
 	// Delete (delete)
 	if rl.IsKeyPressed(.DELETE) && e.selected_wall != nil {
-		unordered_remove(&level.walls, e.selected_wall_index)
+		if e.half_wall_selected {
+			unordered_remove(&level.half_walls, e.selected_wall_index)
+		} else {
+			unordered_remove(&level.walls, e.selected_wall_index)
+		}
 		e.selected_wall = nil
 		e.selected_wall_index = -1
 	}
@@ -81,6 +99,17 @@ update_geometry_editor :: proc(e: ^EditorState) {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
+				e.half_wall_selected = false
+				set_shape_fields_to_selected_shape(e)
+				break
+			}
+		}
+
+		for &wall, index in level.half_walls {
+			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
+				e.selected_wall = &wall
+				e.selected_wall_index = index
+				e.half_wall_selected = true
 				set_shape_fields_to_selected_shape(e)
 				break
 			}
@@ -184,16 +213,6 @@ update_geometry_editor :: proc(e: ^EditorState) {
 		}
 	}
 
-	// place wall tiles based on wall geometry (CTRL + P)
-	// if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.P) {
-	// 	for wall in level.walls {
-	// 		tiles := get_tile_shape_collision(wall.shape, wall.pos, -0.1)
-	// 		for tile in tiles {
-	// 			set_tile(tile, WallData{}, &level_tilemap)
-	// 		}
-	// 	}
-	// }
-
 	// Astar test operations
 	// Set start/end (Right click, + Alt for end)
 	if e.display_test_path && rl.IsMouseButtonPressed(.RIGHT) {
@@ -248,7 +267,7 @@ place_walls_and_calculate_graph :: proc() {
 		}
 	}
 	for half_wall in level.half_walls {
-		tiles := get_tile_shape_collision(half_wall.shape, half_wall.pos, -0.1)
+		tiles := get_tile_shape_collision(half_wall.shape, half_wall.pos, 0.1)
 		for tile in tiles {
 			wall_tilemap[tile.x][tile.y] = true
 		}

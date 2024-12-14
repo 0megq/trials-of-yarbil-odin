@@ -12,9 +12,10 @@ EditorState :: struct {
 	// Level editor
 	portal_selected:      bool,
 	portal_mouse_rel_pos: Vec2,
-	selected_wall:        ^Wall,
+	selected_wall:        ^PhysicsEntity,
 	selected_wall_index:  int,
 	wall_mouse_rel_pos:   Vec2,
+	half_wall_selected:   bool,
 
 	// Level editor ui
 	new_shape_but:        Button,
