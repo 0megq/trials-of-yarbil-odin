@@ -59,6 +59,12 @@ EntityExistsCondition :: struct {
 	check_disabled: bool,
 }
 
+EntityAtPositionCondition :: struct {
+	type:   EntityType,
+	pos:    Vec2,
+	radius: f32,
+}
+
 InventorySlotsFilledCondition :: struct {
 	count:  int,
 	weapon: bool, // if true, this will check the weapon slots instead of the item slots
@@ -87,6 +93,8 @@ TutorialAction :: struct {
 	invert_condition:  bool,
 	condition2:        Condition,
 	invert_condition2: bool,
+	condition3:        Condition,
+	invert_condition3: bool,
 }
 
 ActionData :: union {
@@ -94,8 +102,9 @@ ActionData :: union {
 }
 
 EnableEntityAction :: struct {
-	type: EntityType,
-	id:   uuid.Identifier,
+	type:         EntityType,
+	id:           uuid.Identifier,
+	should_clone: bool,
 }
 
 Tutorial :: struct {
