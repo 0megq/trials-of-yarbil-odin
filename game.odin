@@ -240,7 +240,7 @@ main :: proc() {
 	// attack_poly.points = punch_points[:]
 
 	world_camera = rl.Camera2D {
-		target = player.pos,
+		target = player.pos + normalize(mouse_world_pos - player.pos) * 32,
 		zoom   = window_over_game,
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
@@ -402,7 +402,8 @@ main :: proc() {
 			// TUTORIAL ACTIONS
 			for &action in tutorial.actions {
 				if check_condition(&action.condition, action.invert_condition) &&
-				   check_condition(&action.condition2, action.invert_condition2) {
+				   check_condition(&action.condition2, action.invert_condition2) &&
+				   check_condition(&action.condition3, action.invert_condition3) {
 					switch data in action.action {
 					case EnableEntityAction:
 						#partial switch data.type {
@@ -410,7 +411,9 @@ main :: proc() {
 							#reverse for item, i in disabled_items {
 								if item.id == data.id {
 									append(&items, item)
-									unordered_remove(&disabled_items, i)
+									if !data.should_clone {
+										unordered_remove(&disabled_items, i)
+									}
 									break
 								}
 							}
@@ -418,7 +421,9 @@ main :: proc() {
 							#reverse for enemy, i in disabled_enemies {
 								if enemy.id == data.id {
 									append(&enemies, enemy)
-									unordered_remove(&disabled_enemies, i)
+									if !data.should_clone {
+										unordered_remove(&disabled_enemies, i)
+									}
 									break
 								}
 							}
