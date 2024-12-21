@@ -239,12 +239,6 @@ main :: proc() {
 
 	// attack_poly.points = punch_points[:]
 
-	world_camera = rl.Camera2D {
-		target = player.pos + normalize(mouse_world_pos - player.pos) * 32,
-		zoom   = window_over_game,
-		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
-	}
-
 	ui_camera = rl.Camera2D {
 		target = Vec2{f32(window_size.x), f32(window_size.y)} / 2,
 		zoom   = window_over_ui,

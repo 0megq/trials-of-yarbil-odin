@@ -207,6 +207,13 @@ load_level :: proc() {
 	player.vel = {} // we may need to reset other player values
 	setup_player(&player)
 
+	world_camera = rl.Camera2D {
+		target = player.pos + normalize(mouse_world_pos - player.pos) * 32,
+		zoom   = window_over_game,
+		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
+	}
+
+
 	load_tilemap(
 		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 		&level_tilemap,
