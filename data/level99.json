@@ -13,28 +13,29 @@
 				"physics_entity": {
 					"entity": {
 						"id": [
-							218,
-							138,
-							114,
-							77,
+							221,
+							117,
+							179,
+							164,
+							99,
+							63,
+							76,
+							11,
+							188,
+							37,
+							203,
 							126,
-							237,
-							73,
-							135,
-							158,
-							181,
-							12,
-							34,
-							198,
-							144,
-							93,
-							255
+							95,
+							171,
+							153,
+							88
 						],
 						"pos": [
-							732.06610107,
-							170.83705139
+							761.43255615,
+							184.87440491
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -49,7 +50,7 @@
 				]
 			},
 			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 55.00000000,
+			"detection_angle_sweep": 115.00000000,
 			"detection_range": 80.00000000,
 			"detection_points": [
 				[
@@ -268,7 +269,23 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
+			"distraction_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"distraction_time_emitted": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -299,13 +316,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		}
 	],
 	"items": [
@@ -335,7 +346,8 @@
 							614.51702881,
 							246.43014526
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -385,7 +397,8 @@
 					520.00000000,
 					72.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -418,7 +431,8 @@
 					520.00000000,
 					72.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -451,7 +465,8 @@
 					816.00000000,
 					72.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -484,7 +499,8 @@
 					520.00000000,
 					368.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -494,10 +510,14 @@
 			}
 		}
 	],
+	"half_walls": [
+
+	],
 	"bounds": {
 		"x": 0.00000000,
 		"y": 0.00000000,
 		"width": 0.00000000,
 		"height": 0.00000000
-	}
+	},
+	"has_tutorial": false
 }

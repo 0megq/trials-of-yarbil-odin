@@ -208,7 +208,7 @@ load_level :: proc() {
 	setup_player(&player)
 
 	world_camera = rl.Camera2D {
-		target = player.pos + normalize(mouse_world_pos - player.pos) * 32,
+		target = player.pos + normalize(mouse_world_pos - player.pos) * 16,
 		zoom   = window_over_game,
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}

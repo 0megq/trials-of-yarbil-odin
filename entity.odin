@@ -81,21 +81,24 @@ Enemy :: struct {
 	current_path:             []Vec2,
 	current_path_point:       int,
 	pathfinding_timer:        f32,
-	player_in_range:          bool,
-	data:                     EnemyData,
-	distracted:               bool,
+	state:                    EnemyState,
+	can_see_player:           bool,
+	last_seen_player_pos:     Vec2,
+	last_seen_player_vel:     Vec2,
+	player_in_flee_range:     bool,
+	alert_timer:              f32,
+	search_timer:             f32,
 	distraction_pos:          Vec2,
 	distraction_time_emitted: f32,
+	data:                     EnemyData,
 }
 
 EnemyState :: enum {
 	Idle,
-	Distracted,
-	Chasing,
-	Charging,
-	Attacking,
-	Flinching,
+	Alerted,
+	Combat,
 	Fleeing,
+	Searching,
 }
 
 EnemyData :: union #no_nil {
@@ -267,9 +270,11 @@ new_entity :: proc(pos: Vec2) -> Entity {
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	setup_enemy(enemy)
-	if type_of(enemy.data) == MeleeEnemyData &&
-	   enemy.data.(MeleeEnemyData).attack_poly.points != nil {
-		delete(enemy.data.(MeleeEnemyData).attack_poly.points)
+	#partial switch data in enemy.data {
+	case MeleeEnemyData:
+		if enemy.data.(MeleeEnemyData).attack_poly.points != nil {
+			delete(enemy.data.(MeleeEnemyData).attack_poly.points)
+		}
 	}
 	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
 	enemy.detection_range = 80

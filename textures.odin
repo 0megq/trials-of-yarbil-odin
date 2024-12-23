@@ -44,6 +44,7 @@ load_textures :: proc() {
 		.Tilemap         = rl.LoadTexture("assets/tileset.png"),
 		.WinCircle       = rl.LoadTexture("assets/win_circle.png"),
 	}
+	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }
 
 unload_textures :: proc() {

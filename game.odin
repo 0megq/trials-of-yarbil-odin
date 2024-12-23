@@ -26,6 +26,10 @@ ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
 PORTAL_RADIUS :: 16
 BOMB_EXPLOSION_TIME :: 1
+CAMERA_LOOKAHEAD :: 8
+CAMERA_SMOOTHING :: 30
+PLAYER_SPEED_DISTRACTION_THRESHOLD :: 75
+SPEED_SECOND_THRESHOLD :: 0.5
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -151,6 +155,7 @@ fires: [dynamic]Fire
 distractions: [dynamic]Distraction
 
 player_at_portal: bool
+seconds_above_distraction_threshold: f32
 display_win_screen: bool
 play_again_button: Button = Button {
 	rect          = {700, 300, 200, 24},
@@ -203,6 +208,7 @@ main :: proc() {
 	window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 
 	load_textures()
+	// pixel_filter := rl.LoadShader(nil, "assets/pixel_filter.fs")
 	load_game_data()
 	load_level()
 
@@ -297,12 +303,13 @@ main :: proc() {
 			world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 			if editor_state.mode == .None {
 				world_camera.zoom = window_over_game
-				world_camera.target = exp_decay(
-					world_camera.target,
-					player.pos + normalize(mouse_world_pos - player.pos) * 32,
-					2,
-					delta,
-				)
+				world_camera.target = player.pos
+				// world_camera.target = exp_decay(
+				// 	world_camera.target,
+				// 	player.pos + normalize(mouse_world_pos - player.pos) * 32,
+				// 	2,
+				// 	delta,
+				// )
 
 				// camera.target = 0
 				// camera.target = fit_camera_target_to_level_bounds(player.pos)
@@ -569,11 +576,74 @@ main :: proc() {
 				}
 			}
 
+			if length_squared(player.vel) >=
+			   PLAYER_SPEED_DISTRACTION_THRESHOLD * PLAYER_SPEED_DISTRACTION_THRESHOLD {
+				seconds_above_distraction_threshold += delta
+			} else {
+				seconds_above_distraction_threshold = 0
+			}
+			if seconds_above_distraction_threshold >= SPEED_SECOND_THRESHOLD {
+				add_distraction(player.pos)
+			}
+
 
 			#reverse for &fire, i in fires {
 				fire.time_left -= delta
 				if fire.time_left <= 0 {
 					unordered_remove(&fires, i)
+				}
+			}
+
+			/* -------------------------------------------------------------------------- */
+			/*                             MARK: Enemy loop                               */
+			/* -------------------------------------------------------------------------- */
+			#reverse for &enemy in enemies {
+				/* --------------------------- Update Vision Cone --------------------------- */
+				{
+					for &p, i in enemy.detection_points {
+						dir := vector_from_angle(
+							f32(i) *
+								enemy.detection_angle_sweep /
+								f32(len(enemy.detection_points) - 1) +
+							enemy.detection_angle -
+							enemy.detection_angle_sweep / 2,
+						)
+						if i == len(enemy.detection_points) - 1 {
+							p = enemy.pos
+							break
+						}
+						t := cast_ray_through_level(walls[:], enemy.pos, dir)
+						if t < enemy.detection_range {
+							p = enemy.pos + t * dir
+						} else {
+							p = enemy.pos + enemy.detection_range * dir
+						}
+					}
+				}
+
+				enemy.can_see_player = check_collsion_circular_concave_circle(
+					enemy.detection_points[:],
+					enemy.pos,
+					{player.pos, 8},
+				)
+				if enemy.can_see_player {
+					enemy.last_seen_player_pos = player.pos
+					enemy.last_seen_player_vel = player.vel
+				}
+
+				#partial switch data in enemy.data {
+				case RangedEnemyData:
+					enemy.player_in_flee_range = check_collision_shapes(
+						Circle{{}, enemy.data.(RangedEnemyData).flee_range},
+						enemy.pos,
+						player.shape,
+						player.pos,
+					)
+				}
+
+				/* ------------------------------ Update State ------------------------------ */
+				{
+					update_enemy_state(&enemy, delta)
 				}
 			}
 
@@ -589,25 +659,7 @@ main :: proc() {
 				*/
 
 				// Update detection points
-				for &p, i in enemy.detection_points {
-					dir := vector_from_angle(
-						f32(i) *
-							enemy.detection_angle_sweep /
-							f32(len(enemy.detection_points) - 1) +
-						enemy.detection_angle -
-						enemy.detection_angle_sweep / 2,
-					)
-					if i == len(enemy.detection_points) - 1 {
-						p = enemy.pos
-						break
-					}
-					t := cast_ray_through_level(walls[:], enemy.pos, dir)
-					if t < enemy.detection_range {
-						p = enemy.pos + t * dir
-					} else {
-						p = enemy.pos + enemy.detection_range * dir
-					}
-				}
+
 
 				/*
 				VISION CHECK
@@ -615,13 +667,13 @@ main :: proc() {
 
 				// Check if the player is no longer in range
 				// This collision detection does NOT use the player's shape, but a circle to approximate it
-				if enemy.player_in_range &&
+				if enemy.can_see_player &&
 				   !check_collsion_circular_concave_circle(
 						   enemy.detection_points[:],
 						   enemy.pos,
 						   {player.pos, 8},
 					   ) {
-					enemy.player_in_range = false
+					enemy.can_see_player = false
 					// Calculate enemies path to last seen player location
 					enemy.current_path = find_path_tiles(
 						enemy.pos,
@@ -630,16 +682,17 @@ main :: proc() {
 						tilemap,
 						wall_tilemap,
 					)
+					// enemy.distracted = true
 					// Check if the player just came into range
-				} else if !enemy.player_in_range &&
+				} else if !enemy.can_see_player &&
 				   check_collsion_circular_concave_circle(
 					   enemy.detection_points[:],
 					   enemy.pos,
 					   {player.pos, 8},
 				   ) {
-					enemy.distracted = false
+					// enemy.distracted = false
 					// Calculate new path and reset timer
-					enemy.player_in_range = true
+					enemy.can_see_player = true
 					if enemy.current_path != nil {
 						delete(enemy.current_path)
 					}
@@ -659,7 +712,7 @@ main :: proc() {
 				*/
 
 				// Recalculate path based on timer or if the enemy is at the end of the path already
-				if enemy.player_in_range {
+				if enemy.can_see_player {
 					enemy.pathfinding_timer -= delta
 					if enemy.pathfinding_timer < 0 ||
 					   enemy.current_path_point >= len(enemy.current_path) {
@@ -675,49 +728,53 @@ main :: proc() {
 						enemy.current_path_point = 1
 						enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 					}
-				} else {
-					new_distraction := false
-					for distraction in distractions {
-						if distraction.time_emitted > enemy.distraction_time_emitted &&
-						   rl.CheckCollisionPointCircle(
-							   distraction.pos,
-							   enemy.pos,
-							   enemy.detection_range,
-						   ) {
-							enemy.distracted = true
-							enemy.distraction_pos = distraction.pos
-							enemy.distraction_time_emitted = distraction.time_emitted
-							new_distraction = true
-						}
-					}
-					// If enemy is distracted
-					if enemy.distracted {
-						// If new distraction recalculate path
-						if new_distraction {
-							if enemy.current_path != nil {
-								delete(enemy.current_path)
-							}
-							enemy.current_path = find_path_tiles(
-								enemy.pos,
-								enemy.distraction_pos,
-								nav_graph,
-								tilemap,
-								wall_tilemap,
-							)
-							enemy.current_path_point = 1
-						} else if enemy.current_path_point >= len(enemy.current_path) {
-							enemy.distracted = false
-						}
-					}
 				}
+				// else {
+				// 	new_distraction := false
+				// 	for distraction in distractions {
+				// 		if distraction.time_emitted > enemy.distraction_time_emitted &&
+				// 		   rl.CheckCollisionPointCircle(
+				// 			   distraction.pos,
+				// 			   enemy.pos,
+				// 			   enemy.detection_range,
+				// 		   ) {
+				// 			enemy.distracted = true
+				// 			enemy.distraction_pos = distraction.pos
+				// 			enemy.distraction_time_emitted = distraction.time_emitted
+				// 			new_distraction = true
+				// 		}
+				// 	}
+				// 	// If enemy is distracted
+				// 	if enemy.distracted {
+				// 		// If new distraction recalculate path
+				// 		if new_distraction {
+				// 			if enemy.current_path != nil {
+				// 				delete(enemy.current_path)
+				// 			}
+				// 			enemy.current_path = find_path_tiles(
+				// 				enemy.pos,
+				// 				enemy.distraction_pos,
+				// 				nav_graph,
+				// 				tilemap,
+				// 				wall_tilemap,
+				// 			)
+				// 			enemy.current_path_point = 1
+				// 		} else if enemy.current_path_point >= len(enemy.current_path) {
+				// 			enemy.distracted = false
+				// 		}
+				// 	}
+				// }
 				/*
 				DETECTION ANGLE
 				*/
-				if enemy.player_in_range {
+				if enemy.can_see_player {
 					enemy.detection_angle = angle(player.pos - enemy.pos)
-				} else if enemy.distracted {
-					enemy.detection_angle = angle(enemy.distraction_pos - enemy.pos)
 				}
+				// else if enemy.distracted {
+				// 	enemy.detection_angle = angle(enemy.vel)
+				// } else {
+				// 	enemy.detection_angle += 10 * delta
+				// }
 
 
 				/*
@@ -742,7 +799,7 @@ main :: proc() {
 				// if player in flee range
 				#partial switch data in enemy.data {
 				case RangedEnemyData:
-					if enemy.player_in_range &&
+					if enemy.can_see_player &&
 					   check_collision_shapes(
 						   Circle{{}, data.flee_range},
 						   enemy.pos,
@@ -871,7 +928,7 @@ main :: proc() {
 				// If player in attack range and not charging or flinching, then start charging
 				if !enemy.flinching &&
 				   !enemy.charging &&
-				   enemy.player_in_range &&
+				   enemy.can_see_player &&
 				   check_collision_shapes(
 					   Circle{{}, enemy.attack_charge_range},
 					   enemy.pos,
@@ -1406,7 +1463,9 @@ main :: proc() {
 
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-					draw_sprite(ENEMY_SPRITE, enemy.pos)
+					sprite := ENEMY_SPRITE
+					sprite.rotation = enemy.detection_angle
+					draw_sprite(sprite, enemy.pos)
 					health_bar_length: f32 = 20
 					health_bar_height: f32 = 5
 					health_bar_base_rec := get_centered_rect(
@@ -1514,7 +1573,11 @@ main :: proc() {
 				// Draw Player
 				{
 					// Player Sprite
+					// rl.BeginShaderMode(pixel_filter)
+					// rl.BeginBlendMode(.ALPHA_PREMULTIPLY)
 					draw_sprite(PLAYER_SPRITE, player.pos)
+					// rl.EndBlendMode()
+					// rl.EndShaderMode()
 
 					// Draw Item
 					if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
@@ -1850,6 +1913,15 @@ enemy_move :: proc(e: ^Enemy, delta: f32, target: Vec2) {
 	case RangedEnemyData:
 		max_speed = 70.0
 	}
+
+	// if e.can_see_player {
+	// 	// keep base speed
+	// } else if e.distracted {
+	// 	max_speed *= 0.8 // 80% speed when distracted
+	// } else {
+	// 	max_speed *= 0.5 // 50% speed when wandering
+	// }
+
 	acceleration: f32 = 400.0
 	friction: f32 = 240.0
 	harsh_friction: f32 = 500.0
@@ -3115,23 +3187,101 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 	return passed_condition ~ invert_condition
 }
 
-// // This is called whenever a event happens. 
-// handle_event :: proc(event: Event) {
-// 	switch event.type {
-// 	case .EnemyDeath:
-// 		event.id
-// 	case .AbilityUsed:
+update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
+	switch enemy.state {
+	case .Idle:
+		// use pathfinding to return to post
+		// look around for player
+		if enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing)
+		} else if enemy.can_see_player {
+			change_enemy_state(enemy, .Combat)
+		}
+	// else if distraction {
+	// 	state = .Alerted
+	// }
+	case .Alerted:
+		// look at distraction
+		// if condition is met go to distraction
+		// look around near distraction
+		// once alert wears off, go back to idle
+		enemy.alert_timer -= delta
+		if enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing)
+		} else if enemy.can_see_player {
+			change_enemy_state(enemy, .Combat)
+		} else if enemy.alert_timer <= 0 {
+			change_enemy_state(enemy, .Idle)
+		}
+	case .Combat:
+		// use pathfinding to chase player
+		// if player is in attack range, start attacking
+		// once attack is done, decide to chase or attack again
+		if !enemy.can_see_player {
+			change_enemy_state(enemy, .Searching)
+		} else if enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing)
+		}
+	case .Fleeing:
+		// Run directly away from player
 
-// 	case .ItemDropped:
+		if !enemy.can_see_player {
+			change_enemy_state(enemy, .Searching)
+		} else if !enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Combat)
+		}
 
-// 	case .ItemPickedUp:
+	case .Searching:
+		// use pathfinding
+		// 1 go to last seen player pos
+		// 2 look around
+		// 3 follow last seen player velocity
+		// 4 look around
+		// 5 more sensitive to footsteps
+		// once aggro wears off, go back to idle
 
-// 	case .ItemUsed:
+		enemy.search_timer -= delta
+		if enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing)
+		} else if enemy.can_see_player {
+			change_enemy_state(enemy, .Combat)
+		} else  /* else if distraction -> Alerted */if enemy.search_timer <= 0 {
+			change_enemy_state(enemy, .Idle)
+		}
+	// if search time is up then state = .Idle
+	}
+}
 
-// 	case .WeaponAttackedWith:
+change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
+	// Exit state code
+	switch enemy.state {
+	case .Idle:
 
-// 	case .WeaponDropped:
+	case .Alerted:
 
-// 	case .WeaponThrown:
-// 	}
-// }
+	case .Combat:
+
+	case .Fleeing:
+
+	case .Searching:
+
+	}
+
+	// Enter state code
+	switch state {
+	case .Idle:
+
+	case .Alerted:
+		// Reset alert timer. TODO: make this value change based on environmental circumstances
+		enemy.alert_timer = 10.0
+	case .Combat:
+
+	case .Fleeing:
+
+	case .Searching:
+		// Reset search timer. TODO: make this value change based on environmental circumstances
+		enemy.search_timer = 10.0
+	}
+
+	enemy.state = state
+}

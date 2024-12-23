@@ -34,7 +34,8 @@
 							1043.93176270,
 							490.73181152
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -300,6 +301,8 @@
 					"rotation": 0.00000000
 				}
 			},
+			"max_inspect_time": 0.00000000,
+			"current_inspect_time": 0.00000000,
 			"distracted": false,
 			"distraction_pos": [
 				0.00000000,
@@ -333,7 +336,8 @@
 							852.23059082,
 							487.94046021
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -599,6 +603,8 @@
 					"rotation": 0.00000000
 				}
 			},
+			"max_inspect_time": 0.00000000,
+			"current_inspect_time": 0.00000000,
 			"distracted": false,
 			"distraction_pos": [
 				0.00000000,
@@ -632,7 +638,8 @@
 							1096.13952637,
 							532.54998779
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -898,6 +905,8 @@
 					"rotation": 0.00000000
 				}
 			},
+			"max_inspect_time": 0.00000000,
+			"current_inspect_time": 0.00000000,
 			"distracted": false,
 			"distraction_pos": [
 				0.00000000,
@@ -931,7 +940,8 @@
 							888.81744385,
 							527.57232666
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -1197,6 +1207,8 @@
 					"rotation": 0.00000000
 				}
 			},
+			"max_inspect_time": 0.00000000,
+			"current_inspect_time": 0.00000000,
 			"distracted": false,
 			"distraction_pos": [
 				0.00000000,
@@ -1232,7 +1244,8 @@
 							793.37896729,
 							591.22113037
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1279,7 +1292,8 @@
 							1086.62561035,
 							516.78820801
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1326,7 +1340,8 @@
 							883.66778564,
 							489.86212158
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1373,7 +1388,8 @@
 							1024.99841309,
 							455.21331787
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1420,7 +1436,8 @@
 							1034.08740234,
 							458.16931152
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1467,7 +1484,8 @@
 							1037.11645508,
 							447.21841431
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1514,7 +1532,8 @@
 							893.47094727,
 							497.86773682
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1561,7 +1580,8 @@
 							873.62890625,
 							698.51611328
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1608,7 +1628,8 @@
 							1076.88195801,
 							525.02069092
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1655,7 +1676,8 @@
 							1060.43469238,
 							708.99395752
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1702,7 +1724,8 @@
 							788.16284180,
 							690.74395752
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1749,7 +1772,8 @@
 							1072.13232422,
 							770.79675293
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1798,7 +1822,8 @@
 							929.66430664,
 							537.28277588
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1842,7 +1867,8 @@
 							1056.63854980,
 							615.39923096
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -1886,7 +1912,8 @@
 					1120.00000000,
 					520.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -1919,7 +1946,8 @@
 					704.00000000,
 					408.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -1952,7 +1980,8 @@
 					1008.00000000,
 					440.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -1985,7 +2014,8 @@
 					704.00000000,
 					408.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2018,7 +2048,8 @@
 					1072.00000000,
 					552.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2051,7 +2082,8 @@
 					880.00000000,
 					464.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2084,7 +2116,8 @@
 					704.00000000,
 					864.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2117,7 +2150,8 @@
 					1208.00000000,
 					408.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2127,10 +2161,14 @@
 			}
 		}
 	],
+	"half_walls": [
+
+	],
 	"bounds": {
 		"x": 704.00000000,
 		"y": 408.00000000,
 		"width": 512.00000000,
 		"height": 464.00000000
-	}
+	},
+	"has_tutorial": false
 }
