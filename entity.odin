@@ -63,34 +63,44 @@ ExplodingBarrel :: struct {
 }
 
 Enemy :: struct {
-	using moving_entity:      MovingEntity,
-	detection_angle:          f32, // direction they are looking (in degrees facing right going ccw)
-	detection_angle_sweep:    f32, // wideness (in degrees)
-	detection_range:          f32,
-	detection_points:         [50]Vec2,
-	attack_charge_range:      f32, // Range for the enemy to start charging
-	start_charge_time:        f32,
-	current_charge_time:      f32,
-	charging:                 bool,
-	start_flinch_time:        f32,
-	current_flinch_time:      f32,
-	flinching:                bool,
-	just_attacked:            bool,
-	health:                   f32,
-	max_health:               f32,
-	current_path:             []Vec2,
-	current_path_point:       int,
-	pathfinding_timer:        f32,
-	state:                    EnemyState,
-	can_see_player:           bool,
-	last_seen_player_pos:     Vec2,
-	last_seen_player_vel:     Vec2,
-	player_in_flee_range:     bool,
-	alert_timer:              f32,
-	search_timer:             f32,
-	distraction_pos:          Vec2,
-	distraction_time_emitted: f32,
-	data:                     EnemyData,
+	using moving_entity:  MovingEntity,
+	start_pos:            Vec2,
+	// Pereception Stats
+	hearing_range:        f32,
+	vision_range:         f32,
+	look_angle:           f32, // direction they are looking (in degrees facing right going ccw)
+	vision_fov:           f32, // wideness (in degrees)
+	vision_points:        [50]Vec2,
+	// Perception Results
+	can_see_player:       bool,
+	last_seen_player_pos: Vec2,
+	last_seen_player_vel: Vec2,
+	player_in_flee_range: bool,
+	alert_just_detected:  bool,
+	last_alert:           Alert,
+	// Combat
+	attack_charge_range:  f32, // Range for the enemy to start charging
+	start_charge_time:    f32,
+	current_charge_time:  f32,
+	charging:             bool,
+	just_attacked:        bool,
+	// Flinching
+	start_flinch_time:    f32,
+	current_flinch_time:  f32,
+	flinching:            bool,
+	// Health
+	health:               f32,
+	max_health:           f32,
+	// Pathfinding
+	current_path:         []Vec2,
+	current_path_point:   int,
+	pathfinding_timer:    f32,
+	// State management
+	state:                EnemyState,
+	alert_timer:          f32,
+	search_timer:         f32,
+	// Type specific
+	data:                 EnemyData,
 }
 
 EnemyState :: enum {
@@ -201,10 +211,14 @@ LevelEntityType :: enum {
 	Item,
 }
 
-Distraction :: struct {
-	pos:          Vec2,
-	time_emitted: f32,
-	consumed:     bool,
+Alert :: struct {
+	pos:            Vec2,
+	range:          f32,
+	base_intensity: f32,
+	base_duration:  f32,
+	decay_rate:     f32,
+	is_visual:      bool,
+	time_emitted:   f32,
 }
 
 AttackTarget :: enum {
@@ -277,22 +291,24 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 		}
 	}
 	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
-	enemy.detection_range = 80
+	enemy.hearing_range = 80
+	enemy.vision_range = 80
+	enemy.vision_fov = 115
 	enemy.attack_charge_range = 12
 	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
-	enemy.detection_angle_sweep = 115
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	setup_enemy(enemy)
 	enemy.data = RangedEnemyData{60}
-	enemy.detection_range = 160
+	enemy.hearing_range = 160
+	enemy.vision_range = 160
+	enemy.vision_fov = 115
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.2
-	enemy.detection_angle_sweep = 115
 	max_health_setter(&enemy.health, &enemy.max_health, 60)
 }
 

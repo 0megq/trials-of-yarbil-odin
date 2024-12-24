@@ -9,7 +9,7 @@ import "core:mem"
 import "core:slice"
 import rl "vendor:raylib"
 
-GAME_SIZE :: Vec2i{480, 270}
+GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
 UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
 ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
@@ -152,7 +152,7 @@ projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
 rocks: [dynamic]Rock
 fires: [dynamic]Fire
-distractions: [dynamic]Distraction
+alerts: [dynamic]Alert
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
@@ -392,14 +392,6 @@ main :: proc() {
 				}
 			}
 
-			#reverse for &distraction, i in distractions {
-				// if distraction was emitted more than 2
-				if distraction.consumed {
-					unordered_remove(&distractions, i)
-				}
-				distraction.consumed = true
-			}
-
 			// TUTORIAL ACTIONS
 			for &action in tutorial.actions {
 				if check_condition(&action.condition, action.invert_condition) &&
@@ -583,7 +575,7 @@ main :: proc() {
 				seconds_above_distraction_threshold = 0
 			}
 			if seconds_above_distraction_threshold >= SPEED_SECOND_THRESHOLD {
-				add_distraction(player.pos)
+				// add_distraction(player.pos)
 			}
 
 
@@ -600,50 +592,105 @@ main :: proc() {
 			#reverse for &enemy in enemies {
 				/* --------------------------- Update Vision Cone --------------------------- */
 				{
-					for &p, i in enemy.detection_points {
+					for &p, i in enemy.vision_points {
 						dir := vector_from_angle(
-							f32(i) *
-								enemy.detection_angle_sweep /
-								f32(len(enemy.detection_points) - 1) +
-							enemy.detection_angle -
-							enemy.detection_angle_sweep / 2,
+							f32(i) * enemy.vision_fov / f32(len(enemy.vision_points) - 1) +
+							enemy.look_angle -
+							enemy.vision_fov / 2,
 						)
-						if i == len(enemy.detection_points) - 1 {
+						if i == len(enemy.vision_points) - 1 {
 							p = enemy.pos
 							break
 						}
 						t := cast_ray_through_level(walls[:], enemy.pos, dir)
-						if t < enemy.detection_range {
+						if t < enemy.vision_range {
 							p = enemy.pos + t * dir
 						} else {
-							p = enemy.pos + enemy.detection_range * dir
+							p = enemy.pos + enemy.vision_range * dir
 						}
 					}
 				}
 
-				enemy.can_see_player = check_collsion_circular_concave_circle(
-					enemy.detection_points[:],
-					enemy.pos,
-					{player.pos, 8},
-				)
-				if enemy.can_see_player {
-					enemy.last_seen_player_pos = player.pos
-					enemy.last_seen_player_vel = player.vel
+				/* -------------------------- Check For Player LOS -------------------------- */
+				{
+					enemy.can_see_player = check_collsion_circular_concave_circle(
+						enemy.vision_points[:],
+						enemy.pos,
+						{player.pos, 8},
+					)
+					if enemy.can_see_player {
+						enemy.last_seen_player_pos = player.pos
+						enemy.last_seen_player_vel = player.vel
+					}
 				}
 
-				#partial switch data in enemy.data {
-				case RangedEnemyData:
-					enemy.player_in_flee_range = check_collision_shapes(
-						Circle{{}, enemy.data.(RangedEnemyData).flee_range},
-						enemy.pos,
-						player.shape,
-						player.pos,
-					)
+				/* ---------------------------- Player Flee Check --------------------------- */
+				{
+					#partial switch data in enemy.data {
+					case RangedEnemyData:
+						enemy.player_in_flee_range = check_collision_shapes(
+							Circle{{}, data.flee_range},
+							enemy.pos,
+							player.shape,
+							player.pos,
+						)
+					}
+				}
+
+				/* ------------------------------ Check Alerts ------------------------------ */
+				{
+					enemy.alert_just_detected = false
+					detected_alert: Alert
+					detected_effective_intensity: f32 = 0
+					for alert in alerts {
+						effective_intensity := get_effective_intensity(alert)
+						// get effective range
+						effective_enemy_range :=
+							effective_intensity *
+							(enemy.vision_range if alert.is_visual else enemy.hearing_range)
+
+						// check los if alert is visual
+						can_detect := !alert.is_visual || check_collsion_circular_concave_circle(
+								enemy.vision_points[:],
+								enemy.pos,
+								{alert.pos, 2}, // 2 is an arbitrary radius. Should work here.
+							)
+
+
+						detected :=
+							can_detect &&
+							distance_squared(enemy.pos, alert.pos) <
+								square(min(effective_enemy_range, alert.range)) &&
+							alert.time_emitted > enemy.last_alert.time_emitted
+
+						if detected {
+							if effective_intensity > detected_effective_intensity ||
+							   (effective_intensity == detected_effective_intensity &&
+									   distance_squared(enemy.pos, alert.pos) <
+										   distance_squared(enemy.pos, detected_alert.pos)) {
+								detected_alert = alert
+								detected_effective_intensity = effective_intensity
+							}
+						}
+					}
+					// Check if alert is relevant
+					if detected_effective_intensity > 0 {
+						enemy.alert_just_detected = true
+						enemy.last_alert = detected_alert
+					}
 				}
 
 				/* ------------------------------ Update State ------------------------------ */
 				{
 					update_enemy_state(&enemy, delta)
+					fmt.println(enemy.state)
+				}
+			}
+
+			/* ------------------------------ Update Alerts ----------------------------- */
+			#reverse for &alert, i in alerts {
+				if get_time_left(alert) <= 0 || get_effective_intensity(alert) <= 0 {
+					unordered_remove(&alerts, i)
 				}
 			}
 
@@ -658,7 +705,7 @@ main :: proc() {
 				VISION CONE
 				*/
 
-				// Update detection points
+				// Update vision points
 
 
 				/*
@@ -666,10 +713,10 @@ main :: proc() {
 				*/
 
 				// Check if the player is no longer in range
-				// This collision detection does NOT use the player's shape, but a circle to approximate it
+				// This collision vision does NOT use the player's shape, but a circle to approximate it
 				if enemy.can_see_player &&
 				   !check_collsion_circular_concave_circle(
-						   enemy.detection_points[:],
+						   enemy.vision_points[:],
 						   enemy.pos,
 						   {player.pos, 8},
 					   ) {
@@ -686,7 +733,7 @@ main :: proc() {
 					// Check if the player just came into range
 				} else if !enemy.can_see_player &&
 				   check_collsion_circular_concave_circle(
-					   enemy.detection_points[:],
+					   enemy.vision_points[:],
 					   enemy.pos,
 					   {player.pos, 8},
 				   ) {
@@ -736,7 +783,7 @@ main :: proc() {
 				// 		   rl.CheckCollisionPointCircle(
 				// 			   distraction.pos,
 				// 			   enemy.pos,
-				// 			   enemy.detection_range,
+				// 			   enemy.vision_range,
 				// 		   ) {
 				// 			enemy.distracted = true
 				// 			enemy.distraction_pos = distraction.pos
@@ -765,15 +812,15 @@ main :: proc() {
 				// 	}
 				// }
 				/*
-				DETECTION ANGLE
+				vision ANGLE
 				*/
 				if enemy.can_see_player {
-					enemy.detection_angle = angle(player.pos - enemy.pos)
+					enemy.look_angle = angle(player.pos - enemy.pos)
 				}
 				// else if enemy.distracted {
-				// 	enemy.detection_angle = angle(enemy.vel)
+				// 	enemy.vision_angle = angle(enemy.vel)
 				// } else {
-				// 	enemy.detection_angle += 10 * delta
+				// 	enemy.vision_angle += 10 * delta
 				// }
 
 
@@ -1067,7 +1114,7 @@ main :: proc() {
 				}
 				if bomb.z <= 0 { 	// if on ground, then start ticking
 					if bomb.time_left == BOMB_EXPLOSION_TIME {
-						add_distraction(bomb.pos)
+						// add_distraction(bomb.pos)
 					}
 					bomb.time_left -= delta
 					if bomb.time_left <= 0 {
@@ -1108,7 +1155,7 @@ main :: proc() {
 				if weapon.z <= 0 {
 					add_item_to_world(weapon.data, weapon.pos)
 					delete_projectile_weapon(i)
-					add_distraction(weapon.pos)
+					// add_distraction(weapon.pos)
 				}
 			}
 
@@ -1146,7 +1193,31 @@ main :: proc() {
 					add_item_to_world({id = .Rock, count = 1}, rock.pos)
 					delete_rock(i)
 
-					add_distraction(rock.pos)
+					// Add visual alert
+					append(
+						&alerts,
+						Alert {
+							pos = rock.pos,
+							range = 10,
+							base_intensity = 1,
+							base_duration = 1,
+							is_visual = true,
+							time_emitted = f32(rl.GetTime()),
+						},
+					)
+					// Add auditory alert
+					append(
+						&alerts,
+						Alert {
+							pos = rock.pos,
+							range = 20,
+							base_intensity = 1,
+							base_duration = 1,
+							is_visual = false,
+							time_emitted = f32(rl.GetTime()),
+						},
+					)
+
 
 					continue
 				}
@@ -1464,7 +1535,7 @@ main :: proc() {
 				for enemy in enemies {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
 					sprite := ENEMY_SPRITE
-					sprite.rotation = enemy.detection_angle
+					sprite.rotation = enemy.look_angle
 					draw_sprite(sprite, enemy.pos)
 					health_bar_length: f32 = 20
 					health_bar_height: f32 = 5
@@ -1512,13 +1583,13 @@ main :: proc() {
 						}
 					}
 
-					// Draw detection area
+					// Draw vision area
 					when ODIN_DEBUG {
-						rl.DrawCircleLinesV(enemy.pos, enemy.detection_range, rl.YELLOW)
-						for p, i in enemy.detection_points {
+						rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
+						for p, i in enemy.vision_points {
 							rl.DrawLineV(
 								p,
-								enemy.detection_points[(i + 1) % len(enemy.detection_points)],
+								enemy.vision_points[(i + 1) % len(enemy.vision_points)],
 								rl.YELLOW,
 							)
 						}
@@ -1532,8 +1603,8 @@ main :: proc() {
 				}
 
 				when ODIN_DEBUG {
-					for distraction in distractions {
-						rl.DrawCircleLinesV(distraction.pos, 4, rl.RED)
+					for alert in alerts {
+						rl.DrawCircleLinesV(alert.pos, alert.range, rl.RED)
 					}
 				}
 
@@ -3109,10 +3180,6 @@ fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 	return target
 }
 
-add_distraction :: proc(pos: Vec2) {
-	append(&distractions, Distraction{pos, f32(rl.GetTime()), false})
-}
-
 // returns the position of the given text centered at center
 get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
@@ -3196,15 +3263,15 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			change_enemy_state(enemy, .Fleeing)
 		} else if enemy.can_see_player {
 			change_enemy_state(enemy, .Combat)
+		} else if enemy.alert_just_detected {
+			change_enemy_state(enemy, .Alerted)
 		}
-	// else if distraction {
-	// 	state = .Alerted
-	// }
 	case .Alerted:
 		// look at distraction
-		// if condition is met go to distraction
+		// if certain condition is met go to distraction
 		// look around near distraction
 		// once alert wears off, go back to idle
+		fmt.println(enemy.alert_timer)
 		enemy.alert_timer -= delta
 		if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing)
@@ -3245,7 +3312,9 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			change_enemy_state(enemy, .Fleeing)
 		} else if enemy.can_see_player {
 			change_enemy_state(enemy, .Combat)
-		} else  /* else if distraction -> Alerted */if enemy.search_timer <= 0 {
+		} else if enemy.alert_just_detected { 	// only get alerted if certain conditions are met
+			change_enemy_state(enemy, .Alerted)
+		} else if enemy.search_timer <= 0 {
 			change_enemy_state(enemy, .Idle)
 		}
 	// if search time is up then state = .Idle
@@ -3284,4 +3353,13 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	}
 
 	enemy.state = state
+}
+
+get_effective_intensity :: proc(alert: Alert) -> f32 {
+	time_elapsed := f32(rl.GetTime()) - alert.time_emitted
+	return alert.base_intensity - alert.decay_rate * time_elapsed
+}
+
+get_time_left :: proc(alert: Alert) -> f32 {
+	return alert.base_duration - (f32(rl.GetTime()) - alert.time_emitted)
 }
