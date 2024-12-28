@@ -65,6 +65,7 @@ ExplodingBarrel :: struct {
 Enemy :: struct {
 	using moving_entity:  MovingEntity,
 	start_pos:            Vec2,
+	target:               Vec2, // target position to use when moving enemy
 	// Pereception Stats
 	hearing_range:        f32,
 	vision_range:         f32,
