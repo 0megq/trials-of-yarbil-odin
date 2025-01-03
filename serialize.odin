@@ -146,7 +146,7 @@ level: Level
 level_tilemap: Tilemap
 tutorial: Tutorial
 
-
+// MARK: Level
 reload_level :: proc() {
 	unload_level()
 	load_level()
@@ -253,6 +253,10 @@ save_level :: proc() {
 	// save player pos
 	// save enemies, items, barrels
 	// save tilemap, level geometry
+
+	for &enemy in level.enemies {
+		enemy.post_pos = enemy.pos
+	}
 
 	data: Level = level
 	place_walls_and_calculate_graph()
@@ -453,8 +457,9 @@ draw_level :: proc(show_tile_grid := false) {
 	}
 
 	for enemy in level.enemies {
-		draw_sprite(ENEMY_SPRITE, enemy.pos)
 		rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
+		rl.DrawCircleV(enemy.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
+		draw_sprite(ENEMY_SPRITE, enemy.pos)
 	}
 
 	for barrel in level.exploding_barrels {

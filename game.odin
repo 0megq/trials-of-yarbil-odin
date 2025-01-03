@@ -30,6 +30,7 @@ CAMERA_LOOKAHEAD :: 8
 CAMERA_SMOOTHING :: 30
 PLAYER_SPEED_DISTRACTION_THRESHOLD :: 75
 SPEED_SECOND_THRESHOLD :: 0.5
+ENEMY_POST_RANGE :: 16
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -587,13 +588,15 @@ main :: proc() {
 			}
 
 			/* -------------------------------------------------------------------------- */
-			/*                             MARK: Enemy loop                               */
+			/*                               MARK:Enemy Loop                              */
 			/* -------------------------------------------------------------------------- */
 			#reverse for &enemy, idx in enemies {
+				/* ---------------------------- Tutorial Dummies ---------------------------- */
 				if level.has_tutorial && tutorial.enable_enemy_dummies {
 					damage_enemy(idx, 0)
 				}
 
+				/* -------------------------------- Flinching ------------------------------- */
 				enemy.target = enemy.pos
 				if enemy.flinching {
 					enemy.current_flinch_time -= delta
@@ -3229,11 +3232,20 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 	return passed_condition ~ invert_condition
 }
 
+
+/* ---------------------------- MARK:Enemy State ---------------------------- */
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 	switch enemy.state {
 	case .Idle:
-		// use pathfinding to return to post
-		// look around for player
+		if distance_squared(enemy.pos, enemy.post_pos) > ENEMY_POST_RANGE * ENEMY_POST_RANGE {
+			// use pathfinding to return to post
+			update_enemy_pathing(enemy, delta, enemy.post_pos)
+			enemy.look_angle = angle(enemy.target - enemy.pos)
+		} else {
+			// look around for player. TODO: make this more interesting
+			enemy.look_angle = angle(player.pos - enemy.pos)
+		}
+
 		if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing)
 		} else if enemy.can_see_player {
@@ -3244,7 +3256,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 	case .Alerted:
 		// look at or investigate distraction
 		// once alert wears off, go back to idle
-		fmt.println(enemy.alert_timer)
+		// fmt.println(enemy.alert_timer)
 		enemy.alert_timer -= delta
 		if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing)
@@ -3254,9 +3266,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			change_enemy_state(enemy, .Idle)
 		}
 	case .Combat:
-		// use pathfinding to chase player
-		tick_enemy_pathfinding_timer(enemy, delta, player.pos)
-
 		enemy.look_angle = angle(player.pos - enemy.pos)
 
 		// once attack is done, decide to chase or attack again
@@ -3317,7 +3326,8 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		}
 
 		if !enemy.charging {
-			set_enemy_target_to_path(enemy)
+			// use pathfinding to chase player
+			update_enemy_pathing(enemy, delta, player.pos)
 		}
 
 		// if player is in attack range, start attacking
@@ -3403,7 +3413,10 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	// Enter state code
 	switch state {
 	case .Idle:
-
+		if distance_squared(enemy.pos, enemy.post_pos) > ENEMY_POST_RANGE * ENEMY_POST_RANGE {
+			fmt.println("hey")
+			start_enemy_pathing(enemy, enemy.post_pos)
+		}
 	case .Alerted:
 		// Reset alert timer. TODO: make this value change based on environmental circumstances
 		enemy.alert_timer = 10.0
@@ -3415,6 +3428,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 		// Reset search timer. TODO: make this value change based on environmental circumstances
 		enemy.search_timer = 10.0
 	}
+	fmt.printfln("Enemy: %v, from %v to %v", enemy.id, enemy.state, state)
 
 	enemy.state = state
 }
@@ -3433,20 +3447,18 @@ start_enemy_pathing :: proc(enemy: ^Enemy, dest: Vec2) {
 		delete(enemy.current_path)
 	}
 	enemy.current_path = find_path_tiles(enemy.pos, dest, nav_graph, tilemap, wall_tilemap)
+	fmt.println(enemy.current_path)
 	enemy.current_path_point = 1
 	enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 }
 
-// Countsdown the pathfinding timer and recalculates the path if necessary
-tick_enemy_pathfinding_timer :: proc(enemy: ^Enemy, delta: f32, dest: Vec2) {
+// Counts down the pathfinding timer and recalculates the path if necessary
+// Also, sets the enemy's target to the current path point, if there is a path to follow. Returns true if there is path to follow
+update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2) -> bool {
 	enemy.pathfinding_timer -= delta
 	if enemy.pathfinding_timer < 0 || enemy.current_path_point >= len(enemy.current_path) {
 		start_enemy_pathing(enemy, dest)
 	}
-}
-
-// Sets the enemy's target to the current path point, if there is a path to follow. Returns true if there is path to follow
-set_enemy_target_to_path :: proc(enemy: ^Enemy) -> bool {
 	if enemy.current_path != nil && enemy.current_path_point < len(enemy.current_path) {
 		enemy.target = enemy.current_path[enemy.current_path_point]
 		if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) < 16 { 	// Enemy is at the point (tolerance of 16)

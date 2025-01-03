@@ -31,8 +31,8 @@
 							88
 						],
 						"pos": [
-							762.00000000,
-							185.00000000
+							759.00000000,
+							187.00000000
 						],
 						"queue_free": false,
 						"start_disabled": false
@@ -49,12 +49,16 @@
 					0.00000000
 				]
 			},
-			"start_pos": [
+			"post_pos": [
+				759.00000000,
+				187.00000000
+			],
+			"target": [
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 80.00000000,
-			"vision_range": 80.00000000,
+			"hearing_range": 160.00000000,
+			"vision_range": 160.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,
 			"vision_points": [
@@ -282,16 +286,16 @@
 				"is_visual": false,
 				"time_emitted": 0.00000000
 			},
-			"attack_charge_range": 12.00000000,
-			"start_charge_time": 0.30000001,
+			"attack_charge_range": 120.00000000,
+			"start_charge_time": 0.50000000,
 			"current_charge_time": 0.00000000,
 			"charging": false,
 			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"health": 80.00000000,
-			"max_health": 80.00000000,
+			"health": 60.00000000,
+			"max_health": 60.00000000,
 			"current_path": [
 
 			],
@@ -301,35 +305,7 @@
 			"alert_timer": 0.00000000,
 			"search_timer": 0.00000000,
 			"data": {
-				"attack_poly": {
-					"pos": [
-						0.00000000,
-						0.00000000
-					],
-					"points": [
-						[
-							10.00000000,
-							-10.00000000
-						],
-						[
-							16.00000000,
-							-8.00000000
-						],
-						[
-							20.00000000,
-							0.00000000
-						],
-						[
-							16.00000000,
-							8.00000000
-						],
-						[
-							10.00000000,
-							10.00000000
-						]
-					],
-					"rotation": 0.00000000
-				}
+				"flee_range": 60.00000000
 			}
 		}
 	],
