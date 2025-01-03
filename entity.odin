@@ -63,45 +63,49 @@ ExplodingBarrel :: struct {
 }
 
 Enemy :: struct {
-	using moving_entity:  MovingEntity,
-	post_pos:             Vec2,
-	target:               Vec2, // target position to use when moving enemy
+	using moving_entity:           MovingEntity,
+	post_pos:                      Vec2,
+	target:                        Vec2, // target position to use when moving enemy
 	// Pereception Stats
-	hearing_range:        f32,
-	vision_range:         f32,
-	look_angle:           f32, // direction they are looking (in degrees facing right going ccw)
-	vision_fov:           f32, // wideness (in degrees)
-	vision_points:        [50]Vec2,
+	hearing_range:                 f32,
+	vision_range:                  f32,
+	look_angle:                    f32, // direction they are looking (in degrees facing right going ccw)
+	vision_fov:                    f32, // wideness (in degrees)
+	vision_points:                 [50]Vec2,
 	// Perception Results
-	can_see_player:       bool,
-	last_seen_player_pos: Vec2,
-	last_seen_player_vel: Vec2,
-	player_in_flee_range: bool,
-	alert_just_detected:  bool,
-	last_alert:           Alert,
+	can_see_player:                bool,
+	last_seen_player_pos:          Vec2,
+	last_seen_player_vel:          Vec2,
+	player_in_flee_range:          bool,
+	alert_just_detected:           bool,
+	last_alert_intensity_detected: f32,
+	last_alert:                    Alert,
 	// Combat
-	attack_charge_range:  f32, // Range for the enemy to start charging
-	start_charge_time:    f32,
-	current_charge_time:  f32,
-	charging:             bool,
-	just_attacked:        bool,
+	attack_charge_range:           f32, // Range for the enemy to start charging
+	start_charge_time:             f32,
+	current_charge_time:           f32,
+	charging:                      bool,
+	just_attacked:                 bool,
 	// Flinching
-	start_flinch_time:    f32,
-	current_flinch_time:  f32,
-	flinching:            bool,
+	start_flinch_time:             f32,
+	current_flinch_time:           f32,
+	flinching:                     bool,
+	// Idle
+	idle_look_timer:               f32,
+	idle_look_angle:               f32,
 	// Health
-	health:               f32,
-	max_health:           f32,
+	health:                        f32,
+	max_health:                    f32,
 	// Pathfinding
-	current_path:         []Vec2,
-	current_path_point:   int,
-	pathfinding_timer:    f32,
+	current_path:                  []Vec2,
+	current_path_point:            int,
+	pathfinding_timer:             f32,
 	// State management
-	state:                EnemyState,
-	alert_timer:          f32,
-	search_timer:         f32,
+	state:                         EnemyState,
+	alert_timer:                   f32,
+	search_timer:                  f32,
 	// Type specific
-	data:                 EnemyData,
+	data:                          EnemyData,
 }
 
 EnemyState :: enum {

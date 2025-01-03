@@ -569,8 +569,7 @@ main :: proc() {
 				}
 			}
 
-			if length_squared(player.vel) >=
-			   PLAYER_SPEED_DISTRACTION_THRESHOLD * PLAYER_SPEED_DISTRACTION_THRESHOLD {
+			if length_squared(player.vel) >= square(f32(PLAYER_SPEED_DISTRACTION_THRESHOLD)) {
 				seconds_above_distraction_threshold += delta
 			} else {
 				seconds_above_distraction_threshold = 0
@@ -652,7 +651,8 @@ main :: proc() {
 					}
 
 					/* ------------------------------ Check Alerts ------------------------------ */
-					{
+					if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
+					   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
 						enemy.alert_just_detected = false
 						detected_alert: Alert
 						detected_effective_intensity: f32 = 0
@@ -671,7 +671,6 @@ main :: proc() {
 									{alert.pos, 2}, // 2 is an arbitrary radius. Should work here.
 								)
 
-
 							detected :=
 								can_detect &&
 								distance_squared(enemy.pos, alert.pos) <
@@ -689,8 +688,11 @@ main :: proc() {
 							}
 						}
 						// Check if alert is relevant
-						if detected_effective_intensity > 0 {
+						if detected_effective_intensity > 0 &&
+						   (detected_effective_intensity > enemy.last_alert_intensity_detected ||
+								   enemy.state != .Alerted) {
 							enemy.alert_just_detected = true
+							enemy.last_alert_intensity_detected = detected_effective_intensity
 							enemy.last_alert = detected_alert
 						}
 					}
@@ -1176,7 +1178,7 @@ main :: proc() {
 						&alerts,
 						Alert {
 							pos = rock.pos,
-							range = 10,
+							range = 70,
 							base_intensity = 1,
 							base_duration = 1,
 							is_visual = true,
@@ -1188,7 +1190,7 @@ main :: proc() {
 						&alerts,
 						Alert {
 							pos = rock.pos,
-							range = 20,
+							range = 50,
 							base_intensity = 1,
 							base_duration = 1,
 							is_visual = false,
@@ -2168,6 +2170,17 @@ get_directional_input :: proc() -> Vec2 {
 	}
 
 	return dir
+}
+
+exp_decay_angle :: proc(a, b: f32, decay: f32, delta: f32) -> f32 {
+	diff := a - b
+	if diff > 180 {
+		diff -= 360
+	} else if diff < -180 {
+		diff += 360
+	}
+
+	return b + diff * math.exp(-decay * delta)
 }
 
 exp_decay :: proc(a, b: $T, decay: f32, delta: f32) -> T {
@@ -3235,15 +3248,30 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 
 /* ---------------------------- MARK:Enemy State ---------------------------- */
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
+	enemy.can_see_player = false // prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
-		if distance_squared(enemy.pos, enemy.post_pos) > ENEMY_POST_RANGE * ENEMY_POST_RANGE {
+		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
 			update_enemy_pathing(enemy, delta, enemy.post_pos)
-			enemy.look_angle = angle(enemy.target - enemy.pos)
+			lerp_look_angle(
+				enemy,
+				angle(enemy.target - enemy.pos) + f32(math.sin(rl.GetTime()) * 10),
+				delta,
+			)
+			enemy.idle_look_angle = enemy.look_angle
+			enemy.idle_look_timer = 2
 		} else {
-			// look around for player. TODO: make this more interesting
-			enemy.look_angle = angle(player.pos - enemy.pos)
+			enemy.idle_look_timer -= delta
+			if enemy.idle_look_timer <= 0 {
+				enemy.idle_look_timer = rand.float32_range(5, 15)
+				enemy.idle_look_angle += rand.float32_range(-90, 90)
+			}
+			lerp_look_angle(
+				enemy,
+				enemy.idle_look_angle + f32(math.sin(rl.GetTime() * 2) * 10),
+				delta,
+			)
 		}
 
 		if enemy.player_in_flee_range {
@@ -3254,21 +3282,33 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			change_enemy_state(enemy, .Alerted)
 		}
 	case .Alerted:
-		// look at or investigate distraction
-		// once alert wears off, go back to idle
-		// fmt.println(enemy.alert_timer)
 		enemy.alert_timer -= delta
+
+		// look at or investigate distraction
+		if enemy.last_alert_intensity_detected > 0.8 &&
+		   distance_squared(enemy.pos, enemy.last_alert.pos) > 500 {
+			update_enemy_pathing(enemy, delta, enemy.last_alert.pos)
+		}
+		lerp_look_angle(
+			enemy,
+			angle(enemy.last_alert.pos - enemy.pos) + f32(math.sin(rl.GetTime()) * 10),
+			delta,
+		)
+
+
 		if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing)
 		} else if enemy.can_see_player {
 			change_enemy_state(enemy, .Combat)
+		} else if enemy.alert_just_detected { 	// if new alert is detected
+			change_enemy_state(enemy, .Alerted)
 		} else if enemy.alert_timer <= 0 {
+			// once alert wears off, go back to idle
 			change_enemy_state(enemy, .Idle)
 		}
 	case .Combat:
-		enemy.look_angle = angle(player.pos - enemy.pos)
+		lerp_look_angle(enemy, angle(player.pos - enemy.pos), delta)
 
-		// once attack is done, decide to chase or attack again
 		// Attacking
 		enemy.just_attacked = false
 		if enemy.charging {
@@ -3325,6 +3365,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			}
 		}
 
+		// chasing
 		if !enemy.charging {
 			// use pathfinding to chase player
 			update_enemy_pathing(enemy, delta, player.pos)
@@ -3413,13 +3454,18 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	// Enter state code
 	switch state {
 	case .Idle:
-		if distance_squared(enemy.pos, enemy.post_pos) > ENEMY_POST_RANGE * ENEMY_POST_RANGE {
-			fmt.println("hey")
+		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			start_enemy_pathing(enemy, enemy.post_pos)
 		}
 	case .Alerted:
-		// Reset alert timer. TODO: make this value change based on environmental circumstances
-		enemy.alert_timer = 10.0
+		base_duration :: 5
+		// Reset alert timer
+		enemy.alert_timer = base_duration + enemy.last_alert_intensity_detected * 2
+
+		// Determine if we look at or investigate alert
+		if enemy.last_alert_intensity_detected > 0.8 {
+			start_enemy_pathing(enemy, enemy.last_alert.pos)
+		}
 	case .Combat:
 		start_enemy_pathing(enemy, player.pos)
 	case .Fleeing:
@@ -3428,9 +3474,13 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 		// Reset search timer. TODO: make this value change based on environmental circumstances
 		enemy.search_timer = 10.0
 	}
-	fmt.printfln("Enemy: %v, from %v to %v", enemy.id, enemy.state, state)
+	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 
 	enemy.state = state
+}
+
+lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {
+	enemy.look_angle = exp_decay_angle(enemy.look_angle, target_angle, 4, delta)
 }
 
 get_effective_intensity :: proc(alert: Alert) -> f32 {
@@ -3447,7 +3497,6 @@ start_enemy_pathing :: proc(enemy: ^Enemy, dest: Vec2) {
 		delete(enemy.current_path)
 	}
 	enemy.current_path = find_path_tiles(enemy.pos, dest, nav_graph, tilemap, wall_tilemap)
-	fmt.println(enemy.current_path)
 	enemy.current_path_point = 1
 	enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 }

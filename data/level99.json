@@ -57,8 +57,8 @@
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 160.00000000,
-			"vision_range": 160.00000000,
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,
 			"vision_points": [
@@ -274,6 +274,7 @@
 			],
 			"player_in_flee_range": false,
 			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
 			"last_alert": {
 				"pos": [
 					0.00000000,
@@ -286,16 +287,18 @@
 				"is_visual": false,
 				"time_emitted": 0.00000000
 			},
-			"attack_charge_range": 120.00000000,
-			"start_charge_time": 0.50000000,
+			"attack_charge_range": 12.00000000,
+			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
 			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"current_path": [
 
 			],
@@ -305,7 +308,35 @@
 			"alert_timer": 0.00000000,
 			"search_timer": 0.00000000,
 			"data": {
-				"flee_range": 60.00000000
+				"attack_poly": {
+					"pos": [
+						0.00000000,
+						0.00000000
+					],
+					"points": [
+						[
+							10.00000000,
+							-10.00000000
+						],
+						[
+							16.00000000,
+							-8.00000000
+						],
+						[
+							20.00000000,
+							0.00000000
+						],
+						[
+							16.00000000,
+							8.00000000
+						],
+						[
+							10.00000000,
+							10.00000000
+						]
+					],
+					"rotation": 0.00000000
+				}
 			}
 		}
 	],
