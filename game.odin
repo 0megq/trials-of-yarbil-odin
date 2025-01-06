@@ -253,6 +253,10 @@ main :: proc() {
 	}
 
 	for !rl.WindowShouldClose() {
+		delta = rl.GetFrameTime()
+		mouse_window_pos = rl.GetMousePosition()
+		mouse_window_delta = rl.GetMouseDelta()
+
 		if player.queue_free {
 			on_player_death()
 			player.queue_free = false
@@ -332,14 +336,11 @@ main :: proc() {
 		}
 
 		// Mouse movement
-		mouse_window_pos = rl.GetMousePosition()
-		mouse_window_delta = rl.GetMouseDelta()
 		mouse_ui_pos = window_to_ui(mouse_window_pos)
 		mouse_ui_delta = mouse_window_delta / ui_camera.zoom
 		mouse_world_pos = window_to_world(mouse_window_pos)
 		mouse_world_delta = mouse_window_delta / world_camera.zoom
 
-		delta = rl.GetFrameTime()
 
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -3415,9 +3416,21 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		}
 
 	case .Searching:
-		// use pathfinding
-		// 1 go to last seen player pos
-		// 2 look around
+		switch enemy.search_state {
+		case 0:
+			// 1 go to last seen player pos
+			if !update_enemy_pathing(enemy, delta, player.pos) {
+				enemy.search_state += 1
+			}
+		case 1:
+			// 2 look around
+			enemy.search_state += 1
+		case 2:
+
+		case 3:
+
+		}
+
 		// 3 follow last seen player velocity
 		// 4 look around
 		// 5 more sensitive to footsteps
@@ -3471,8 +3484,9 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	case .Fleeing:
 
 	case .Searching:
-		// Reset search timer. TODO: make this value change based on environmental circumstances
-		enemy.search_timer = 10.0
+		enemy.search_timer = 10.0 // TODO: Randomize this
+		enemy.search_state = 0
+		start_enemy_pathing(enemy, enemy.last_seen_player_pos)
 	}
 	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 

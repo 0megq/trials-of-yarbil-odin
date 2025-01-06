@@ -297,6 +297,7 @@
 			"flinching": false,
 			"idle_look_timer": 0.00000000,
 			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [

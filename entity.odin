@@ -93,6 +93,8 @@ Enemy :: struct {
 	// Idle
 	idle_look_timer:               f32,
 	idle_look_angle:               f32,
+	// Searching
+	search_state:                  int,
 	// Health
 	health:                        f32,
 	max_health:                    f32,
