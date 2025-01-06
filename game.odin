@@ -31,6 +31,7 @@ CAMERA_SMOOTHING :: 30
 PLAYER_SPEED_DISTRACTION_THRESHOLD :: 75
 SPEED_SECOND_THRESHOLD :: 0.5
 ENEMY_POST_RANGE :: 16
+ENEMY_SEARCH_TOLERANCE :: 16
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
@@ -3249,7 +3250,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 
 /* ---------------------------- MARK:Enemy State ---------------------------- */
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
-	enemy.can_see_player = false // prevent enemy from seeing player: stop combat
+	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
@@ -3292,7 +3293,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		}
 		lerp_look_angle(
 			enemy,
-			angle(enemy.last_alert.pos - enemy.pos) + f32(math.sin(rl.GetTime()) * 10),
+			angle(enemy.last_alert.pos - enemy.pos) + f32(math.sin(rl.GetTime()) * 40),
 			delta,
 		)
 
@@ -3419,31 +3420,66 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		switch enemy.search_state {
 		case 0:
 			// 1 go to last seen player pos
-			if !update_enemy_pathing(enemy, delta, player.pos) {
-				enemy.search_state += 1
+			if distance_squared(enemy.pos, enemy.last_seen_player_pos) >
+			   square(f32(ENEMY_SEARCH_TOLERANCE)) {
+				enemy.search_timer += delta // accumulate search timer
+				update_enemy_pathing(enemy, delta, enemy.last_seen_player_pos)
+				lerp_look_angle(
+					enemy,
+					angle(enemy.target - enemy.pos) + f32(math.sin(8 * rl.GetTime())) * 5,
+					delta,
+				)
+			} else {
+				enemy.search_timer *= 2
+				enemy.search_state = 1
 			}
 		case 1:
 			// 2 look around
-			enemy.search_state += 1
+			lerp_look_angle(
+				enemy,
+				angle(enemy.last_seen_player_vel) + f32(math.sin(rl.GetTime()) * 20),
+				delta,
+			)
+
+			enemy.search_timer -= delta
+			if enemy.search_timer <= 0 {
+				enemy.search_timer = 1.0
+				enemy.search_state = 2
+			}
 		case 2:
-
+			// 3 follow last seen player velocity
+			enemy.target = enemy.pos + enemy.last_seen_player_vel
+			lerp_look_angle(
+				enemy,
+				angle(enemy.target - enemy.pos) + f32(math.sin(8 * rl.GetTime())) * 5,
+				delta,
+			)
+			enemy.search_timer -= delta
+			if enemy.search_timer <= 0 {
+				enemy.search_timer = 6.0
+				enemy.search_state = 3
+			}
 		case 3:
-
+			// 4 look around
+			lerp_look_angle(
+				enemy,
+				angle(enemy.last_seen_player_vel) + f32(2 * math.sin(rl.GetTime()) * 40),
+				delta,
+			)
+			enemy.search_timer -= delta
+			if enemy.search_timer <= 0 {
+				// Go back to idle
+				enemy.search_state = 4
+			}
 		}
 
-		// 3 follow last seen player velocity
-		// 4 look around
-		// 5 more sensitive to footsteps
-		// once aggro wears off, go back to idle
-
-		enemy.search_timer -= delta
 		if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing)
 		} else if enemy.can_see_player {
 			change_enemy_state(enemy, .Combat)
 		} else if enemy.alert_just_detected {
 			change_enemy_state(enemy, .Alerted)
-		} else if enemy.search_timer <= 0 {
+		} else if enemy.search_state == 4 {
 			change_enemy_state(enemy, .Idle)
 		}
 	}
@@ -3484,7 +3520,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	case .Fleeing:
 
 	case .Searching:
-		enemy.search_timer = 10.0 // TODO: Randomize this
+		enemy.search_timer = 0
 		enemy.search_state = 0
 		start_enemy_pathing(enemy, enemy.last_seen_player_pos)
 	}
