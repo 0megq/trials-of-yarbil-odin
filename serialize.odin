@@ -255,10 +255,6 @@ save_level :: proc() {
 	// save enemies, items, barrels
 	// save tilemap, level geometry
 
-	for &enemy in level.enemies {
-		enemy.post_pos = enemy.pos
-	}
-
 	data: Level = level
 	place_walls_and_calculate_graph()
 	save_tilemap(

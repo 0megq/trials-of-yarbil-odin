@@ -53,11 +53,21 @@ Level1 :: struct {
 
 // if clear_memory is true, any allocations in the input that are no longer needed in the result are cleared
 
-level1_to_level2 :: proc(input: Level1, clear_memory: bool) -> Level2 {
+convert_level1_level2 :: proc(
+	input: Level1,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Level2,
+) {
 	result.player_pos = input.player_pos
 	result.portal_pos = input.portal_pos
+	result.enemies = make([dynamic]Enemy2, allocator)
 	for enemy in input.enemies {
-		append(&result.enemies, enemy1_to_enemy2(enemy), clear_memory)
+		append(&result.enemies, convert_enemy1_enemy2(enemy, clear_memory, allocator))
+	}
+	if clear_memory {
+		delete(input.enemies)
 	}
 	result.items = input.items
 	result.exploding_barrels = input.exploding_barrels
@@ -68,6 +78,22 @@ level1_to_level2 :: proc(input: Level1, clear_memory: bool) -> Level2 {
 }
 
 
-enemy1_to_enemy2 :: proc(input: Enemy1, clear_memory: bool) -> (result: Enemy2) {
+convert_enemy1_enemy2 :: proc(
+	input: Enemy1,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Enemy2,
+) {
+	result.id = input.id
+	result.pos = input.pos
 
+	// Setup
+	result.health = input.health
+	result.max_health = input.max_health
+
+	// STRAT HERE!!!
+	result.data = input.data
+
+	return
 }

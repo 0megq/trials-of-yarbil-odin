@@ -321,6 +321,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 }
 
 setup_enemy :: proc(enemy: ^Enemy) {
+	enemy.post_pos = enemy.pos
 	enemy.shape = get_centered_rect({}, {16, 16})
 }
 
