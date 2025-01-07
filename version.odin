@@ -1,5 +1,10 @@
 package game
 
+import "core:encoding/json"
+import "core:fmt"
+import "core:os"
+import "core:testing"
+
 // This file is where previous versions of structs go as well as procedures for converting
 // said previous versions to the current version and back
 
@@ -52,6 +57,7 @@ Level1 :: struct {
 }
 
 // if clear_memory is true, any allocations in the input that are no longer needed in the result are cleared
+// Note: if possible the convert proc's will not allocate new data. this is a possible code smell
 
 convert_level1_level2 :: proc(
 	input: Level1,
@@ -77,10 +83,10 @@ convert_level1_level2 :: proc(
 	return
 }
 
-
+// Note: Clear memory does not work with this procedure
 convert_enemy1_enemy2 :: proc(
 	input: Enemy1,
-	clear_memory: bool,
+	clear_memory := false,
 	allocator := context.allocator,
 ) -> (
 	result: Enemy2,
@@ -88,12 +94,63 @@ convert_enemy1_enemy2 :: proc(
 	result.id = input.id
 	result.pos = input.pos
 
-	// Setup
 	result.health = input.health
 	result.max_health = input.max_health
 
-	// STRAT HERE!!!
 	result.data = input.data
 
 	return
+}
+
+
+convert_file :: proc(
+	converter: proc(input: $I, clear_memory: bool, allocator := context.allocator) -> $R,
+	load_path: string,
+	save_path := "",
+) {
+	input_data: I = {}
+	// load file
+	if bytes, ok := os.read_entire_file(load_path, context.temp_allocator); ok {
+		// put file in I struct
+		if json.unmarshal(data = bytes, ptr = &input_data, allocator = context.temp_allocator) !=
+		   nil {
+			fmt.println("error parsing json")
+		}
+	} else {
+		fmt.println("error loading file")
+	}
+	fmt.println(input_data)
+
+	// call procedure
+	result_data: R = converter(input_data, true, context.temp_allocator)
+	fmt.println(result_data)
+
+	// marshal the struct into json
+	if bytes, err := json.marshal(
+		result_data,
+		allocator = context.temp_allocator,
+		opt = {pretty = true},
+	); err == nil {
+		// save file
+		if !os.write_entire_file(save_path if save_path != "" else load_path, bytes) {
+			fmt.println("failed to write file")
+		}
+	} else {
+		fmt.println("error marshaling struct into json")
+	}
+}
+
+convert_level1_level1 :: proc(
+	input: Level1,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Level1,
+) {
+	return input
+}
+
+@(test)
+test :: proc(_: ^testing.T) {
+	convert_file(convert_level1_level2, "data/level12.json")
 }
