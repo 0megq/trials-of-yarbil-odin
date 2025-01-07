@@ -121,13 +121,14 @@ Tutorial :: struct {
 }
 
 // Used for serialization and level editor
-Level :: struct {
+Level :: Level2
+Level2 :: struct {
 	// start player pos
 	player_pos:        Vec2,
 	// portal pos
 	portal_pos:        Vec2,
 	// enemies
-	enemies:           [dynamic]Enemy,
+	enemies:           [dynamic]Enemy2,
 	// items
 	items:             [dynamic]Item,
 	// barrels

@@ -1,0 +1,9 @@
+hello,
+
+here are my solutions for solving the issues with serializing the game data as a whole, not just enemy data
+
+for all objects, create separate types simply for saving and loading data about each entity. create functions to transform
+the save/load data into the usable structs. after that, whenever we make changes to the enemy struct, for example, we don't
+need to worry about saving and loading, nearly as much. If we need to save and load new data about the enemy then what we do is 
+create a new version of the save/load enemy struct. then we create a function for converting the previous save/load enemy struct
+to the new version. this has the benefit of being able to convert really old save data into updated formats.

@@ -3503,6 +3503,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	// Enter state code
 	switch state {
 	case .Idle:
+		enemy.idle_look_timer = 0
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			start_enemy_pathing(enemy, enemy.post_pos)
 		}

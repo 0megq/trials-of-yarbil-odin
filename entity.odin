@@ -62,7 +62,8 @@ ExplodingBarrel :: struct {
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
-Enemy :: struct {
+Enemy :: Enemy2
+Enemy2 :: struct {
 	using moving_entity:           MovingEntity,
 	post_pos:                      Vec2,
 	target:                        Vec2, // target position to use when moving enemy
