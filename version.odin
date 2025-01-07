@@ -80,6 +80,7 @@ convert_level1_level2 :: proc(
 	result.walls = input.walls
 	result.half_walls = input.half_walls
 	result.bounds = input.bounds
+	result.has_tutorial = input.has_tutorial
 	return
 }
 
@@ -119,11 +120,9 @@ convert_file :: proc(
 	} else {
 		fmt.println("error loading file")
 	}
-	fmt.println(input_data)
 
 	// call procedure
 	result_data: R = converter(input_data, true, context.temp_allocator)
-	fmt.println(result_data)
 
 	// marshal the struct into json
 	if bytes, err := json.marshal(
@@ -152,5 +151,9 @@ convert_level1_level1 :: proc(
 
 @(test)
 test :: proc(_: ^testing.T) {
-	convert_file(convert_level1_level2, "data/level12.json")
+	convert_file(convert_level1_level2, "data/level00.json")
+	convert_file(convert_level1_level2, "data/level01.json")
+	convert_file(convert_level1_level2, "data/level02.json")
+	convert_file(convert_level1_level2, "data/level03.json")
+	convert_file(convert_level1_level2, "data/level04.json")
 }

@@ -35,24 +35,28 @@
 							608.00000000
 						],
 						"queue_free": false,
-						"start_disabled": true
+						"start_disabled": false
 					},
-					"shape": {
-						"x": -8.00000000,
-						"y": -8.00000000,
-						"width": 16.00000000,
-						"height": 16.00000000
-					}
+					"shape": null
 				},
 				"vel": [
 					0.00000000,
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 0.00000000,
+			"vision_range": 0.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 0.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -254,14 +258,41 @@
 					0.00000000
 				]
 			],
-			"attack_charge_range": 12.00000000,
-			"start_charge_time": 0.30000001,
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
+			"attack_charge_range": 0.00000000,
+			"start_charge_time": 0.00000000,
 			"current_charge_time": 0.00000000,
 			"charging": false,
-			"start_flinch_time": 0.20000000,
+			"just_attacked": false,
+			"start_flinch_time": 0.00000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 10.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
@@ -269,7 +300,9 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -279,7 +312,7 @@
 					"points": [
 						[
 							10.00000000,
-							-10.00000000
+							-9.98312569
 						],
 						[
 							16.00000000,
@@ -300,13 +333,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		}
 	],
 	"items": [
