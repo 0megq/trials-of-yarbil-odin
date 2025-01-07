@@ -57,7 +57,7 @@ Level1 :: struct {
 }
 
 // if clear_memory is true, any allocations in the input that are no longer needed in the result are cleared
-// Note: if possible the convert proc's will not allocate new data, this could be bad, but as of now it works fine with our game
+// Note: if possible the convert proc's will not allocate new data, this could be bad, but as of now it works fine with our game.
 
 convert_level1_level2 :: proc(
 	input: Level1,
