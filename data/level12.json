@@ -34,7 +34,8 @@
 							627.57208252,
 							588.16668701
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -48,227 +49,265 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				627.57208252,
+				588.16668701
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
-					356.45507812,
-					124.22185516
+					0.00000000,
+					0.00000000
 				],
 				[
-					355.82424927,
-					134.24850464
+					0.00000000,
+					0.00000000
 				],
 				[
-					353.94174194,
-					144.11705017
+					0.00000000,
+					0.00000000
 				],
 				[
-					350.83718872,
-					153.67181396
+					0.00000000,
+					0.00000000
 				],
 				[
-					346.55963135,
-					162.76214600
+					0.00000000,
+					0.00000000
 				],
 				[
-					341.17645264,
-					171.24467468
+					0.00000000,
+					0.00000000
 				],
 				[
-					334.77258301,
-					178.98562622
+					0.00000000,
+					0.00000000
 				],
 				[
-					327.44900513,
-					185.86291504
+					0.00000000,
+					0.00000000
 				],
 				[
-					319.32122803,
-					191.76808167
+					0.00000000,
+					0.00000000
 				],
 				[
-					310.51742554,
-					196.60803223
+					0.00000000,
+					0.00000000
 				],
 				[
-					301.17642212,
-					200.30638123
+					0.00000000,
+					0.00000000
 				],
 				[
-					291.44558716,
-					202.80484009
+					0.00000000,
+					0.00000000
 				],
 				[
-					281.47833252,
-					204.06399536
+					0.00000000,
+					0.00000000
 				],
 				[
-					271.43185425,
-					204.06399536
+					0.00000000,
+					0.00000000
 				],
 				[
-					261.46456909,
-					202.80484009
+					0.00000000,
+					0.00000000
 				],
 				[
-					251.73371887,
-					200.30638123
+					0.00000000,
+					0.00000000
 				],
 				[
-					242.39274597,
-					196.60803223
+					0.00000000,
+					0.00000000
 				],
 				[
-					233.58894348,
-					191.76809692
+					0.00000000,
+					0.00000000
 				],
 				[
-					225.46115112,
-					185.86289978
+					0.00000000,
+					0.00000000
 				],
 				[
-					218.13758850,
-					178.98562622
+					0.00000000,
+					0.00000000
 				],
 				[
-					211.73370361,
-					171.24467468
+					0.00000000,
+					0.00000000
 				],
 				[
-					206.35055542,
-					162.76216125
+					0.00000000,
+					0.00000000
 				],
 				[
-					202.07296753,
-					153.67182922
+					0.00000000,
+					0.00000000
 				],
 				[
-					198.96841431,
-					144.11705017
+					0.00000000,
+					0.00000000
 				],
 				[
-					197.08590698,
-					134.24850464
+					0.00000000,
+					0.00000000
 				],
 				[
-					196.45507812,
-					124.22184753
+					0.00000000,
+					0.00000000
 				],
 				[
-					197.08590698,
-					114.19520569
+					0.00000000,
+					0.00000000
 				],
 				[
-					198.96841431,
-					104.32666779
+					0.00000000,
+					0.00000000
 				],
 				[
-					202.07296753,
-					94.77189636
+					0.00000000,
+					0.00000000
 				],
 				[
-					206.35055542,
-					85.68155670
+					0.00000000,
+					0.00000000
 				],
 				[
-					211.73370361,
-					77.19904327
+					0.00000000,
+					0.00000000
 				],
 				[
-					218.13758850,
-					69.45809174
+					0.00000000,
+					0.00000000
 				],
 				[
-					225.46115112,
-					62.58081055
+					0.00000000,
+					0.00000000
 				],
 				[
-					233.58895874,
-					56.67561340
+					0.00000000,
+					0.00000000
 				],
 				[
-					242.39273071,
-					51.83569336
+					0.00000000,
+					0.00000000
 				],
 				[
-					251.73370361,
-					48.13733673
+					0.00000000,
+					0.00000000
 				],
 				[
-					261.46459961,
-					45.63887024
+					0.00000000,
+					0.00000000
 				],
 				[
-					271.43182373,
-					44.37971497
+					0.00000000,
+					0.00000000
 				],
 				[
-					281.47833252,
-					44.37971497
+					0.00000000,
+					0.00000000
 				],
 				[
-					291.44555664,
-					45.63887024
+					0.00000000,
+					0.00000000
 				],
 				[
-					301.17645264,
-					48.13733673
+					0.00000000,
+					0.00000000
 				],
 				[
-					310.51742554,
-					51.83569336
+					0.00000000,
+					0.00000000
 				],
 				[
-					319.32119751,
-					56.67561340
+					0.00000000,
+					0.00000000
 				],
 				[
-					327.44900513,
-					62.58081055
+					0.00000000,
+					0.00000000
 				],
 				[
-					334.77255249,
-					69.45808411
+					0.00000000,
+					0.00000000
 				],
 				[
-					341.17645264,
-					77.19903564
+					0.00000000,
+					0.00000000
 				],
 				[
-					346.55960083,
-					85.68155670
+					0.00000000,
+					0.00000000
 				],
 				[
-					350.83718872,
-					94.77189636
+					0.00000000,
+					0.00000000
 				],
 				[
-					353.94174194,
-					104.32666779
+					0.00000000,
+					0.00000000
 				],
 				[
-					355.82424927,
-					114.19516754
+					0.00000000,
+					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 12.00000000,
 			"start_charge_time": 0.30000001,
-			"current_charge_time": -0.00692230,
+			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
 
 			],
-			"current_path_point": 1,
-			"pathfinding_timer": 0.45995429,
-			"player_in_range": false,
+			"current_path_point": 0,
+			"pathfinding_timer": 0.00000000,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -299,13 +338,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -333,7 +366,8 @@
 							559.10839844,
 							586.06243896
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -347,10 +381,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				559.10839844,
+				586.06243896
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -552,14 +595,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 12.00000000,
 			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
@@ -567,7 +637,9 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -598,13 +670,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -632,7 +698,8 @@
 							593.87689209,
 							477.56976318
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -646,10 +713,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 160.00000000,
-			"detection_points": [
+			"post_pos": [
+				593.87689209,
+				477.56976318
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 160.00000000,
+			"vision_range": 160.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -851,14 +927,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 120.00000000,
 			"start_charge_time": 0.50000000,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 60.00000000,
 			"max_health": 60.00000000,
 			"current_path": [
@@ -866,16 +969,12 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"flee_range": 60.00000000
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -903,7 +1002,8 @@
 							553.08203125,
 							644.15386963
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -917,10 +1017,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				553.08203125,
+				644.15386963
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -1122,14 +1231,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 12.00000000,
 			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
@@ -1137,7 +1273,9 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -1168,13 +1306,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -1202,7 +1334,8 @@
 							984.32067871,
 							543.22204590
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -1216,10 +1349,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				984.32067871,
+				543.22204590
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -1421,14 +1563,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 12.00000000,
 			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
@@ -1436,7 +1605,9 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -1467,13 +1638,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -1501,7 +1666,8 @@
 							965.05938721,
 							413.53173828
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -1515,10 +1681,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 80.00000000,
-			"detection_points": [
+			"post_pos": [
+				965.05938721,
+				413.53173828
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 80.00000000,
+			"vision_range": 80.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -1720,14 +1895,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 12.00000000,
 			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"current_path": [
@@ -1735,7 +1937,9 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"attack_poly": {
 					"pos": [
@@ -1766,13 +1970,7 @@
 					],
 					"rotation": 0.00000000
 				}
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		},
 		{
 			"moving_entity": {
@@ -1800,7 +1998,8 @@
 							1050.43420410,
 							489.96804810
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"x": -8.00000000,
@@ -1814,10 +2013,19 @@
 					0.00000000
 				]
 			},
-			"detection_angle": 0.00000000,
-			"detection_angle_sweep": 115.00000000,
-			"detection_range": 160.00000000,
-			"detection_points": [
+			"post_pos": [
+				1050.43420410,
+				489.96804810
+			],
+			"target": [
+				0.00000000,
+				0.00000000
+			],
+			"hearing_range": 160.00000000,
+			"vision_range": 160.00000000,
+			"look_angle": 0.00000000,
+			"vision_fov": 115.00000000,
+			"vision_points": [
 				[
 					0.00000000,
 					0.00000000
@@ -2019,14 +2227,41 @@
 					0.00000000
 				]
 			],
+			"can_see_player": false,
+			"last_seen_player_pos": [
+				0.00000000,
+				0.00000000
+			],
+			"last_seen_player_vel": [
+				0.00000000,
+				0.00000000
+			],
+			"player_in_flee_range": false,
+			"alert_just_detected": false,
+			"last_alert_intensity_detected": 0.00000000,
+			"last_alert": {
+				"pos": [
+					0.00000000,
+					0.00000000
+				],
+				"range": 0.00000000,
+				"base_intensity": 0.00000000,
+				"base_duration": 0.00000000,
+				"decay_rate": 0.00000000,
+				"is_visual": false,
+				"time_emitted": 0.00000000
+			},
 			"attack_charge_range": 120.00000000,
 			"start_charge_time": 0.50000000,
 			"current_charge_time": 0.00000000,
 			"charging": false,
+			"just_attacked": false,
 			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
-			"just_attacked": false,
+			"idle_look_timer": 0.00000000,
+			"idle_look_angle": 0.00000000,
+			"search_state": 0,
 			"health": 60.00000000,
 			"max_health": 60.00000000,
 			"current_path": [
@@ -2034,16 +2269,12 @@
 			],
 			"current_path_point": 0,
 			"pathfinding_timer": 0.00000000,
-			"player_in_range": false,
+			"state": 0,
+			"alert_timer": 0.00000000,
+			"search_timer": 0.00000000,
 			"data": {
 				"flee_range": 60.00000000
-			},
-			"distracted": false,
-			"distraction_pos": [
-				0.00000000,
-				0.00000000
-			],
-			"distraction_time_emitted": 0.00000000
+			}
 		}
 	],
 	"items": [
@@ -2073,7 +2304,8 @@
 							635.50067139,
 							418.62969971
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2120,7 +2352,8 @@
 							528.37573242,
 							769.11956787
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2167,7 +2400,8 @@
 							551.43371582,
 							789.86578369
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2214,7 +2448,8 @@
 							726.43493652,
 							458.56784058
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2261,7 +2496,8 @@
 							733.02819824,
 							483.52819824
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2308,7 +2544,8 @@
 							713.24829102,
 							470.34158325
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2355,7 +2592,8 @@
 							915.05041504,
 							496.40081787
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2402,7 +2640,8 @@
 							721.10052490,
 							586.31079102
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2449,7 +2688,8 @@
 							653.09643555,
 							682.06072998
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2496,7 +2736,8 @@
 							733.61285400,
 							760.94512939
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2543,7 +2784,8 @@
 							926.20043945,
 							666.28381348
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2590,7 +2832,8 @@
 							969.04138184,
 							762.03338623
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2637,7 +2880,8 @@
 							616.04388428,
 							727.28582764
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2684,7 +2928,8 @@
 							763.04980469,
 							501.37478638
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2731,7 +2976,8 @@
 							713.21551514,
 							661.42156982
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2778,7 +3024,8 @@
 							884.04919434,
 							579.13037109
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2825,7 +3072,8 @@
 							948.16894531,
 							745.00097656
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2874,7 +3122,8 @@
 							1033.14819336,
 							522.03100586
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2918,7 +3167,8 @@
 							585.43585205,
 							610.74047852
 						],
-						"queue_free": false
+						"queue_free": false,
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [
@@ -2962,7 +3212,8 @@
 					712.00000000,
 					512.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -2995,7 +3246,8 @@
 					1056.00000000,
 					568.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3028,7 +3280,8 @@
 					1096.00000000,
 					464.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3061,7 +3314,8 @@
 					544.00000000,
 					448.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3094,7 +3348,8 @@
 					504.00000000,
 					472.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3127,7 +3382,8 @@
 					888.00000000,
 					456.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3160,7 +3416,8 @@
 					720.00000000,
 					464.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3193,7 +3450,8 @@
 					728.00000000,
 					488.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3226,7 +3484,8 @@
 					592.00000000,
 					648.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3259,7 +3518,8 @@
 					616.00000000,
 					632.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3292,7 +3552,8 @@
 					912.00000000,
 					504.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3325,7 +3586,8 @@
 					920.00000000,
 					528.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3358,7 +3620,8 @@
 					1072.00000000,
 					552.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3391,7 +3654,8 @@
 					440.00000000,
 					336.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3424,7 +3688,8 @@
 					448.00000000,
 					864.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3457,7 +3722,8 @@
 					1160.00000000,
 					328.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3490,7 +3756,8 @@
 					528.00000000,
 					776.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3523,7 +3790,8 @@
 					496.00000000,
 					432.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3556,7 +3824,8 @@
 					472.00000000,
 					392.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3589,7 +3858,8 @@
 					544.00000000,
 					376.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3622,7 +3892,8 @@
 					576.00000000,
 					400.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3655,7 +3926,8 @@
 					680.00000000,
 					360.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3688,7 +3960,8 @@
 					712.00000000,
 					376.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3721,7 +3994,8 @@
 					920.00000000,
 					368.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3754,7 +4028,8 @@
 					968.00000000,
 					376.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3787,7 +4062,8 @@
 					1120.00000000,
 					520.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3820,7 +4096,8 @@
 					1128.00000000,
 					424.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3853,7 +4130,8 @@
 					912.00000000,
 					432.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3886,7 +4164,8 @@
 					1016.00000000,
 					400.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3919,7 +4198,8 @@
 					1080.00000000,
 					384.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3952,7 +4232,8 @@
 					976.00000000,
 					744.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3985,7 +4266,8 @@
 					440.00000000,
 					328.00000000
 				],
-				"queue_free": false
+				"queue_free": false,
+				"start_disabled": false
 			},
 			"shape": {
 				"x": 0.00000000,
@@ -3995,10 +4277,14 @@
 			}
 		}
 	],
+	"half_walls": [
+
+	],
 	"bounds": {
 		"x": 440.00000000,
 		"y": 328.00000000,
 		"width": 720.00000000,
 		"height": 544.00000000
-	}
+	},
+	"has_tutorial": false
 }

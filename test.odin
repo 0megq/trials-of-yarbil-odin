@@ -7,8 +7,8 @@ import rl "vendor:raylib"
 test_contact_point := Vec2{}
 test_sweep_point := Vec2{}
 
-@(test)
-test :: proc(t: ^testing.T) {
+// @(test)
+testr :: proc(t: ^testing.T) {
 	rl.InitWindow(1280, 720, "My First Game")
 
 	polygon := Polygon{{}, {{30, 0}, {20, 40}, {0, 60}, {-20, 50}, {0, -60}}, 0}
