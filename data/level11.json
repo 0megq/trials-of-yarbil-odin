@@ -57,7 +57,7 @@
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 80.00000000,
+			"hearing_range": 160.00000000,
 			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,
@@ -389,7 +389,7 @@
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 80.00000000,
+			"hearing_range": 160.00000000,
 			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,
@@ -721,7 +721,7 @@
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 80.00000000,
+			"hearing_range": 160.00000000,
 			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,
@@ -1053,7 +1053,7 @@
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 80.00000000,
+			"hearing_range": 160.00000000,
 			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
 			"vision_fov": 115.00000000,

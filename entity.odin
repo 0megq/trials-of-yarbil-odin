@@ -299,7 +299,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 		}
 	}
 	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
-	enemy.hearing_range = 80
+	enemy.hearing_range = 160
 	enemy.vision_range = 80
 	enemy.vision_fov = 115
 	enemy.attack_charge_range = 12
@@ -312,7 +312,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	setup_enemy(enemy)
 	enemy.data = RangedEnemyData{60}
 	enemy.hearing_range = 160
-	enemy.vision_range = 160
+	enemy.vision_range = 120
 	enemy.vision_fov = 115
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5

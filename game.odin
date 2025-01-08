@@ -577,7 +577,17 @@ main :: proc() {
 				seconds_above_distraction_threshold = 0
 			}
 			if seconds_above_distraction_threshold >= SPEED_SECOND_THRESHOLD {
-				// add_distraction(player.pos)
+				append(
+					&alerts,
+					Alert {
+						pos = player.pos,
+						range = 90,
+						base_intensity = 0.8,
+						base_duration = 1,
+						decay_rate = 1,
+						time_emitted = f32(rl.GetTime()),
+					},
+				)
 			}
 
 
@@ -691,7 +701,8 @@ main :: proc() {
 						}
 						// Check if alert is relevant
 						if detected_effective_intensity > 0 &&
-						   (detected_effective_intensity > enemy.last_alert_intensity_detected ||
+						   (detected_effective_intensity >
+									   get_effective_intensity(enemy.last_alert) ||
 								   enemy.state != .Alerted) {
 							enemy.alert_just_detected = true
 							enemy.last_alert_intensity_detected = detected_effective_intensity
@@ -742,249 +753,6 @@ main :: proc() {
 			}
 
 
-			// Move enemies and track player if in range
-			// if false {
-			// #reverse for &enemy, idx in enemies {
-
-			/*
-				VISION CONE
-				*/
-
-			// Update vision points
-
-
-			/*
-				VISION CHECK
-				*/
-
-			// Check if the player is no longer in range
-			// This collision vision does NOT use the player's shape, but a circle to approximate it
-			// if enemy.can_see_player &&
-			//    !check_collsion_circular_concave_circle(
-			// 		   enemy.vision_points[:],
-			// 		   enemy.pos,
-			// 		   {player.pos, 8},
-			// 	   ) {
-			// 	enemy.can_see_player = false
-			// 	// Calculate enemies path to last seen player location
-			// 	enemy.current_path = find_path_tiles(
-			// 		enemy.pos,
-			// 		player.pos,
-			// 		nav_graph,
-			// 		tilemap,
-			// 		wall_tilemap,
-			// 	)
-			// 	// enemy.distracted = true
-			// 	// Check if the player just came into range
-			// } else if !enemy.can_see_player &&
-			//    check_collsion_circular_concave_circle(
-			// 	   enemy.vision_points[:],
-			// 	   enemy.pos,
-			// 	   {player.pos, 8},
-			//    ) {
-			// 	// enemy.distracted = false
-			// 	// Calculate new path and reset timer
-			// 	enemy.can_see_player = true
-			// 	if enemy.current_path != nil {
-			// 		delete(enemy.current_path)
-			// 	}
-			// 	enemy.current_path = find_path_tiles(
-			// 		enemy.pos,
-			// 		player.pos,
-			// 		nav_graph,
-			// 		tilemap,
-			// 		wall_tilemap,
-			// 	)
-			// 	enemy.current_path_point = 1
-			// 	enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
-			// }
-
-			/*
-				PATHING
-				*/
-
-			// Recalculate path based on timer or if the enemy is at the end of the path already
-			// if enemy.can_see_player {
-			// 	enemy.pathfinding_timer -= delta
-			// 	if enemy.pathfinding_timer < 0 ||
-			// 	   enemy.current_path_point >= len(enemy.current_path) {
-			// 		// Calculate new path and reset timer
-			// 		delete(enemy.current_path)
-			// 		enemy.current_path = find_path_tiles(
-			// 			enemy.pos,
-			// 			player.pos,
-			// 			nav_graph,
-			// 			tilemap,
-			// 			wall_tilemap,
-			// 		)
-			// 		enemy.current_path_point = 1
-			// 		enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
-			// 	}
-			// }
-			// else {
-			// 	new_distraction := false
-			// 	for distraction in distractions {
-			// 		if distraction.time_emitted > enemy.distraction_time_emitted &&
-			// 		   rl.CheckCollisionPointCircle(
-			// 			   distraction.pos,
-			// 			   enemy.pos,
-			// 			   enemy.vision_range,
-			// 		   ) {
-			// 			enemy.distracted = true
-			// 			enemy.distraction_pos = distraction.pos
-			// 			enemy.distraction_time_emitted = distraction.time_emitted
-			// 			new_distraction = true
-			// 		}
-			// 	}
-			// 	// If enemy is distracted
-			// 	if enemy.distracted {
-			// 		// If new distraction recalculate path
-			// 		if new_distraction {
-			// 			if enemy.current_path != nil {
-			// 				delete(enemy.current_path)
-			// 			}
-			// 			enemy.current_path = find_path_tiles(
-			// 				enemy.pos,
-			// 				enemy.distraction_pos,
-			// 				nav_graph,
-			// 				tilemap,
-			// 				wall_tilemap,
-			// 			)
-			// 			enemy.current_path_point = 1
-			// 		} else if enemy.current_path_point >= len(enemy.current_path) {
-			// 			enemy.distracted = false
-			// 		}
-			// 	}
-			// }
-			/*
-				vision ANGLE
-				*/
-
-			// else if enemy.distracted {
-			// 	enemy.vision_angle = angle(enemy.vel)
-			// } else {
-			// 	enemy.vision_angle += 10 * delta
-			// }
-
-
-			/*
-				PATH FOLLOWING
-				*/
-
-			// Follow path if there exists one and the enemy is not already at the end of it
-			// target := enemy.pos
-			// if enemy.current_path != nil &&
-			//    enemy.current_path_point < len(enemy.current_path) {
-			// 	target = enemy.current_path[enemy.current_path_point]
-			// 	if distance_squared(enemy.pos, enemy.current_path[enemy.current_path_point]) <
-			// 	   16 { 	// Enemy is at the point (tolerance of 16)
-			// 		enemy.current_path_point += 1
-			// 	}
-			// }
-
-			/*
-				FLEEING
-				*/
-
-			// if player in flee range
-			// #partial switch data in enemy.data {
-			// case RangedEnemyData:
-			// 	if enemy.can_see_player &&
-			// 	   check_collision_shapes(
-			// 		   Circle{{}, data.flee_range},
-			// 		   enemy.pos,
-			// 		   player.shape,
-			// 		   player.pos,
-			// 	   ) {
-			// 		// Set target to opposite of the player. Gets a vector starting at the enemy pos pointing away from the player
-			// 		target = enemy.pos + (enemy.pos - player.pos)
-			// 	}
-			// }
-
-			/*
-				Movement and Collision
-				*/
-
-			// // Move the enemy
-			// enemy_move(&enemy, delta)
-
-			// // Collision
-			// for wall in walls {
-			// 	_, normal, depth := resolve_collision_shapes(
-			// 		enemy.shape,
-			// 		enemy.pos,
-			// 		wall.shape,
-			// 		wall.pos,
-			// 	)
-			// 	// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			// 	if depth > 0 {
-			// 		enemy.pos -= normal * depth
-			// 		enemy.vel = slide(enemy.vel, normal)
-			// 	}
-			// }
-			// for wall in half_walls {
-			// 	_, normal, depth := resolve_collision_shapes(
-			// 		enemy.shape,
-			// 		enemy.pos,
-			// 		wall.shape,
-			// 		wall.pos,
-			// 	)
-			// 	// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			// 	if depth > 0 {
-			// 		enemy.pos -= normal * depth
-			// 		enemy.vel = slide(enemy.vel, normal)
-			// 	}
-			// }
-
-			/*
-				FLINCHING
-				*/
-
-			// Flinching
-
-
-			/*
-				ATTACK CHARGING
-				*/
-
-			// attacking
-
-
-			/*
-				CHARGING START
-				*/
-
-			// If player in attack range and not charging or flinching, then start charging
-			// if !enemy.flinching &&
-			//    !enemy.charging &&
-			//    enemy.can_see_player &&
-			//    check_collision_shapes(
-			// 	   Circle{{}, enemy.attack_charge_range},
-			// 	   enemy.pos,
-			// 	   player.shape,
-			// 	   player.pos,
-			//    ) {
-			// 	switch &data in enemy.data {
-			// 	case MeleeEnemyData:
-			// 		data.attack_poly.rotation = angle(player.pos - enemy.pos)
-			// 		enemy.charging = true
-			// 		enemy.current_charge_time = enemy.start_charge_time
-			// 	case RangedEnemyData:
-			// 		if !check_collision_shapes(
-			// 			Circle{{}, data.flee_range},
-			// 			enemy.pos,
-			// 			player.shape,
-			// 			player.pos,
-			// 		) {
-			// 			enemy.charging = true
-			// 			enemy.current_charge_time = enemy.start_charge_time
-			// 		}
-			// 	}
-			// }
-			// }
-			// }
-
-
 			#reverse for &entity in exploding_barrels {
 				generic_move(&entity, 1000, delta)
 				for wall in walls {
@@ -1033,23 +801,6 @@ main :: proc() {
 				}
 			}
 
-			// for &entity in z_entities {
-			// 	zentity_move(&entity, delta)
-			// 	for wall in level.walls {
-			// 		_, normal, depth := resolve_collision_shapes(
-			// 			entity.shape,
-			// 			entity.pos,
-			// 			wall.shape,
-			// 			wall.pos,
-			// 		)
-			// 		// fmt.printfln("%v, %v, %v", collide, normal, depth)
-			// 		if depth > 0 {
-			// 			entity.pos -= normal * depth
-			// 			entity.vel = slide(entity.vel, normal)
-			// 		}
-			// 	}
-			// }
-
 			#reverse for &bomb, i in bombs {
 				zentity_move(&bomb, 300, 50, delta)
 				for wall in walls {
@@ -1096,7 +847,17 @@ main :: proc() {
 				}
 				if bomb.z <= 0 { 	// if on ground, then start ticking
 					if bomb.time_left == BOMB_EXPLOSION_TIME {
-						// add_distraction(bomb.pos)
+						append(
+							&alerts,
+							Alert {
+								pos = bomb.pos,
+								range = 70,
+								base_intensity = 1,
+								base_duration = 1,
+								decay_rate = 1,
+								time_emitted = f32(rl.GetTime()),
+							},
+						)
 					}
 					bomb.time_left -= delta
 					if bomb.time_left <= 0 {
@@ -1137,7 +898,18 @@ main :: proc() {
 				if weapon.z <= 0 {
 					add_item_to_world(weapon.data, weapon.pos)
 					delete_projectile_weapon(i)
-					// add_distraction(weapon.pos)
+					append(
+						&alerts,
+						Alert {
+							pos = weapon.pos,
+							range = 80,
+							base_duration = 1,
+							base_intensity = 1,
+							decay_rate = 1,
+							is_visual = false,
+							time_emitted = f32(rl.GetTime()),
+						},
+					)
 				}
 			}
 
@@ -1175,7 +947,7 @@ main :: proc() {
 					add_item_to_world({id = .Rock, count = 1}, rock.pos)
 					delete_rock(i)
 
-					// Add visual alert
+					// Add alert
 					append(
 						&alerts,
 						Alert {
@@ -1183,23 +955,11 @@ main :: proc() {
 							range = 70,
 							base_intensity = 1,
 							base_duration = 1,
-							is_visual = true,
-							time_emitted = f32(rl.GetTime()),
-						},
-					)
-					// Add auditory alert
-					append(
-						&alerts,
-						Alert {
-							pos = rock.pos,
-							range = 50,
-							base_intensity = 1,
-							base_duration = 1,
+							decay_rate = 1,
 							is_visual = false,
 							time_emitted = f32(rl.GetTime()),
 						},
 					)
-
 
 					continue
 				}
@@ -1322,6 +1082,17 @@ main :: proc() {
 					player.attack_dur_timer -= delta
 
 					targets_hit := perform_attack(&player.cur_attack)
+					append(
+						&alerts,
+						Alert {
+							pos = player.pos,
+							range = 60,
+							base_intensity = 0.9,
+							base_duration = 0.5,
+							decay_rate = 2,
+							time_emitted = f32(rl.GetTime()),
+						},
+					)
 					player.weapons[player.selected_weapon_idx].count -= targets_hit
 					// Put this line inside if player.attack_dur_timer <= 0 if we want the animation to finish before deleting the item
 					if player.weapons[player.selected_weapon_idx].count <= 0 {
@@ -3276,10 +3047,12 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			)
 		}
 
-		if enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Fleeing)
-		} else if enemy.can_see_player {
-			change_enemy_state(enemy, .Combat)
+		if enemy.can_see_player {
+			if enemy.player_in_flee_range {
+				change_enemy_state(enemy, .Fleeing)
+			} else {
+				change_enemy_state(enemy, .Combat)
+			}
 		} else if enemy.alert_just_detected {
 			change_enemy_state(enemy, .Alerted)
 		}
@@ -3298,10 +3071,12 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		)
 
 
-		if enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Fleeing)
-		} else if enemy.can_see_player {
-			change_enemy_state(enemy, .Combat)
+		if enemy.can_see_player {
+			if enemy.player_in_flee_range {
+				change_enemy_state(enemy, .Fleeing)
+			} else {
+				change_enemy_state(enemy, .Combat)
+			}
 		} else if enemy.alert_just_detected { 	// if new alert is detected
 			change_enemy_state(enemy, .Alerted)
 		} else if enemy.alert_timer <= 0 {
@@ -3410,6 +3185,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 	case .Fleeing:
 		// Run directly away from player
 		enemy.target = enemy.pos + (enemy.pos - player.pos)
+		lerp_look_angle(enemy, angle(player.pos - enemy.pos), delta)
 		if !enemy.can_see_player {
 			change_enemy_state(enemy, .Searching)
 		} else if !enemy.player_in_flee_range {
@@ -3473,10 +3249,12 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			}
 		}
 
-		if enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Fleeing)
-		} else if enemy.can_see_player {
-			change_enemy_state(enemy, .Combat)
+		if enemy.can_see_player {
+			if enemy.player_in_flee_range {
+				change_enemy_state(enemy, .Fleeing)
+			} else {
+				change_enemy_state(enemy, .Combat)
+			}
 		} else if enemy.alert_just_detected {
 			change_enemy_state(enemy, .Alerted)
 		} else if enemy.search_state == 4 {

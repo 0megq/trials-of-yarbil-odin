@@ -37,7 +37,12 @@
 						"queue_free": false,
 						"start_disabled": false
 					},
-					"shape": null
+					"shape": {
+						"x": -8.00000000,
+						"y": -8.00000000,
+						"width": 16.00000000,
+						"height": 16.00000000
+					}
 				},
 				"vel": [
 					0.00000000,
@@ -45,17 +50,17 @@
 				]
 			},
 			"post_pos": [
-				0.00000000,
-				0.00000000
+				900.00000000,
+				812.00000000
 			],
 			"target": [
 				0.00000000,
 				0.00000000
 			],
-			"hearing_range": 0.00000000,
-			"vision_range": 0.00000000,
+			"hearing_range": 160.00000000,
+			"vision_range": 80.00000000,
 			"look_angle": 0.00000000,
-			"vision_fov": 0.00000000,
+			"vision_fov": 115.00000000,
 			"vision_points": [
 				[
 					0.00000000,
@@ -282,12 +287,12 @@
 				"is_visual": false,
 				"time_emitted": 0.00000000
 			},
-			"attack_charge_range": 0.00000000,
-			"start_charge_time": 0.00000000,
+			"attack_charge_range": 12.00000000,
+			"start_charge_time": 0.30000001,
 			"current_charge_time": 0.00000000,
 			"charging": false,
 			"just_attacked": false,
-			"start_flinch_time": 0.00000000,
+			"start_flinch_time": 0.20000000,
 			"current_flinch_time": 0.00000000,
 			"flinching": false,
 			"idle_look_timer": 0.00000000,
@@ -312,7 +317,7 @@
 					"points": [
 						[
 							10.00000000,
-							-9.98312569
+							-10.00000000
 						],
 						[
 							16.00000000,
