@@ -77,6 +77,7 @@ Level2 :: struct {
 	has_tutorial:      bool,
 }
 // if clear_memory is true, any allocations in the input that are no longer needed in the result are cleared
+// converting is only for serialization purposes anyway, so we don't need to consider other cases, just "how do we want this data to be saved?"
 // Note: if possible the convert proc's will not allocate new data, this could be bad, but as of now it works fine with our game.
 
 convert_level2_level3 :: proc(
@@ -88,10 +89,13 @@ convert_level2_level3 :: proc(
 ) {
 	result.player_pos = input.player_pos
 	result.portal_pos = input.portal_pos
-	result.enemies = input.enemies
+	result.enemies = nil
 	result.enemy_data = make([dynamic]EnemyData1, allocator)
-	for enemy in result.enemies {
+	for enemy in input.enemies {
 		append(&result.enemy_data, get_data1_from_enemy2(enemy))
+	}
+	if clear_memory {
+		delete(input.enemies)
 	}
 	result.items = input.items
 	result.exploding_barrels = input.exploding_barrels
@@ -206,5 +210,10 @@ convert_level1_level1 :: proc(
 
 @(test)
 test :: proc(_: ^testing.T) {
-	convert_file(convert_level1_level2, "data/level11.json")
+	convert_file(convert_level2_level3, "data/level00.json")
+	convert_file(convert_level2_level3, "data/level01.json")
+	convert_file(convert_level2_level3, "data/level02.json")
+	convert_file(convert_level2_level3, "data/level03.json")
+	convert_file(convert_level2_level3, "data/level04.json")
+	convert_file(convert_level2_level3, "data/level99.json")
 }
