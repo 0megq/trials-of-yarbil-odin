@@ -108,7 +108,7 @@ Enemy2 :: struct {
 	alert_timer:                   f32,
 	search_timer:                  f32,
 	// Type specific
-	data:                          EnemyData,
+	data:                          EnemyVariantData,
 }
 
 EnemyState :: enum {
@@ -119,7 +119,7 @@ EnemyState :: enum {
 	Searching,
 }
 
-EnemyData :: union #no_nil {
+EnemyVariantData :: union #no_nil {
 	MeleeEnemyData,
 	RangedEnemyData,
 }
@@ -292,11 +292,8 @@ new_entity :: proc(pos: Vec2) -> Entity {
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	setup_enemy(enemy)
-	#partial switch data in enemy.data {
-	case MeleeEnemyData:
-		if enemy.data.(MeleeEnemyData).attack_poly.points != nil {
-			delete(enemy.data.(MeleeEnemyData).attack_poly.points)
-		}
+	if data, ok := enemy.data.(MeleeEnemyData); ok && data.attack_poly.points != nil {
+		delete(data.attack_poly.points)
 	}
 	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
 	enemy.hearing_range = 160

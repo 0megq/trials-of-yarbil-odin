@@ -29,7 +29,7 @@ Enemy1 :: struct {
 	current_path_point:       int,
 	pathfinding_timer:        f32,
 	player_in_range:          bool,
-	data:                     EnemyData,
+	data:                     EnemyVariantData,
 	distracted:               bool,
 	distraction_pos:          Vec2,
 	distraction_time_emitted: f32,
@@ -56,8 +56,63 @@ Level1 :: struct {
 	has_tutorial:      bool,
 }
 
+Level2 :: struct {
+	// start player pos
+	player_pos:        Vec2,
+	// portal pos
+	portal_pos:        Vec2,
+	// enemies
+	enemies:           [dynamic]Enemy2,
+	// items
+	items:             [dynamic]Item,
+	// barrels
+	exploding_barrels: [dynamic]ExplodingBarrel,
+	// walls
+	walls:             [dynamic]PhysicsEntity,
+	// half walls
+	half_walls:        [dynamic]HalfWall,
+	// camera bounding box
+	bounds:            Rectangle,
+	// tutorial
+	has_tutorial:      bool,
+}
 // if clear_memory is true, any allocations in the input that are no longer needed in the result are cleared
 // Note: if possible the convert proc's will not allocate new data, this could be bad, but as of now it works fine with our game.
+
+convert_level2_level3 :: proc(
+	input: Level2,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Level3,
+) {
+	result.player_pos = input.player_pos
+	result.portal_pos = input.portal_pos
+	result.enemies = input.enemies
+	result.enemy_data = make([dynamic]EnemyData1, allocator)
+	for enemy in result.enemies {
+		append(&result.enemy_data, get_data1_from_enemy2(enemy))
+	}
+	result.items = input.items
+	result.exploding_barrels = input.exploding_barrels
+	result.walls = input.walls
+	result.half_walls = input.half_walls
+	result.bounds = input.bounds
+	result.has_tutorial = input.has_tutorial
+	return
+}
+
+get_data1_from_enemy2 :: proc(e: Enemy2) -> EnemyData1 {
+	variant: u8
+	switch d in e.data {
+	case MeleeEnemyData:
+		variant = 0
+	case RangedEnemyData:
+		variant = 1
+	}
+
+	return {e.id, e.pos, e.start_disabled, e.health, e.max_health, variant}
+}
 
 convert_level1_level2 :: proc(
 	input: Level1,
@@ -151,9 +206,5 @@ convert_level1_level1 :: proc(
 
 @(test)
 test :: proc(_: ^testing.T) {
-	convert_file(convert_level1_level2, "data/level00.json")
-	convert_file(convert_level1_level2, "data/level01.json")
-	convert_file(convert_level1_level2, "data/level02.json")
-	convert_file(convert_level1_level2, "data/level03.json")
-	convert_file(convert_level1_level2, "data/level04.json")
+	convert_file(convert_level1_level2, "data/level11.json")
 }

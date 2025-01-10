@@ -120,15 +120,26 @@ Tutorial :: struct {
 	disable_dropping:     bool,
 }
 
+EnemyData :: EnemyData1
+EnemyData1 :: struct {
+	id:             uuid.Identifier,
+	pos:            Vec2,
+	start_disabled: bool,
+	health:         f32,
+	max_health:     f32,
+	variant:        u8, // maybe make this an enum
+}
+
 // Used for serialization and level editor
-Level :: Level2
-Level2 :: struct {
+Level :: Level3
+Level3 :: struct {
 	// start player pos
 	player_pos:        Vec2,
 	// portal pos
 	portal_pos:        Vec2,
 	// enemies
-	enemies:           [dynamic]Enemy2,
+	enemies:           [dynamic]Enemy2, // This field is only used when level editing
+	enemy_data:        [dynamic]EnemyData1, // Only used for serialization
 	// items
 	items:             [dynamic]Item,
 	// barrels
@@ -162,6 +173,7 @@ load_level :: proc() {
 			rl.TraceLog(.WARNING, "Error parsing level data")
 			// setup enemies, items, barrels
 			level.enemies = make([dynamic]Enemy)
+			level.enemy_data = make([dynamic]EnemyData)
 			level.items = make([dynamic]Item)
 			level.exploding_barrels = make([dynamic]ExplodingBarrel)
 			// setup level geometry
@@ -174,6 +186,7 @@ load_level :: proc() {
 		rl.TraceLog(.WARNING, "Error loading level data")
 		// setup enemies, items, barrels
 		level.enemies = make([dynamic]Enemy)
+		level.enemy_data = make([dynamic]EnemyData)
 		level.items = make([dynamic]Item)
 		level.exploding_barrels = make([dynamic]ExplodingBarrel)
 		// setup level geometry
@@ -185,15 +198,8 @@ load_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Loaded")
 
-
-	// Update constants
-	for &enemy in level.enemies {
-		switch data in enemy.data {
-		case MeleeEnemyData:
-			setup_melee_enemy(&enemy)
-		case RangedEnemyData:
-			setup_ranged_enemy(&enemy)
-		}
+	for data in level.enemy_data {
+		append(&level.enemies, get_enemy_from_data(data))
 	}
 
 	for &barrel in level.exploding_barrels {
@@ -256,6 +262,11 @@ save_level :: proc() {
 	// save tilemap, level geometry
 
 	data: Level = level
+	clear(&data.enemy_data)
+	for enemy in data.enemies {
+		append(&data.enemy_data, get_data_from_enemy(enemy))
+	}
+	data.enemies = nil
 	place_walls_and_calculate_graph()
 	save_tilemap(
 		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
@@ -297,8 +308,8 @@ unload_level :: proc() {
 	delete(half_walls)
 	half_walls = nil
 	// delete level data
-	delete(level.enemies)
-	level.enemies = nil
+	delete(level.enemy_data)
+	level.enemy_data = nil
 	delete(level.items)
 	level.items = nil
 	delete(level.exploding_barrels)
@@ -423,6 +434,33 @@ get_player_data :: proc() -> PlayerData {
 		player.item_count,
 		player.cur_ability,
 	}
+}
+
+get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
+	e.id = data.id
+	e.pos = data.pos
+	e.health = data.health
+	e.max_health = data.max_health
+	e.start_disabled = data.start_disabled
+	switch data.variant {
+	case 0:
+		setup_melee_enemy(&e)
+	case 1:
+		setup_ranged_enemy(&e)
+	}
+	return
+}
+
+get_data_from_enemy :: proc(e: Enemy) -> EnemyData {
+	variant: u8
+	switch d in e.data {
+	case MeleeEnemyData:
+		variant = 0
+	case RangedEnemyData:
+		variant = 1
+	}
+
+	return {e.id, e.pos, e.start_disabled, e.health, e.max_health, variant}
 }
 
 draw_level :: proc(show_tile_grid := false) {
