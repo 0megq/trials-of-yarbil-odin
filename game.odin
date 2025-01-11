@@ -424,6 +424,11 @@ main :: proc() {
 								}
 							}
 						}
+					case SetTutorialFlagAction:
+						flag: ^bool = get_tutorial_flag_from_name(data.flag_name)
+						if flag != nil {
+							flag^ = data.value
+						}
 					}
 				}
 			}

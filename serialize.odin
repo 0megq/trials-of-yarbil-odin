@@ -99,12 +99,18 @@ TutorialAction :: struct {
 
 ActionData :: union {
 	EnableEntityAction,
+	SetTutorialFlagAction,
 }
 
 EnableEntityAction :: struct {
 	type:         EntityType,
 	id:           uuid.Identifier,
 	should_clone: bool,
+}
+
+SetTutorialFlagAction :: struct {
+	flag_name: string,
+	value:     bool,
 }
 
 Tutorial :: struct {
@@ -118,6 +124,28 @@ Tutorial :: struct {
 	disable_throwing:     bool,
 	disable_switching:    bool,
 	disable_dropping:     bool,
+}
+
+get_tutorial_flag_from_name :: proc(name: string) -> ^bool {
+	switch name {
+	case "hide_item_hud":
+		return &tutorial.hide_item_hud
+	case "hide_weapon_hud":
+		return &tutorial.hide_weapon_hud
+	case "disable_ability":
+		return &tutorial.disable_ability
+	case "hide_all_hud":
+		return &tutorial.hide_all_hud
+	case "enable_enemy_dummies":
+		return &tutorial.enable_enemy_dummies
+	case "disable_throwing":
+		return &tutorial.disable_throwing
+	case "disable_switching":
+		return &tutorial.disable_switching
+	case "disable_dropping":
+		return &tutorial.disable_dropping
+	}
+	return nil
 }
 
 EnemyData :: EnemyData1

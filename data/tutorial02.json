@@ -110,6 +110,34 @@
 				"key": 88
 			},
 			"invert_condition2": false
+		},
+		{
+			"action":{
+				"flag_name": "disable_switching",
+				"value": false
+			},
+			"condition": {
+				"type": 2,
+				"id": [
+					153,
+					29,
+					126,
+					215,
+					95,
+					92,
+					73,
+					17,
+					169,
+					36,
+					225,
+					243,
+					43,
+					80,
+					12,
+					80
+				]
+			},
+			"invert_condition": true
 		}
 	],
 	"hide_item_hud": true,
@@ -117,5 +145,7 @@
 	"disable_ability": true,
 	"hide_all_hud": false,
 	"enable_enemy_dummies": true,
-	"disable_throwing": true
+	"disable_switching": true,
+	"disable_throwing": true,
+	"disable_dropping": true
 }
