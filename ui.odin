@@ -4,6 +4,7 @@ import "base:runtime"
 import "core:fmt"
 import "core:strconv"
 import "core:strings"
+// import mu "vendor:microui"
 import rl "vendor:raylib"
 
 Color :: rl.Color
@@ -46,6 +47,10 @@ Button :: struct {
 
 // misc to do
 // field and button returns true when its state is changed
+// context
+// setup_mu :: proc() {
+// 	mu.Context
+// }
 
 VecSliceField :: struct {
 	rect:                 Rectangle,

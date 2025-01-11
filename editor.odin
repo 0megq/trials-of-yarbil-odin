@@ -4,6 +4,15 @@ EditorState :: struct {
 	mode:                 EditorMode,
 	show_tile_grid:       bool,
 
+	// Tutorial editor
+	selected_prompt:      ^TutorialPrompt,
+	selected_prompt_idx:  int,
+	prompt_mouse_rel_pos: Vec2,
+
+	// Tutorial editor ui
+	// new_prompt_button:    Button,
+	// prompt_buttons:       [dynamic]Button,
+
 	// Entity editor
 	selected_entity:      LevelEntityType,
 	selected_phys_entity: ^PhysicsEntity,
@@ -45,6 +54,32 @@ editor_state: EditorState
 
 
 init_editor_state :: proc(e: ^EditorState) {
+	// Tutorial editor
+	e.selected_prompt_idx = -1
+
+	// Tutorial editor ui
+	{
+		// e.new_prompt_button = Button {
+		// 	{20, 60, 120, 30},
+		// 	"New Prompt",
+		// 	.Normal,
+		// 	{200, 200, 200, 200},
+		// 	{150, 150, 150, 200},
+		// 	{100, 100, 100, 200},
+		// }
+		// base := Button {
+		// 	{20, 60, 120, 30},
+		// 	"Text",
+		// 	.Normal,
+		// 	{200, 200, 200, 200},
+		// 	{150, 150, 150, 200},
+		// 	{100, 100, 100, 200},
+		// }
+		// for prompt in tutorial.prompts {
+		// 	append(&e.prompt_buttons, Button{})
+		// }
+	}
+
 	// Level editor
 	e.selected_wall_index = -1
 

@@ -148,7 +148,6 @@ draw_entity_editor_world :: proc(e: EditorState) {
 	} else if e.selected_entity != .Nil {
 		draw_shape_lines(e.selected_phys_entity.shape, e.selected_phys_entity.pos, rl.YELLOW)
 	}
-	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
 }
 
 draw_entity_editor_ui :: proc(e: EditorState) {

@@ -327,7 +327,6 @@ update_shape_fields :: proc(e: ^EditorState) {
 }
 
 draw_geometry_editor_world :: proc(e: EditorState) {
-	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
 	if e.portal_selected {
 		rl.DrawCircleLinesV(level.portal_pos, PORTAL_RADIUS, SELECTED_OUTLINE_COLOR)
 	}

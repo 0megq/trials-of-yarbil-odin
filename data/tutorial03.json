@@ -131,5 +131,5 @@
 	"enable_enemy_dummies": true,
 	"disable_throwing": true,
 	"disable_switching": false,
-	"disable_dropping": false
+	"disable_dropping": true
 }

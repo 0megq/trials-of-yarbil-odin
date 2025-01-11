@@ -7,6 +7,7 @@ import "core:math"
 import "core:math/rand"
 import "core:mem"
 import "core:slice"
+// import mu "vendor:microui"
 import rl "vendor:raylib"
 
 GAME_SIZE :: Vec2i{640, 360}
@@ -47,7 +48,7 @@ EditorMode :: enum {
 	None,
 	Level,
 	Entity,
-	// NavMesh,
+	Tutorial,
 }
 
 Timer :: struct {
@@ -371,6 +372,16 @@ main :: proc() {
 					} else if rl.IsKeyPressed(.G) {
 						editor_state.show_tile_grid = !editor_state.show_tile_grid
 					}
+
+					if rl.IsKeyPressed(.RIGHT) {
+						save_level()
+						game_data.cur_level_idx += 1
+						reload_level()
+					} else if rl.IsKeyPressed(.LEFT) {
+						save_level()
+						game_data.cur_level_idx -= 1
+						reload_level()
+					}
 				}
 			}
 		}
@@ -382,6 +393,8 @@ main :: proc() {
 		// 	update_navmesh_editor(&editor_state)
 		case .Entity:
 			update_entity_editor(&editor_state)
+		case .Tutorial:
+			update_tutorial_editor(&editor_state)
 		case .None:
 			#reverse for &timer, i in timers {
 				timer.time_left -= delta
@@ -1166,6 +1179,8 @@ main :: proc() {
 			// 	draw_navmesh_editor_world(editor_state)
 			case .Entity:
 				draw_entity_editor_world(editor_state)
+			case .Tutorial:
+				draw_tutorial_editor_world(editor_state)
 			case .None:
 				draw_tilemap(tilemap)
 				// draw_navmesh_editor_world(editor_state)
@@ -1517,19 +1532,22 @@ main :: proc() {
 			switch editor_state.mode {
 			case .Level:
 				draw_geometry_editor_ui(editor_state)
-				rl.DrawText("Level Editor", 1300, 32, 16, rl.BLACK)
+				rl.DrawText("Level Editor", 1300, 32, 16, rl.WHITE)
 			// case .NavMesh:
 			// 	draw_navmesh_editor_ui(editor_state)
 			// 	rl.DrawText("NavMesh Editor", 1300, 32, 16, rl.BLACK)
 			case .Entity:
 				draw_entity_editor_ui(editor_state)
-				rl.DrawText("Entity Editor", 1300, 32, 16, rl.BLACK)
+				rl.DrawText("Entity Editor", 1300, 32, 16, rl.WHITE)
+			case .Tutorial:
+				draw_tutorial_editor_ui(editor_state)
+				rl.DrawText("Tutorial Editor", 1300, 32, 16, rl.WHITE)
 			case .None:
 				if !(level.has_tutorial && tutorial.hide_all_hud) {
 					draw_hud()
 				}
 				when ODIN_DEBUG { 	// Draw player coordinates
-					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.BLACK)
+					rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.WHITE)
 				}
 
 
