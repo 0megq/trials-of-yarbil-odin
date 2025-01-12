@@ -34,7 +34,7 @@
 				736.00000000,
 				448.00000000
 			],
-			"start_disabled": false,
+			"start_disabled": true,
 			"health": 80.00000000,
 			"max_health": 80.00000000,
 			"variant": 0

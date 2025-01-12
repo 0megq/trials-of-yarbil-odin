@@ -153,6 +153,7 @@ convert_enemy1_enemy2 :: proc(
 ) {
 	result.id = input.id
 	result.pos = input.pos
+	result.start_disabled = input.start_disabled
 
 	result.health = input.health
 	result.max_health = input.max_health
@@ -210,10 +211,5 @@ convert_level1_level1 :: proc(
 
 @(test)
 test :: proc(_: ^testing.T) {
-	convert_file(convert_level2_level3, "data/level00.json")
-	convert_file(convert_level2_level3, "data/level01.json")
-	convert_file(convert_level2_level3, "data/level02.json")
-	convert_file(convert_level2_level3, "data/level03.json")
-	convert_file(convert_level2_level3, "data/level04.json")
-	convert_file(convert_level2_level3, "data/level99.json")
+	convert_file(convert_level2_level3, "level04.json")
 }
