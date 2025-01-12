@@ -44,6 +44,11 @@ Condition :: union {
 	EntityExistsCondition,
 	InventorySlotsFilledCondition,
 	KeyPressedCondition,
+	PlayerInAreaCondition,
+}
+
+PlayerInAreaCondition :: struct {
+	area: Rectangle,
 }
 
 // Checks the count of entities of the specified type in the active entity arrays
@@ -100,6 +105,11 @@ TutorialAction :: struct {
 ActionData :: union {
 	EnableEntityAction,
 	SetTutorialFlagAction,
+	PrintMessageAction,
+}
+
+PrintMessageAction :: struct {
+	message: string,
 }
 
 EnableEntityAction :: struct {
@@ -112,7 +122,7 @@ SetTutorialFlagAction :: struct {
 	flag_name: string,
 	value:     bool,
 }
-
+// MARK: Tutorial
 Tutorial :: struct {
 	prompts:              [dynamic]TutorialPrompt,
 	actions:              [dynamic]TutorialAction,
@@ -153,6 +163,7 @@ EnemyData1 :: struct {
 	id:             uuid.Identifier,
 	pos:            Vec2,
 	start_disabled: bool,
+	look_angle:     f32,
 	health:         f32,
 	max_health:     f32,
 	variant:        u8, // maybe make this an enum
@@ -373,7 +384,6 @@ load_game_data :: proc(game_idx := 0) {
 	// Reset all player values
 	player = {}
 	set_player_data(game_data.player_data)
-	setup_player(&player)
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }
@@ -432,8 +442,23 @@ _save_tutorial :: proc() {
 }
 
 _unload_tutorial :: proc() {
+	for prompt in tutorial.prompts {
+		delete(prompt.text, context.allocator)
+	}
 	delete(tutorial.prompts)
-	// delete(tutorial.actions)
+	for action in tutorial.actions {
+		switch data in action.action {
+		case PrintMessageAction:
+			delete(data.message)
+		case SetTutorialFlagAction:
+			delete(data.flag_name)
+		case EnableEntityAction:
+
+		case:
+
+		}
+	}
+	delete(tutorial.actions)
 	tutorial = {}
 	rl.TraceLog(.INFO, "Tutorial Unloaded")
 }
@@ -470,6 +495,7 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.health = data.health
 	e.max_health = data.max_health
 	e.start_disabled = data.start_disabled
+	e.look_angle = data.look_angle
 	switch data.variant {
 	case 0:
 		setup_melee_enemy(&e)
@@ -488,7 +514,7 @@ get_data_from_enemy :: proc(e: Enemy) -> EnemyData {
 		variant = 1
 	}
 
-	return {e.id, e.pos, e.start_disabled, e.health, e.max_health, variant}
+	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
 }
 
 draw_level :: proc(show_tile_grid := false) {

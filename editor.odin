@@ -55,6 +55,7 @@ editor_state: EditorState
 
 init_editor_state :: proc(e: ^EditorState) {
 	// Tutorial editor
+	e.selected_prompt = nil
 	e.selected_prompt_idx = -1
 
 	// Tutorial editor ui
@@ -80,7 +81,13 @@ init_editor_state :: proc(e: ^EditorState) {
 		// }
 	}
 
+	// Entity editor
+	e.selected_entity = .Nil
+	e.selected_phys_entity = nil
+
 	// Level editor
+	e.portal_selected = false
+	e.selected_wall = nil
 	e.selected_wall_index = -1
 
 	// Level editor ui

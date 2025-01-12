@@ -376,10 +376,12 @@ main :: proc() {
 					if rl.IsKeyPressed(.RIGHT) {
 						save_level()
 						game_data.cur_level_idx += 1
+						init_editor_state(&editor_state)
 						reload_level()
 					} else if rl.IsKeyPressed(.LEFT) {
 						save_level()
 						game_data.cur_level_idx -= 1
+						init_editor_state(&editor_state)
 						reload_level()
 					}
 				}
@@ -442,6 +444,8 @@ main :: proc() {
 						if flag != nil {
 							flag^ = data.value
 						}
+					case PrintMessageAction:
+						fmt.println(data.message)
 					}
 				}
 			}
@@ -1309,6 +1313,11 @@ main :: proc() {
 					// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
 					sprite := ENEMY_SPRITE
 					sprite.rotation = enemy.look_angle
+
+					if sprite.rotation < -90 || sprite.rotation > 90 {
+						sprite.scale = {-1, 1}
+						sprite.rotation += 180
+					}
 					draw_sprite(sprite, enemy.pos)
 					health_bar_length: f32 = 20
 					health_bar_height: f32 = 5
@@ -3034,6 +3043,8 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 			c.fulfilled = true
 		}
 		passed_condition = c.fulfilled
+	case PlayerInAreaCondition:
+		passed_condition = check_collision_shapes(player.shape, player.pos, c.area, {})
 	case:
 		passed_condition = true
 	}

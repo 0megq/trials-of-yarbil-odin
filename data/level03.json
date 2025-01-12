@@ -35,6 +35,7 @@
 				536.00000000
 			],
 			"start_disabled": false,
+			"look_angle": 0.00000000,
 			"health": 10.00000000,
 			"max_health": 80.00000000,
 			"variant": 0

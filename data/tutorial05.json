@@ -1,0 +1,43 @@
+{
+	"prompts": [
+		{
+			"pos": [
+				888,
+				488
+			],
+			"text": "Get a hit in while his back is turned."
+		},
+		{
+			"pos": [
+				888,
+				568
+			],
+			"text": "Don't run too fast! He'll hear you."
+		}
+	],
+	"actions": [
+		{
+			"action": {
+				"flag_name": "enable_enemy_dummies",
+				"value": false
+			},
+			"condition": {
+				"area": {
+					"x": 728,
+					"y": 504,
+					"width": 64,
+					"height": 48
+				}
+			},
+			"invert_condition": true
+		}
+	],
+	"hide_item_hud": false,
+	"hide_weapon_hud": false,
+	"disable_ability": true,
+	"hide_all_hud": false,
+	"enable_enemy_dummies": true,
+	"disable_throwing": true,
+	"disable_switching": false,
+	"disable_dropping": true
+}

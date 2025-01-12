@@ -115,7 +115,7 @@ get_data1_from_enemy2 :: proc(e: Enemy2) -> EnemyData1 {
 		variant = 1
 	}
 
-	return {e.id, e.pos, e.start_disabled, e.health, e.max_health, variant}
+	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
 }
 
 convert_level1_level2 :: proc(
