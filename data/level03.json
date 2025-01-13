@@ -34,7 +34,7 @@
 				612.00000000,
 				536.00000000
 			],
-			"start_disabled": false,
+			"start_disabled": true,
 			"look_angle": 0.00000000,
 			"health": 10.00000000,
 			"max_health": 80.00000000,
@@ -69,7 +69,7 @@
 							484.00000000
 						],
 						"queue_free": false,
-						"start_disabled": true
+						"start_disabled": false
 					},
 					"shape": {
 						"pos": [

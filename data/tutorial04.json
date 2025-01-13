@@ -1,6 +1,26 @@
 {
 	"prompts": [
-
+		{
+			"pos": [
+				612,
+				404
+			],
+			"text": "Holding right click will charge the rock."
+		},
+		{
+			"pos": [
+				612,
+				412
+			],
+			"text": "The green bar indicates the strength of the throw."
+		},
+		{
+			"pos": [
+				612,
+				420
+			],
+			"text": "Release at the top for a full strength throw."
+		}
 	],
 	"actions": [
 		{

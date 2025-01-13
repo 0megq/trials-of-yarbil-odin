@@ -1,6 +1,116 @@
 {
 	"prompts": [
-		
+		{
+			"pos": [
+				612,
+				412
+			],
+			"text": "Pick up the item.",
+			"condition": {
+				"type": 1,
+				"id": [
+					67,
+					104,
+					46,
+					109,
+					72,
+					209,
+					64,
+					246,
+					177,
+					108,
+					118,
+					213,
+					209,
+					199,
+					158,
+					167
+				],
+				"check_disabled": true
+			},
+			"invert_condition": false,
+			"condition2": {
+				"type": 1,
+				"id": [
+					67,
+					104,
+					46,
+					109,
+					72,
+					209,
+					64,
+					246,
+					177,
+					108,
+					118,
+					213,
+					209,
+					199,
+					158,
+					167
+				],
+				"check_disabled": false
+			},
+			"invert_condition2": true
+		},
+		{
+			"pos": [
+				612,
+				412
+			],
+			"text": "This is a rock.",
+			"condition": {
+				"type": 1,
+				"id": [
+					67,
+					104,
+					46,
+					109,
+					72,
+					209,
+					64,
+					246,
+					177,
+					108,
+					118,
+					213,
+					209,
+					199,
+					158,
+					167
+				],
+				"check_disabled": false
+			}
+		},
+		{
+			"pos": [
+				612,
+				420
+			],
+			"text": "Hold and release right click to throw it.",
+			"condition": {
+				"type": 1,
+				"id": [
+					67,
+					104,
+					46,
+					109,
+					72,
+					209,
+					64,
+					246,
+					177,
+					108,
+					118,
+					213,
+					209,
+					199,
+					158,
+					167
+				],
+				"check_disabled": false
+			}
+		}
 	],
 	"actions": [
 		{
@@ -97,7 +207,7 @@
 					199,
 					158,
 					167
-				]			
+				]
 			},
 			"condition": {
 				"type": 2,

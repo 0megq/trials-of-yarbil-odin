@@ -5,14 +5,85 @@
 				888,
 				488
 			],
-			"text": "Get a hit in while his back is turned."
+			"text": "Get a hit in while his back is turned.",
+			"condition": {
+				"id": [
+					166,
+					18,
+					4,
+					251,
+					202,
+					239,
+					79,
+					134,
+					184,
+					2,
+					167,
+					177,
+					141,
+					223,
+					0,
+					234
+				],
+				"state": 0
+			}
 		},
 		{
 			"pos": [
 				888,
 				568
 			],
-			"text": "Don't run too fast! He'll hear you."
+			"text": "Don't run too fast! He'll hear you.",
+			"condition": {
+				"id": [
+					166,
+					18,
+					4,
+					251,
+					202,
+					239,
+					79,
+					134,
+					184,
+					2,
+					167,
+					177,
+					141,
+					223,
+					0,
+					234
+				],
+				"state": 0
+			}
+		},
+		{
+			"pos": [
+				0.5,
+				0.9
+			],
+			"text": "Now, you're gonna fight a real enemy.",
+			"condition": {
+				"type": 1,
+				"id": [
+					166,
+					18,
+					4,
+					251,
+					202,
+					239,
+					79,
+					134,
+					184,
+					2,
+					167,
+					177,
+					141,
+					223,
+					0,
+					234
+				]
+			},
+			"on_screen": true
 		}
 	],
 	"actions": [

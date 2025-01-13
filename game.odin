@@ -3001,7 +3001,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 				}
 			}
 			if c.check_disabled {
-				for enemy in enemies {
+				for enemy in disabled_enemies {
 					if enemy.id == c.id {
 						passed_condition = true
 						break
@@ -3045,6 +3045,12 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 		passed_condition = c.fulfilled
 	case PlayerInAreaCondition:
 		passed_condition = check_collision_shapes(player.shape, player.pos, c.area, {})
+	case EnemyInStateCondition:
+		for enemy in enemies {
+			if enemy.id == c.id {
+				passed_condition = enemy.state == c.state
+			}
+		}
 	case:
 		passed_condition = true
 	}

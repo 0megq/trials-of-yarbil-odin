@@ -45,6 +45,12 @@ Condition :: union {
 	InventorySlotsFilledCondition,
 	KeyPressedCondition,
 	PlayerInAreaCondition,
+	EnemyInStateCondition,
+}
+
+EnemyInStateCondition :: struct {
+	id:    uuid.Identifier,
+	state: EnemyState,
 }
 
 PlayerInAreaCondition :: struct {
