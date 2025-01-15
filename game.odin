@@ -2066,7 +2066,7 @@ use_selected_item :: proc() {
 	case .Apple:
 		// Restore 5 health
 		if player.item_hold_time >= 1 && player.health < player.max_health {
-			heal_player(5)
+			heal_player(10)
 			add_to_selected_item_count(-1)
 		}
 	case .Rock:
@@ -3050,6 +3050,23 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 			if enemy.id == c.id {
 				passed_condition = enemy.state == c.state
 			}
+		}
+	case PlayerHealthCondition:
+		target_health := c.health
+		if c.max_health {
+			target_health = player.max_health
+		}
+		switch c.check {
+		case -2:
+			passed_condition = player.health < target_health
+		case -1:
+			passed_condition = player.health <= target_health
+		case 0:
+			passed_condition = player.health == target_health
+		case 1:
+			passed_condition = player.health >= target_health
+		case 2:
+			passed_condition = player.health > target_health
 		}
 	case:
 		passed_condition = true

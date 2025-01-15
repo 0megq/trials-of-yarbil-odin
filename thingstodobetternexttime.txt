@@ -1,0 +1,3 @@
+- make a better tutorial system. the one right now works, but the way its setup is annoying
+- make a better entity system
+- put constants all in one place, so we don't have to jump around too much

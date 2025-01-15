@@ -87,7 +87,7 @@
 				612,
 				420
 			],
-			"text": "Hold and release right click to throw it.",
+			"text": "Hold and release right click to throw it over the half-wall.",
 			"condition": {
 				"type": 1,
 				"id": [

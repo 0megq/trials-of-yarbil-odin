@@ -1,0 +1,20 @@
+{
+	"prompts": [],
+	"actions": [
+		{
+			"action": {
+				"type": 1,
+				"id": {}
+			},
+			"condition": {}
+		}
+	],
+	"hide_item_hud": false,
+	"hide_weapon_hud": false,
+	"disable_ability": true,
+	"hide_all_hud": false,
+	"enable_enemy_dummies": true,
+	"disable_throwing": true,
+	"disable_switching": false,
+	"disable_dropping": true
+}

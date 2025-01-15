@@ -46,6 +46,7 @@ Condition :: union {
 	KeyPressedCondition,
 	PlayerInAreaCondition,
 	EnemyInStateCondition,
+	PlayerHealthCondition,
 }
 
 EnemyInStateCondition :: struct {
@@ -68,6 +69,12 @@ EntityExistsCondition :: struct {
 	type:           EntityType,
 	id:             uuid.Identifier,
 	check_disabled: bool,
+}
+
+PlayerHealthCondition :: struct {
+	health:     f32,
+	max_health: bool,
+	check:      int, // -2 is less than, -1 is less than or equal to, 0 is equal to, 1 is greater than or equal to, 2, is greater than
 }
 
 EntityAtPositionCondition :: struct {
