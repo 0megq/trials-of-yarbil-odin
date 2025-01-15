@@ -80,6 +80,7 @@ Controls :: struct {
 	cancel:                 Control,
 	movement_ability:       Control,
 	use_portal:             Control,
+	slow_down:              Control,
 }
 
 WeaponAnimation :: struct {
@@ -108,6 +109,7 @@ controls: Controls = {
 	cancel                 = rl.KeyboardKey.LEFT_CONTROL,
 	movement_ability       = rl.KeyboardKey.SPACE,
 	use_portal             = rl.KeyboardKey.E,
+	slow_down              = rl.KeyboardKey.LEFT_SHIFT,
 }
 
 SWORD_HITBOX_POINTS := []Vec2 {
@@ -258,6 +260,10 @@ main :: proc() {
 		delta = rl.GetFrameTime()
 		mouse_window_pos = rl.GetMousePosition()
 		mouse_window_delta = rl.GetMouseDelta()
+
+		// if is_control_down(controls.slow_down) {
+		// 	delta *= 0.2
+		// }
 
 		if player.queue_free {
 			on_player_death()
@@ -491,7 +497,7 @@ main :: proc() {
 					if player.can_fire_dash {
 						move_successful = true
 						player.can_fire_dash = false
-						player.fire_dash_timer = FIRE_DASH_COOLDOWN
+						player.fire_dash_timer = 0.5
 
 						player.vel = normalize(get_directional_input()) * 400
 						fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
@@ -499,8 +505,8 @@ main :: proc() {
 						attack := Attack {
 							pos       = player.pos,
 							shape     = Circle{{}, FIRE_DASH_RADIUS},
-							damage    = 20,
-							knockback = 400,
+							damage    = 10,
+							knockback = 100,
 							targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
 							data      = ExplosionAttackData{true},
 						}
@@ -825,6 +831,7 @@ main :: proc() {
 
 			#reverse for &bomb, i in bombs {
 				zentity_move(&bomb, 300, 50, delta)
+				should_explode := false
 				for wall in walls {
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
@@ -836,6 +843,7 @@ main :: proc() {
 					if depth > 0 {
 						bomb.pos -= normal * depth
 						bomb.vel = slide(bomb.vel, normal)
+						should_explode = true
 					}
 				}
 				for enemy in enemies {
@@ -849,6 +857,7 @@ main :: proc() {
 					if depth > 0 {
 						bomb.pos -= normal * depth
 						bomb.vel = slide(bomb.vel, normal)
+						should_explode = true
 					}
 				}
 				for barrel in exploding_barrels {
@@ -865,36 +874,24 @@ main :: proc() {
 					if depth > 0 {
 						bomb.pos -= normal * depth
 						bomb.vel = slide(bomb.vel, normal)
+						should_explode = true
 					}
 				}
 				if bomb.z <= 0 { 	// if on ground, then start ticking
-					if bomb.time_left == BOMB_EXPLOSION_TIME {
-						append(
-							&alerts,
-							Alert {
-								pos = bomb.pos,
-								range = 70,
-								base_intensity = 1,
-								base_duration = 1,
-								decay_rate = 1,
-								time_emitted = f32(rl.GetTime()),
-							},
-						)
-					}
-					bomb.time_left -= delta
-					if bomb.time_left <= 0 {
-						bomb_explosion(bomb.pos, 8)
-						perform_attack(
-							&{
-								targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
-								damage = 10,
-								pos = bomb.pos,
-								shape = Circle{{}, 8},
-								data = ExplosionAttackData{true},
-							},
-						)
-						unordered_remove(&bombs, i)
-					}
+					should_explode = true
+				}
+				if should_explode {
+					bomb_explosion(bomb.pos, 8)
+					perform_attack(
+						&{
+							targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
+							damage = 10,
+							pos = bomb.pos,
+							shape = Circle{{}, 8},
+							data = ExplosionAttackData{true},
+						},
+					)
+					unordered_remove(&bombs, i)
 				}
 			}
 
@@ -2047,7 +2044,7 @@ use_selected_item :: proc() {
 
 		sprite.rotation += angle(to_mouse)
 		// 180 is an arbitrary multiplier. TODO: make a constant variable for it
-		base_vel := hold_multiplier * 180
+		base_vel := f32(360)
 		append(
 			&bombs,
 			Bomb {
@@ -2057,7 +2054,7 @@ use_selected_item :: proc() {
 				shape = Rectangle{-1, 0, 3, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
-				vel_z = 20,
+				vel_z = 10,
 				sprite = sprite,
 				time_left = BOMB_EXPLOSION_TIME,
 			},
@@ -2462,6 +2459,16 @@ is_control_pressed :: proc(c: Control) -> bool {
 		return rl.IsKeyPressed(v)
 	case rl.MouseButton:
 		return rl.IsMouseButtonPressed(v)
+	}
+	return false
+}
+
+is_control_down :: proc(c: Control) -> bool {
+	switch v in c {
+	case rl.KeyboardKey:
+		return rl.IsKeyDown(v)
+	case rl.MouseButton:
+		return rl.IsMouseButtonDown(v)
 	}
 	return false
 }
