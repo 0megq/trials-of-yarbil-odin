@@ -509,6 +509,7 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.max_health = data.max_health
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
+	e.idle_look_angle = data.look_angle
 	switch data.variant {
 	case 0:
 		setup_melee_enemy(&e)

@@ -36,9 +36,9 @@ ENEMY_SEARCH_TOLERANCE :: 16
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
-ATTACK_INTERVAL :: 0.4
+ATTACK_INTERVAL :: 0
 SWORD_DAMAGE :: 20
-SWORD_KNOCKBACK :: 150
+SWORD_KNOCKBACK :: 100
 SWORD_HITBOX_OFFSET :: 4
 STICK_DAMAGE :: 10
 STICK_KNOCKBACK :: 70
@@ -881,13 +881,14 @@ main :: proc() {
 					should_explode = true
 				}
 				if should_explode {
-					bomb_explosion(bomb.pos, 8)
+					bomb_explosion(bomb.pos, 16)
 					perform_attack(
 						&{
 							targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
-							damage = 10,
+							damage = 20,
+							knockback = 20,
 							pos = bomb.pos,
-							shape = Circle{{}, 8},
+							shape = Circle{{}, 16},
 							data = ExplosionAttackData{true},
 						},
 					)
@@ -1764,7 +1765,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 	max_speed: f32 = 80.0
 	#partial switch data in e.data {
 	case RangedEnemyData:
-		max_speed = 70.0
+		max_speed = 60.0
 	}
 
 	// if e.can_see_player {
@@ -3102,7 +3103,13 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			enemy.idle_look_timer -= delta
 			if enemy.idle_look_timer <= 0 {
 				enemy.idle_look_timer = rand.float32_range(5, 15)
-				enemy.idle_look_angle += rand.float32_range(-90, 90)
+				enemy.idle_look_angle = enemy.look_angle + rand.float32_range(-90, 90)
+				for enemy.idle_look_angle > 180 {
+					enemy.idle_look_angle -= 360
+				}
+				for enemy.idle_look_angle < -180 {
+					enemy.idle_look_angle += 360
+				}
 			}
 			lerp_look_angle(
 				enemy,
@@ -3110,6 +3117,8 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 				delta,
 			)
 		}
+		// fmt.println(enemy.look_angle)
+		// fmt.println(enemy.idle_look_angle)
 
 		if enemy.can_see_player {
 			if enemy.player_in_flee_range {
@@ -3345,7 +3354,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	// Enter state code
 	switch state {
 	case .Idle:
-		enemy.idle_look_timer = 0
+		enemy.idle_look_timer = 2
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			start_enemy_pathing(enemy, enemy.post_pos)
 		}
