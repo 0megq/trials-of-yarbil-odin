@@ -113,7 +113,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 			item: Item
 			item.entity = new_entity(mouse_world_pos)
 			item.data = {
-				id    = .Apple,
+				id    = .Bomb,
 				count = 1,
 			}
 			setup_item(&item)

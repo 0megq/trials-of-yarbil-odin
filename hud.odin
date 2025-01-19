@@ -5,15 +5,15 @@ import rl "vendor:raylib"
 
 
 draw_hud :: proc() {
-	slot_size :: 64
-	margin :: 20
+	slot_size :: 80
+	margin :: 24
 	// Display items
 	if !(level.has_tutorial && tutorial.hide_item_hud) {
 		// Show selected item
 		{
 			selected_item := player.items[player.selected_item_idx]
 
-			pos := Vec2{16, f32(UI_SIZE.y) - slot_size * 2 - margin}
+			pos := Vec2{16, f32(UI_SIZE.y) - slot_size - margin}
 			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
 			rl.DrawRectangleLinesEx({pos.x, pos.y, slot_size, slot_size}, 2, rl.GOLD)
 			tex := loaded_textures[item_to_texture[selected_item.id]]
@@ -46,54 +46,54 @@ draw_hud :: proc() {
 
 		// Show next and prev item when holding item
 		// prev item slot
-		{
-			pos := Vec2{16, f32(UI_SIZE.y) - slot_size * 3 - margin}
-			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-			if player.item_count > 2 {
-				tex :=
-					loaded_textures[item_to_texture[player.items[(player.selected_item_idx - 1) %% player.item_count].id]]
-				src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
-				dst := Rectangle {
-					pos.x + slot_size / 2,
-					pos.y + slot_size / 2,
-					f32(tex.width) * 3,
-					f32(tex.height) * 3,
-				}
-				rl.DrawTexturePro(
-					tex,
-					src,
-					dst,
-					{f32(tex.width), f32(tex.height)} * 1.5,
-					0,
-					rl.WHITE,
-				)
-			}
-		}
+		// {
+		// 	pos := Vec2{16, f32(UI_SIZE.y) - slot_size * 3 - margin}
+		// 	rl.DrawRectangleV(pos, slot_size, rl.GRAY)
+		// 	if player.item_count > 2 {
+		// 		tex :=
+		// 			loaded_textures[item_to_texture[player.items[(player.selected_item_idx - 1) %% player.item_count].id]]
+		// 		src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
+		// 		dst := Rectangle {
+		// 			pos.x + slot_size / 2,
+		// 			pos.y + slot_size / 2,
+		// 			f32(tex.width) * 3,
+		// 			f32(tex.height) * 3,
+		// 		}
+		// 		rl.DrawTexturePro(
+		// 			tex,
+		// 			src,
+		// 			dst,
+		// 			{f32(tex.width), f32(tex.height)} * 1.5,
+		// 			0,
+		// 			rl.WHITE,
+		// 		)
+		// 	}
+		// }
 
-		// next item slot
-		{
-			pos := Vec2{16, f32(UI_SIZE.y) - slot_size - margin}
-			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-			if player.item_count > 1 {
-				tex :=
-					loaded_textures[item_to_texture[player.items[(player.selected_item_idx + 1) %% player.item_count].id]]
-				src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
-				dst := Rectangle {
-					pos.x + slot_size / 2,
-					pos.y + slot_size / 2,
-					f32(tex.width) * 3,
-					f32(tex.height) * 3,
-				}
-				rl.DrawTexturePro(
-					tex,
-					src,
-					dst,
-					{f32(tex.width), f32(tex.height)} * 1.5,
-					0,
-					rl.WHITE,
-				)
-			}
-		}
+		// // next item slot
+		// {
+		// 	pos := Vec2{16, f32(UI_SIZE.y) - slot_size - margin}
+		// 	rl.DrawRectangleV(pos, slot_size, rl.GRAY)
+		// 	if player.item_count > 1 {
+		// 		tex :=
+		// 			loaded_textures[item_to_texture[player.items[(player.selected_item_idx + 1) %% player.item_count].id]]
+		// 		src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
+		// 		dst := Rectangle {
+		// 			pos.x + slot_size / 2,
+		// 			pos.y + slot_size / 2,
+		// 			f32(tex.width) * 3,
+		// 			f32(tex.height) * 3,
+		// 		}
+		// 		rl.DrawTexturePro(
+		// 			tex,
+		// 			src,
+		// 			dst,
+		// 			{f32(tex.width), f32(tex.height)} * 1.5,
+		// 			0,
+		// 			rl.WHITE,
+		// 		)
+		// 	}
+		// }
 	}
 
 	// Display weapons

@@ -153,9 +153,9 @@ walls: [dynamic]Wall
 half_walls: [dynamic]HalfWall
 
 bombs: [dynamic]Bomb
-projectile_weapons: [dynamic]ProjectileWeapon
+// projectile_weapons: [dynamic]ProjectileWeapon
 arrows: [dynamic]Arrow
-rocks: [dynamic]Rock
+// rocks: [dynamic]Rock
 fires: [dynamic]Fire
 alerts: [dynamic]Alert
 
@@ -227,9 +227,9 @@ main :: proc() {
 	bombs = make([dynamic]Bomb, context.allocator)
 
 
-	projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
+	// projectile_weapons = make([dynamic]ProjectileWeapon, context.allocator)
 	arrows = make([dynamic]Arrow, context.allocator)
-	rocks = make([dynamic]Rock, context.allocator)
+	// rocks = make([dynamic]Rock, context.allocator)
 
 	timers := make([dynamic]Timer, context.allocator)
 
@@ -494,42 +494,42 @@ main :: proc() {
 			if !(level.has_tutorial && tutorial.disable_ability) &&
 			   is_control_pressed(controls.movement_ability) {
 				move_successful := false
-				switch player.cur_ability {
-				case .FIRE:
-					if player.can_fire_dash {
-						move_successful = true
-						player.can_fire_dash = false
-						player.fire_dash_timer = FIRE_DASH_COOLDOWN
-						player.fire_dash_ready_time = 0
-
-						player.vel = normalize(get_directional_input()) * 400
-						fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
-						append(&fires, fire)
-						attack := Attack {
-							pos       = player.pos,
-							shape     = Circle{{}, FIRE_DASH_RADIUS},
-							damage    = 10,
-							knockback = 100,
-							targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
-							data      = ExplosionAttackData{true},
-						}
-						perform_attack(&attack)
-					}
-				case .WATER:
+				// switch player.cur_ability {
+				// case .FIRE:
+				if player.can_fire_dash {
 					move_successful = true
-					player.surfing = true
-					append(&timers, Timer{1, turn_off_surf, 0})
+					player.can_fire_dash = false
+					player.fire_dash_timer = FIRE_DASH_COOLDOWN
+					player.fire_dash_ready_time = 0
+
+					player.vel = normalize(get_directional_input()) * 400
+					fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
+					append(&fires, fire)
+					attack := Attack {
+						pos       = player.pos,
+						shape     = Circle{{}, FIRE_DASH_RADIUS},
+						damage    = 10,
+						knockback = 100,
+						targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
+						data      = ExplosionAttackData{true},
+					}
+					perform_attack(&attack)
+				}
+				// case .WATER:
+				// 	move_successful = true
+				// 	player.surfing = true
+				// 	append(&timers, Timer{1, turn_off_surf, 0})
 				// for &enemy in enemies {
 				// 	if check_collision_shapes(fire, {}, enemy.shape, enemy.pos) {
 				// 		enemy.vel -= normalize(get_directional_input()) * 200
 				// 	}
 				// }
-				case .ELECTRIC:
+				// case .ELECTRIC:
 
-				case .GROUND:
+				// case .GROUND:
 
-				case .AIR:
-				}
+				// case .AIR:
+				// }
 				if move_successful {
 					stop_player_attack()
 					player.charging_weapon = false
@@ -537,20 +537,20 @@ main :: proc() {
 				}
 			}
 
-			if player.surfing {
-				player.vel = normalize(get_directional_input()) * 200
-				surf_poly.rotation = angle(get_directional_input())
-				surf_poly.pos = player.pos
-				attack := Attack {
-					targets   = {.Enemy, .ExplodingBarrel, .Bomb},
-					damage    = 40 * delta,
-					knockback = 210,
-					shape     = Polygon{{}, surf_poly.points, surf_poly.rotation},
-					pos       = surf_poly.pos,
-					data      = SurfAttackData{},
-				}
-				perform_attack(&attack)
-			}
+			// if player.surfing {
+			// 	player.vel = normalize(get_directional_input()) * 200
+			// 	surf_poly.rotation = angle(get_directional_input())
+			// 	surf_poly.pos = player.pos
+			// 	attack := Attack {
+			// 		targets   = {.Enemy, .ExplodingBarrel, .Bomb},
+			// 		damage    = 40 * delta,
+			// 		knockback = 210,
+			// 		shape     = Polygon{{}, surf_poly.points, surf_poly.rotation},
+			// 		pos       = surf_poly.pos,
+			// 		data      = SurfAttackData{},
+			// 	}
+			// 	perform_attack(&attack)
+			// }
 
 			player_move(&player, delta)
 			for wall in walls {
@@ -899,42 +899,42 @@ main :: proc() {
 				}
 			}
 
-			#reverse for &weapon, i in projectile_weapons {
-				zentity_move(&weapon, 300, 30, delta)
+			// #reverse for &weapon, i in projectile_weapons {
+			// 	zentity_move(&weapon, 300, 30, delta)
 
-				speed_damage_ratio :: 15
-				speed_durablity_ratio :: 60
+			// 	speed_damage_ratio :: 15
+			// 	speed_durablity_ratio :: 60
 
-				weapon.attack.pos = weapon.pos
-				weapon.attack.shape = weapon.shape
-				weapon.attack.data = ProjectileAttackData {
-					i,
-					speed_damage_ratio,
-					speed_durablity_ratio,
-				}
+			// 	weapon.attack.pos = weapon.pos
+			// 	weapon.attack.shape = weapon.shape
+			// 	weapon.attack.data = ProjectileAttackData {
+			// 		i,
+			// 		speed_damage_ratio,
+			// 		speed_durablity_ratio,
+			// 	}
 
-				if perform_attack(&weapon.attack) == -1 {
-					// if the weapon was deleted while performing its attack
-					continue
-				}
+			// 	if perform_attack(&weapon.attack) == -1 {
+			// 		// if the weapon was deleted while performing its attack
+			// 		continue
+			// 	}
 
-				if weapon.z <= 0 {
-					add_item_to_world(weapon.data, weapon.pos)
-					delete_projectile_weapon(i)
-					append(
-						&alerts,
-						Alert {
-							pos = weapon.pos,
-							range = 80,
-							base_duration = 1,
-							base_intensity = 1,
-							decay_rate = 1,
-							is_visual = false,
-							time_emitted = f32(rl.GetTime()),
-						},
-					)
-				}
-			}
+			// 	if weapon.z <= 0 {
+			// 		add_item_to_world(weapon.data, weapon.pos)
+			// 		delete_projectile_weapon(i)
+			// 		append(
+			// 			&alerts,
+			// 			Alert {
+			// 				pos = weapon.pos,
+			// 				range = 80,
+			// 				base_duration = 1,
+			// 				base_intensity = 1,
+			// 				decay_rate = 1,
+			// 				is_visual = false,
+			// 				time_emitted = f32(rl.GetTime()),
+			// 			},
+			// 		)
+			// 	}
+			// }
 
 			#reverse for &arrow, i in arrows {
 				zentity_move(&arrow, 300, 30, delta)
@@ -956,37 +956,37 @@ main :: proc() {
 				}
 			}
 
-			#reverse for &rock, i in rocks {
-				zentity_move(&rock, 300, 40, delta)
+			// #reverse for &rock, i in rocks {
+			// 	zentity_move(&rock, 300, 40, delta)
 
-				speed_damage_ratio :: 15
+			// 	speed_damage_ratio :: 15
 
-				rock.attack.pos = rock.pos
-				rock.attack.shape = rock.shape
-				rock.attack.data = RockAttackData{i, speed_damage_ratio}
+			// 	rock.attack.pos = rock.pos
+			// 	rock.attack.shape = rock.shape
+			// 	rock.attack.data = RockAttackData{i, speed_damage_ratio}
 
-				// if the rock hits something while performing its attack or touches ground, then delete it and create a rock item
-				if perform_attack(&rock.attack) == -1 || rock.z <= 0 {
-					add_item_to_world({id = .Rock, count = 1}, rock.pos)
-					delete_rock(i)
+			// 	// if the rock hits something while performing its attack or touches ground, then delete it and create a rock item
+			// 	if perform_attack(&rock.attack) == -1 || rock.z <= 0 {
+			// 		add_item_to_world({id = .Rock, count = 1}, rock.pos)
+			// 		delete_rock(i)
 
-					// Add alert
-					append(
-						&alerts,
-						Alert {
-							pos = rock.pos,
-							range = 70,
-							base_intensity = 1,
-							base_duration = 1,
-							decay_rate = 1,
-							is_visual = false,
-							time_emitted = f32(rl.GetTime()),
-						},
-					)
+			// 		// Add alert
+			// 		append(
+			// 			&alerts,
+			// 			Alert {
+			// 				pos = rock.pos,
+			// 				range = 70,
+			// 				base_intensity = 1,
+			// 				base_duration = 1,
+			// 				decay_rate = 1,
+			// 				is_visual = false,
+			// 				time_emitted = f32(rl.GetTime()),
+			// 			},
+			// 		)
 
-					continue
-				}
-			}
+			// 		continue
+			// 	}
+			// }
 
 			// Raycast test
 			// ray_min_t: [18]f32
@@ -995,38 +995,42 @@ main :: proc() {
 			// 	min_t = cast_ray_through_level(level.walls[:], player.pos, dir)
 			// }
 
+			// throwing weapon
+			// if player.charging_weapon {
+			// 	if player.weapon_switched || is_control_pressed(controls.cancel) {
+			// 		player.charging_weapon = false
+			// 	} else if is_control_released(controls.alt_fire) {
+			// 		alt_fire_selected_weapon()
+			// 		player.charging_weapon = false
+			// 	}
 
-			if player.charging_weapon {
-				if player.weapon_switched || is_control_pressed(controls.cancel) {
-					player.charging_weapon = false
-				} else if is_control_released(controls.alt_fire) {
-					alt_fire_selected_weapon()
-					player.charging_weapon = false
-				}
+			// 	player.weapon_charge_time += delta
+			// }
 
-				player.weapon_charge_time += delta
-			}
-
+			// weapon attack
 			if is_control_pressed(controls.fire) {
 				if player.weapons[player.selected_weapon_idx].id >= .Sword {
 					fire_selected_weapon()
 					player.holding_item = false // Cancel item hold
 					player.charging_weapon = false // cancel charge
 				}
-			} else if !(level.has_tutorial && tutorial.disable_throwing) &&
-			   is_control_pressed(controls.alt_fire) &&
-			   player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
-				stop_player_attack() // Cancel attack
-				player.holding_item = false // Cancel item hold
-				player.charging_weapon = true
-				player.weapon_charge_time = 0
 			}
+			// throwing weapon start
+			// else if !(level.has_tutorial && tutorial.disable_throwing) &&
+			//    is_control_pressed(controls.alt_fire) &&
+			//    player.weapons[player.selected_weapon_idx].id != .Empty { 	// Start charging
+			// 	stop_player_attack() // Cancel attack
+			// 	player.holding_item = false // Cancel item hold
+			// 	player.charging_weapon = true
+			// 	player.weapon_charge_time = 0
+			// }
 
+			//
 			if player.holding_item {
 				if player.item_switched || is_control_pressed(controls.cancel) {
 					player.holding_item = false
 				} else if is_control_released(controls.use_item) {
-					use_selected_item()
+					use_bomb()
 					player.holding_item = false
 				}
 
@@ -1041,21 +1045,21 @@ main :: proc() {
 			}
 
 			// Item drop
-			if is_control_pressed(controls.drop) &&
-			   !(level.has_tutorial && tutorial.disable_dropping) {
-				if item_data := drop_item(); item_data.id != .Empty {
-					add_item_to_world(item_data, player.pos)
-				}
-			}
+			// if is_control_pressed(controls.drop) &&
+			//    !(level.has_tutorial && tutorial.disable_dropping) {
+			// 	if item_data := drop_item(); item_data.id != .Empty {
+			// 		add_item_to_world(item_data, player.pos)
+			// 	}
+			// }
 
 			// Item switching
-			player.item_switched = false
-			if y := int(rl.GetMouseWheelMove()); y != 0 {
-				if player.item_count > 1 {
-					player.selected_item_idx = (player.selected_item_idx - y) %% player.item_count
-				}
-				player.item_switched = true
-			}
+			// player.item_switched = false
+			// if y := int(rl.GetMouseWheelMove()); y != 0 {
+			// 	if player.item_count > 1 {
+			// 		player.selected_item_idx = (player.selected_item_idx - y) %% player.item_count
+			// 	}
+			// 	player.item_switched = true
+			// }
 
 			// Weapon switching
 			// player.weapon_switched = false
@@ -1409,20 +1413,20 @@ main :: proc() {
 					draw_sprite(entity.sprite, entity.pos)
 				}
 
-				for &entity in projectile_weapons {
-					entity.sprite.scale = entity.z + 1
-					draw_sprite(entity.sprite, entity.pos)
-				}
+				// for &entity in projectile_weapons {
+				// 	entity.sprite.scale = entity.z + 1
+				// 	draw_sprite(entity.sprite, entity.pos)
+				// }
 
 				for &entity in arrows {
 					entity.sprite.scale = entity.z + 1
 					draw_sprite(entity.sprite, entity.pos)
 				}
 
-				for &entity in rocks {
-					entity.sprite.scale = entity.z + 1
-					draw_sprite(entity.sprite, entity.pos)
-				}
+				// for &entity in rocks {
+				// 	entity.sprite.scale = entity.z + 1
+				// 	draw_sprite(entity.sprite, entity.pos)
+				// }
 
 				// Draw Player
 				{
@@ -1445,39 +1449,39 @@ main :: proc() {
 					}
 
 					/* Item hold bar */
-					if player.holding_item {
-						bar_length: f32 = 2
-						bar_height: f32 = 8
-						bar_base_rec := get_centered_rect(
-							{player.pos.x, player.pos.y},
-							{bar_length, bar_height},
-						)
-						rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-						bar_filled_rec := bar_base_rec
+					// if player.holding_item {
+					// 	bar_length: f32 = 2
+					// 	bar_height: f32 = 8
+					// 	bar_base_rec := get_centered_rect(
+					// 		{player.pos.x, player.pos.y},
+					// 		{bar_length, bar_height},
+					// 	)
+					// 	rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+					// 	bar_filled_rec := bar_base_rec
 
-						bar_filled_rec.height *= get_item_hold_multiplier()
-						bar_filled_rec.y =
-							bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
-						rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
-					}
+					// 	bar_filled_rec.height *= get_item_hold_multiplier()
+					// 	bar_filled_rec.y =
+					// 		bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+					// 	rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
+					// }
 					/* End of Item hold bar */
 
 					/* Weapon charge bar */
-					if player.charging_weapon {
-						bar_length: f32 = 2
-						bar_height: f32 = 8
-						bar_base_rec := get_centered_rect(
-							{player.pos.x, player.pos.y},
-							{bar_length, bar_height},
-						)
-						rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-						bar_filled_rec := bar_base_rec
+					// if player.charging_weapon {
+					// 	bar_length: f32 = 2
+					// 	bar_height: f32 = 8
+					// 	bar_base_rec := get_centered_rect(
+					// 		{player.pos.x, player.pos.y},
+					// 		{bar_length, bar_height},
+					// 	)
+					// 	rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
+					// 	bar_filled_rec := bar_base_rec
 
-						bar_filled_rec.height *= get_weapon_charge_multiplier()
-						bar_filled_rec.y =
-							bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
-						rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
-					}
+					// 	bar_filled_rec.height *= get_weapon_charge_multiplier()
+					// 	bar_filled_rec.y =
+					// 		bar_base_rec.y + bar_base_rec.height - bar_filled_rec.height
+					// 	rl.DrawRectangleRec(bar_filled_rec, rl.GREEN)
+					// }
 					/* End of Weapon charge bar */
 
 
@@ -1849,24 +1853,24 @@ cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -
 	return min_t
 }
 
-get_item_hold_multiplier :: proc() -> f32 {
-	// https://en.wikipedia.org/wiki/Triangle_wave
-	// 1/p * abs((x - p) % (2 * p) - p)
-	// p = HOLD_DIVISOR
-	// x = player.item_hold_time
-	// Returns a value between 0 and 1
-	if player.items[player.selected_item_idx].id == .Apple {
-		// 1.0 are supposed to be same number. it requires 1.0 seconds to eat an apple
-		return min(player.item_hold_time / 1.0, 1.0)
-	}
-	return(
-		math.abs(
-			math.mod(player.item_hold_time + ITEM_HOLD_DIVISOR, 2 * ITEM_HOLD_DIVISOR) -
-			ITEM_HOLD_DIVISOR,
-		) /
-		ITEM_HOLD_DIVISOR \
-	)
-}
+// get_item_hold_multiplier :: proc() -> f32 {
+// 	// https://en.wikipedia.org/wiki/Triangle_wave
+// 	// 1/p * abs((x - p) % (2 * p) - p)
+// 	// p = HOLD_DIVISOR
+// 	// x = player.item_hold_time
+// 	// Returns a value between 0 and 1
+// 	if player.items[player.selected_item_idx].id == .Apple {
+// 		// 1.0 are supposed to be same number. it requires 1.0 seconds to eat an apple
+// 		return min(player.item_hold_time / 1.0, 1.0)
+// 	}
+// 	return(
+// 		math.abs(
+// 			math.mod(player.item_hold_time + ITEM_HOLD_DIVISOR, 2 * ITEM_HOLD_DIVISOR) -
+// 			ITEM_HOLD_DIVISOR,
+// 		) /
+// 		ITEM_HOLD_DIVISOR \
+// 	)
+// }
 
 get_weapon_charge_multiplier :: proc() -> f32 {
 	return(
@@ -1949,18 +1953,18 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 	}
 }
 
-delete_projectile_weapon :: proc(idx: int) {
-	delete(projectile_weapons[idx].attack.exclude_targets)
-	unordered_remove(&projectile_weapons, idx)
-}
+// delete_projectile_weapon :: proc(idx: int) {
+// 	delete(projectile_weapons[idx].attack.exclude_targets)
+// 	unordered_remove(&projectile_weapons, idx)
+// }
 
 delete_arrow :: proc(idx: int) {
 	unordered_remove(&arrows, idx)
 }
 
-delete_rock :: proc(idx: int) {
-	unordered_remove(&rocks, idx)
-}
+// delete_rock :: proc(idx: int) {
+// 	unordered_remove(&rocks, idx)
+// }
 
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
@@ -2024,7 +2028,7 @@ world_to_ui :: proc(point: Vec2) -> Vec2 {
 }
 
 
-use_selected_item :: proc() {
+use_bomb :: proc() {
 	// get selected item ItemId
 	item_data := player.items[player.selected_item_idx]
 	if item_data.id == .Empty || item_data.id >= .Sword {
@@ -2033,7 +2037,7 @@ use_selected_item :: proc() {
 
 	to_mouse := normalize(mouse_world_pos - player.pos)
 
-	hold_multiplier := get_item_hold_multiplier()
+	// hold_multiplier := get_item_hold_multiplier()
 
 	// use item
 	#partial switch item_data.id {
@@ -2054,9 +2058,7 @@ use_selected_item :: proc() {
 		append(
 			&bombs,
 			Bomb {
-				entity = new_entity(
-					player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
-				),
+				entity = new_entity(player.pos + rotate_vector({-5, 3}, angle(to_mouse))),
 				shape = Rectangle{-1, 0, 3, 3},
 				vel = to_mouse * base_vel,
 				z = 0,
@@ -2066,45 +2068,46 @@ use_selected_item :: proc() {
 			},
 		)
 		add_to_selected_item_count(-1)
-	case .Apple:
-		// Restore 5 health
-		if player.item_hold_time >= 1 && player.health < player.max_health {
-			heal_player(10)
-			add_to_selected_item_count(-1)
-		}
-	case .Rock:
-		tex := loaded_textures[.Rock]
-		sprite := Sprite {
-			.Rock,
-			{0, 0, f32(tex.width), f32(tex.height)},
-			{1, 1},
-			{f32(tex.width) / 2, f32(tex.height) / 2},
-			0,
-			rl.WHITE,
-		}
+	// case .Apple:
+	// 	// Restore 5 health
+	// 	if player.item_hold_time >= 1 && player.health < player.max_health {
+	// 		heal_player(10)
+	// 		add_to_selected_item_count(-1)
+	// 	}
+	// case .Rock:
+	// 	tex := loaded_textures[.Rock]
+	// 	sprite := Sprite {
+	// 		.Rock,
+	// 		{0, 0, f32(tex.width), f32(tex.height)},
+	// 		{1, 1},
+	// 		{f32(tex.width) / 2, f32(tex.height) / 2},
+	// 		0,
+	// 		rl.WHITE,
+	// 	}
 
-		sprite.rotation += angle(to_mouse)
-		// 300 is an arbitrary multiplier. TODO: make a constant variable for it
-		base_vel := hold_multiplier * 300
-		append(
-			&rocks,
-			Rock {
-				entity = new_entity(
-					player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
-				),
-				shape = Circle{{}, 3},
-				vel = to_mouse * base_vel,
-				z = 0,
-				vel_z = 10,
-				rot = angle(to_mouse),
-				sprite = sprite,
-				attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
-			},
-		)
-		add_to_selected_item_count(-1)
-	}
+	// 	sprite.rotation += angle(to_mouse)
+	// 	// 300 is an arbitrary multiplier. TODO: make a constant variable for it
+	// 	base_vel := hold_multiplier * 300
+	// 	append(
+	// 		&rocks,
+	// 		Rock {
+	// 			entity = new_entity(
+	// 				player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
+	// 			),
+	// 			shape = Circle{{}, 3},
+	// 			vel = to_mouse * base_vel,
+	// 			z = 0,
+	// 			vel_z = 10,
+	// 			rot = angle(to_mouse),
+	// 			sprite = sprite,
+	// 			attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
+	// 		},
+	// 	)
+	// 	add_to_selected_item_count(-1)
+	// }
 
 	// subtract from the count of item in the inventory. if no item is left then
+	}
 }
 
 // Adds to the count of selected item. If the count is less than then it removes the item from the player and deselects it
@@ -2182,139 +2185,139 @@ fire_selected_weapon :: proc() -> int {
 					ATTACK_DURATION
 			}
 		}
-	case .Stick:
-		if player.can_attack {
-			// Attack
-			player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
-			player.attack_dur_timer = ATTACK_DURATION
-			player.attack_interval_timer = ATTACK_INTERVAL
-			player.attacking = true
-			player.cur_attack = Attack {
-				pos             = player.pos,
-				shape           = player.attack_poly,
-				damage          = STICK_DAMAGE,
-				knockback       = STICK_KNOCKBACK,
-				direction       = normalize(mouse_world_pos - player.pos),
-				data            = SwordAttackData{},
-				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
-				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-			}
-			player.can_attack = false
+	// case .Stick:
+	// 	if player.can_attack {
+	// 		// Attack
+	// 		player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
+	// 		player.attack_dur_timer = ATTACK_DURATION
+	// 		player.attack_interval_timer = ATTACK_INTERVAL
+	// 		player.attacking = true
+	// 		player.cur_attack = Attack {
+	// 			pos             = player.pos,
+	// 			shape           = player.attack_poly,
+	// 			damage          = STICK_DAMAGE,
+	// 			knockback       = STICK_KNOCKBACK,
+	// 			direction       = normalize(mouse_world_pos - player.pos),
+	// 			data            = SwordAttackData{},
+	// 			targets         = {.Enemy, .Bomb, .ExplodingBarrel},
+	// 			exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+	// 		}
+	// 		player.can_attack = false
 
-			// Animation
-			if player.cur_weapon_anim.pos_cur_rotation ==
-			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_bot_rotation -
-						player.cur_weapon_anim.cpos_top_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_bot_rotation -
-						player.cur_weapon_anim.csprite_top_rotation) /
-					ATTACK_DURATION
-			} else { 	// Animate up
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_top_rotation -
-						player.cur_weapon_anim.cpos_bot_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_top_rotation -
-						player.cur_weapon_anim.csprite_bot_rotation) /
-					ATTACK_DURATION
-			}
-		}
+	// 		// Animation
+	// 		if player.cur_weapon_anim.pos_cur_rotation ==
+	// 		   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
+	// 			player.cur_weapon_anim.pos_rotation_vel =
+	// 				(player.cur_weapon_anim.cpos_bot_rotation -
+	// 					player.cur_weapon_anim.cpos_top_rotation) /
+	// 				ATTACK_DURATION
+	// 			player.cur_weapon_anim.sprite_rotation_vel =
+	// 				(player.cur_weapon_anim.csprite_bot_rotation -
+	// 					player.cur_weapon_anim.csprite_top_rotation) /
+	// 				ATTACK_DURATION
+	// 		} else { 	// Animate up
+	// 			player.cur_weapon_anim.pos_rotation_vel =
+	// 				(player.cur_weapon_anim.cpos_top_rotation -
+	// 					player.cur_weapon_anim.cpos_bot_rotation) /
+	// 				ATTACK_DURATION
+	// 			player.cur_weapon_anim.sprite_rotation_vel =
+	// 				(player.cur_weapon_anim.csprite_top_rotation -
+	// 					player.cur_weapon_anim.csprite_bot_rotation) /
+	// 				ATTACK_DURATION
+	// 		}
+	// 	}
 	}
 	return 0
 }
 
 // Returns the count of item used. If the item was not used then this is zero
-alt_fire_selected_weapon :: proc() -> int {
-	// get selected weapon ItemId
-	weapon_data := player.weapons[player.selected_weapon_idx]
-	if weapon_data.id < .Sword {
-		assert(false, "can't use weapon with empty or item id")
-	}
-	to_mouse := normalize(mouse_world_pos - player.pos)
+// alt_fire_selected_weapon :: proc() -> int {
+// 	// get selected weapon ItemId
+// 	weapon_data := player.weapons[player.selected_weapon_idx]
+// 	if weapon_data.id < .Sword {
+// 		assert(false, "can't use weapon with empty or item id")
+// 	}
+// 	to_mouse := normalize(mouse_world_pos - player.pos)
 
-	// Alt fire weapon
-	#partial switch weapon_data.id {
-	case .Sword:
-		// Throw sword here
-		tex := loaded_textures[.Sword]
-		sprite: Sprite = {
-			.Sword,
-			{0, 0, f32(tex.width), f32(tex.height)},
-			{1, 1},
-			{f32(tex.width) / 2, f32(tex.height) / 2},
-			0,
-			rl.WHITE,
-		}
-		append(
-			&projectile_weapons,
-			ProjectileWeapon {
-				entity = new_entity(
-					player.pos +
-					rotate_vector(
-						{-2, 5} +
-						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
-						angle(to_mouse),
-					),
-				),
-				shape = Circle{{}, 4},
-				vel = to_mouse * get_weapon_charge_multiplier() * 300,
-				z = 0,
-				vel_z = 8,
-				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
-				rot_vel = 1200 * get_weapon_charge_multiplier(),
-				sprite = sprite,
-				data = weapon_data,
-				attack = Attack {
-					targets = {.Enemy, .Wall, .ExplodingBarrel},
-					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-				},
-			},
-		)
-		player.weapons[player.selected_weapon_idx].id = .Empty
-	case .Stick:
-		// Throw stick here
-		tex := loaded_textures[.Stick]
-		sprite: Sprite = {
-			.Stick,
-			{0, 0, f32(tex.width), f32(tex.height)},
-			{1, 1},
-			{f32(tex.width) / 2, f32(tex.height) / 2},
-			0,
-			rl.WHITE,
-		}
-		append(
-			&projectile_weapons,
-			ProjectileWeapon {
-				entity = new_entity(
-					player.pos +
-					rotate_vector(
-						{-2, 5} +
-						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
-						angle(to_mouse),
-					),
-				),
-				shape = Circle{{}, 4},
-				vel = to_mouse * get_weapon_charge_multiplier() * 300,
-				z = 0,
-				vel_z = 8,
-				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
-				rot_vel = 1200 * get_weapon_charge_multiplier(),
-				sprite = sprite,
-				data = weapon_data,
-				attack = Attack {
-					targets = {.Enemy, .Wall, .ExplodingBarrel},
-					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-				},
-			},
-		)
-		player.weapons[player.selected_weapon_idx].id = .Empty
-	}
-	return 0
-}
+// 	// Alt fire weapon
+// 	#partial switch weapon_data.id {
+// 	case .Sword:
+// 		// Throw sword here
+// 		tex := loaded_textures[.Sword]
+// 		sprite: Sprite = {
+// 			.Sword,
+// 			{0, 0, f32(tex.width), f32(tex.height)},
+// 			{1, 1},
+// 			{f32(tex.width) / 2, f32(tex.height) / 2},
+// 			0,
+// 			rl.WHITE,
+// 		}
+// 		append(
+// 			&projectile_weapons,
+// 			ProjectileWeapon {
+// 				entity = new_entity(
+// 					player.pos +
+// 					rotate_vector(
+// 						{-2, 5} +
+// 						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
+// 						angle(to_mouse),
+// 					),
+// 				),
+// 				shape = Circle{{}, 4},
+// 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
+// 				z = 0,
+// 				vel_z = 8,
+// 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
+// 				rot_vel = 1200 * get_weapon_charge_multiplier(),
+// 				sprite = sprite,
+// 				data = weapon_data,
+// 				attack = Attack {
+// 					targets = {.Enemy, .Wall, .ExplodingBarrel},
+// 					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+// 				},
+// 			},
+// 		)
+// 		player.weapons[player.selected_weapon_idx].id = .Empty
+// 	case .Stick:
+// 		// Throw stick here
+// 		tex := loaded_textures[.Stick]
+// 		sprite: Sprite = {
+// 			.Stick,
+// 			{0, 0, f32(tex.width), f32(tex.height)},
+// 			{1, 1},
+// 			{f32(tex.width) / 2, f32(tex.height) / 2},
+// 			0,
+// 			rl.WHITE,
+// 		}
+// 		append(
+// 			&projectile_weapons,
+// 			ProjectileWeapon {
+// 				entity = new_entity(
+// 					player.pos +
+// 					rotate_vector(
+// 						{-2, 5} +
+// 						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
+// 						angle(to_mouse),
+// 					),
+// 				),
+// 				shape = Circle{{}, 4},
+// 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
+// 				z = 0,
+// 				vel_z = 8,
+// 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
+// 				rot_vel = 1200 * get_weapon_charge_multiplier(),
+// 				sprite = sprite,
+// 				data = weapon_data,
+// 				attack = Attack {
+// 					targets = {.Enemy, .Wall, .ExplodingBarrel},
+// 					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
+// 				},
+// 			},
+// 		)
+// 		player.weapons[player.selected_weapon_idx].id = .Empty
+// 	}
+// 	return 0
+// }
 
 draw_item :: proc(item: ItemId) {
 	to_mouse := normalize(mouse_world_pos - player.pos)
@@ -2329,8 +2332,8 @@ draw_item :: proc(item: ItemId) {
 		rl.WHITE,
 	}
 
-	sprite_pos := player.pos + {-get_item_hold_multiplier() * 5, 3}
-	sprite.scale = 1 + get_item_hold_multiplier() / 2
+	sprite_pos := player.pos + {-5, 3}
+	sprite.scale = 1
 
 
 	sprite.rotation += angle(to_mouse)
@@ -2346,8 +2349,8 @@ draw_weapon :: proc(weapon: ItemId) {
 	#partial switch weapon {
 	case .Sword:
 		sprite.tex_origin = {0, 1}
-	case .Stick:
-		sprite.tex_origin = {0, 8}
+	// case .Stick:
+	// 	sprite.tex_origin = {0, 8}
 	}
 
 	sprite_pos := player.pos
@@ -2429,9 +2432,9 @@ select_weapon :: proc(idx: int) {
 	case .Sword:
 		player.attack_poly.points = SWORD_HITBOX_POINTS
 		player.cur_weapon_anim = SWORD_ANIMATION_DEFAULT
-	case .Stick:
-		player.attack_poly.points = STICK_HITBOX_POINTS
-		player.cur_weapon_anim = STICK_ANIMATION_DEFAULT
+	// case .Stick:
+	// 	player.attack_poly.points = STICK_HITBOX_POINTS
+	// 	player.cur_weapon_anim = STICK_ANIMATION_DEFAULT
 	}
 }
 
@@ -2663,153 +2666,153 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				damage_player(attack.damage)
 			}
 		}
-	case ProjectileAttackData:
-		weapon := &projectile_weapons[data.projectile_idx]
-		if .Wall in attack.targets {
-			for wall in walls {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					wall.shape,
-					wall.pos,
-				)
+	// case ProjectileAttackData:
+	// weapon := &projectile_weapons[data.projectile_idx]
+	// if .Wall in attack.targets {
+	// 	for wall in walls {
+	// 		_, normal, depth := resolve_collision_shapes(
+	// 			weapon.shape,
+	// 			weapon.pos,
+	// 			wall.shape,
+	// 			wall.pos,
+	// 		)
 
-				if depth > 0 {
-					// Only damage the weapon if the wall is not already excluded
-					if _, exclude_found := slice.linear_search(attack.exclude_targets[:], wall.id);
-					   !exclude_found {
-						// Add to exclude
-						append(&attack.exclude_targets, wall.id)
-						// Durability
-						weapon.data.count -=
-							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(data.projectile_idx)
-							return -1
-						}
-					}
+	// 		if depth > 0 {
+	// 			// Only damage the weapon if the wall is not already excluded
+	// 			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], wall.id);
+	// 			   !exclude_found {
+	// 				// Add to exclude
+	// 				append(&attack.exclude_targets, wall.id)
+	// 				// Durability
+	// 				weapon.data.count -=
+	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
+	// 				if weapon.data.count <= 0 {
+	// 					delete_projectile_weapon(data.projectile_idx)
+	// 					return -1
+	// 				}
+	// 			}
 
-					// Resolve collision
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-			}
-		}
+	// 			// Resolve collision
+	// 			weapon.pos -= normal * depth
+	// 			weapon.vel = slide(weapon.vel, normal)
+	// 		}
+	// 	}
+	// }
 
-		if .Enemy in attack.targets {
-			#reverse for enemy, i in enemies {
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					enemy.shape,
-					enemy.pos,
-				)
+	// if .Enemy in attack.targets {
+	// 	#reverse for enemy, i in enemies {
+	// 		_, normal, depth := resolve_collision_shapes(
+	// 			weapon.shape,
+	// 			weapon.pos,
+	// 			enemy.shape,
+	// 			enemy.pos,
+	// 		)
 
-				if depth > 0 {
-					// Only damage if enemy is not already excluded
-					if _, exclude_found := slice.linear_search(
-						attack.exclude_targets[:],
-						enemy.id,
-					); !exclude_found {
-						// Add to exclude
-						append(&attack.exclude_targets, enemy.id)
-						// Damage
-						damage_enemy(
-							i,
-							math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
-						)
-						// Durability
-						weapon.data.count -=
-							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(data.projectile_idx)
-							return -1
-						}
-					}
+	// 		if depth > 0 {
+	// 			// Only damage if enemy is not already excluded
+	// 			if _, exclude_found := slice.linear_search(
+	// 				attack.exclude_targets[:],
+	// 				enemy.id,
+	// 			); !exclude_found {
+	// 				// Add to exclude
+	// 				append(&attack.exclude_targets, enemy.id)
+	// 				// Damage
+	// 				damage_enemy(
+	// 					i,
+	// 					math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
+	// 				)
+	// 				// Durability
+	// 				weapon.data.count -=
+	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
+	// 				if weapon.data.count <= 0 {
+	// 					delete_projectile_weapon(data.projectile_idx)
+	// 					return -1
+	// 				}
+	// 			}
 
-					// Resolve collision
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-			}
-		}
+	// 			// Resolve collision
+	// 			weapon.pos -= normal * depth
+	// 			weapon.vel = slide(weapon.vel, normal)
+	// 		}
+	// 	}
+	// }
 
-		if .ExplodingBarrel in attack.targets {
-			for barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
-				_, normal, depth := resolve_collision_shapes(
-					weapon.shape,
-					weapon.pos,
-					barrel.shape,
-					barrel.pos,
-				)
+	// if .ExplodingBarrel in attack.targets {
+	// 	for barrel, i in exploding_barrels {
+	// 		if barrel.queue_free {
+	// 			continue
+	// 		}
+	// 		_, normal, depth := resolve_collision_shapes(
+	// 			weapon.shape,
+	// 			weapon.pos,
+	// 			barrel.shape,
+	// 			barrel.pos,
+	// 		)
 
-				if depth > 0 {
-					// Only damage if enemy is not already excluded
-					if _, exclude_found := slice.linear_search(
-						attack.exclude_targets[:],
-						barrel.id,
-					); !exclude_found {
-						// Add to exclude
-						append(&attack.exclude_targets, barrel.id)
-						// Damage
-						damage_exploding_barrel(
-							i,
-							math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
-						)
-						// Durability
-						weapon.data.count -=
-							int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-						if weapon.data.count <= 0 {
-							delete_projectile_weapon(data.projectile_idx)
-							return -1
-						}
-					}
+	// 		if depth > 0 {
+	// 			// Only damage if enemy is not already excluded
+	// 			if _, exclude_found := slice.linear_search(
+	// 				attack.exclude_targets[:],
+	// 				barrel.id,
+	// 			); !exclude_found {
+	// 				// Add to exclude
+	// 				append(&attack.exclude_targets, barrel.id)
+	// 				// Damage
+	// 				damage_exploding_barrel(
+	// 					i,
+	// 					math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
+	// 				)
+	// 				// Durability
+	// 				weapon.data.count -=
+	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
+	// 				if weapon.data.count <= 0 {
+	// 					delete_projectile_weapon(data.projectile_idx)
+	// 					return -1
+	// 				}
+	// 			}
 
-					// Resolve collision
-					weapon.pos -= normal * depth
-					weapon.vel = slide(weapon.vel, normal)
-				}
-			}
-		}
+	// 			// Resolve collision
+	// 			weapon.pos -= normal * depth
+	// 			weapon.vel = slide(weapon.vel, normal)
+	// 		}
+	// 	}
+	// }
 
-	case SurfAttackData:
-		if .Enemy in attack.targets {
-			#reverse for &enemy, i in enemies {
-				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-					// Knockback
-					enemy.vel = normalize(enemy.pos - attack.pos) * attack.knockback
-					// Damage
-					damage_enemy(i, attack.damage)
-					targets_hit += 1
-				}
-			}
-		}
-		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
-				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-					// Knockback
-					barrel.vel = normalize(barrel.pos - attack.pos) * attack.knockback
-					// Damage
-					damage_exploding_barrel(i, attack.damage)
-					targets_hit += 1
-				}
-			}
-		}
-		if .Bomb in attack.targets {
-			#reverse for &bomb in bombs {
-				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
-					// Knockback
-					bomb.vel = normalize(bomb.pos - attack.pos) * attack.knockback
-					targets_hit += 1
-				}
-			}
-		}
+	// // case SurfAttackData:
+	// if .Enemy in attack.targets {
+	// 	#reverse for &enemy, i in enemies {
+	// 		if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+	// 			// Knockback
+	// 			enemy.vel = normalize(enemy.pos - attack.pos) * attack.knockback
+	// 			// Damage
+	// 			damage_enemy(i, attack.damage)
+	// 			targets_hit += 1
+	// 		}
+	// 	}
+	// }
+	// if .ExplodingBarrel in attack.targets {
+	// 	for &barrel, i in exploding_barrels {
+	// 		if barrel.queue_free {
+	// 			continue
+	// 		}
+	// 		if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
+	// 			// Knockback
+	// 			barrel.vel = normalize(barrel.pos - attack.pos) * attack.knockback
+	// 			// Damage
+	// 			damage_exploding_barrel(i, attack.damage)
+	// 			targets_hit += 1
+	// 		}
+	// 	}
+	// }
+	// if .Bomb in attack.targets {
+	// 	#reverse for &bomb in bombs {
+	// 		if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
+	// 			// Knockback
+	// 			bomb.vel = normalize(bomb.pos - attack.pos) * attack.knockback
+	// 			targets_hit += 1
+	// 		}
+	// 	}
+	// }
 	case ArrowAttackData:
 		arrow := &arrows[data.arrow_idx]
 		if .Wall in attack.targets {
@@ -2888,60 +2891,60 @@ perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
 				return -1
 			}
 		}
-	case RockAttackData:
-		rock := &rocks[data.rock_idx]
-		if .Wall in attack.targets {
-			for wall in walls {
-				_, _, depth := resolve_collision_shapes(rock.shape, rock.pos, wall.shape, wall.pos)
+	// case RockAttackData:
+	// rock := &rocks[data.rock_idx]
+	// if .Wall in attack.targets {
+	// 	for wall in walls {
+	// 		_, _, depth := resolve_collision_shapes(rock.shape, rock.pos, wall.shape, wall.pos)
 
-				if depth > 0 {
-					return -1
-				}
-			}
-		}
+	// 		if depth > 0 {
+	// 			return -1
+	// 		}
+	// 	}
+	// }
 
-		if .Enemy in attack.targets {
-			#reverse for enemy, i in enemies {
-				_, normal, depth := resolve_collision_shapes(
-					rock.shape,
-					rock.pos,
-					enemy.shape,
-					enemy.pos,
-				)
+	// if .Enemy in attack.targets {
+	// 	#reverse for enemy, i in enemies {
+	// 		_, normal, depth := resolve_collision_shapes(
+	// 			rock.shape,
+	// 			rock.pos,
+	// 			enemy.shape,
+	// 			enemy.pos,
+	// 		)
 
-				if depth > 0 {
-					// Damage
-					damage_enemy(i, math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio)
+	// 		if depth > 0 {
+	// 			// Damage
+	// 			damage_enemy(i, math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio)
 
-					return -1
-				}
-			}
-		}
+	// 			return -1
+	// 		}
+	// 	}
+	// }
 
-		if .ExplodingBarrel in attack.targets {
-			for barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
+	// if .ExplodingBarrel in attack.targets {
+	// 	for barrel, i in exploding_barrels {
+	// 		if barrel.queue_free {
+	// 			continue
+	// 		}
 
-				_, normal, depth := resolve_collision_shapes(
-					rock.shape,
-					rock.pos,
-					barrel.shape,
-					barrel.pos,
-				)
+	// 		_, normal, depth := resolve_collision_shapes(
+	// 			rock.shape,
+	// 			rock.pos,
+	// 			barrel.shape,
+	// 			barrel.pos,
+	// 		)
 
-				if depth > 0 {
-					// Damage
-					damage_exploding_barrel(
-						i,
-						math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio,
-					)
+	// 		if depth > 0 {
+	// 			// Damage
+	// 			damage_exploding_barrel(
+	// 				i,
+	// 				math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio,
+	// 			)
 
-					return -1
-				}
-			}
-		}
+	// 			return -1
+	// 		}
+	// 	}
+	// }
 	}
 	return
 }
@@ -2959,9 +2962,9 @@ damage_player :: proc(amount: f32) {
 
 on_player_death :: proc() {
 	clear(&bombs)
-	clear(&projectile_weapons)
+	// clear(&projectile_weapons)
 	clear(&arrows)
-	clear(&rocks)
+	// clear(&rocks)
 	clear(&fires)
 	reload_game_data()
 	reload_level()

@@ -255,10 +255,10 @@ AttackData :: union {
 	ExplosionAttackData,
 	SwordAttackData,
 	FireAttackData,
-	ProjectileAttackData,
-	SurfAttackData,
+	// ProjectileAttackData,
+	// SurfAttackData,
 	ArrowAttackData,
-	RockAttackData,
+	// RockAttackData,
 }
 
 SwordAttackData :: struct {}

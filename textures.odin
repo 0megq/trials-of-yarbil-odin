@@ -5,10 +5,10 @@ import rl "vendor:raylib"
 TextureId :: enum {
 	Empty = 0, // 1-99 is items
 	Bomb,
-	Apple,
-	Rock,
+	// Apple,
+	// Rock,
 	Sword = 100, // 100-199 is weapons
-	Stick,
+	// Stick,
 	Player = 200, // 200-299 is entities
 	Enemy,
 	Arrow,
@@ -23,20 +23,20 @@ loaded_textures: #sparse[TextureId]rl.Texture2D
 item_to_texture: #sparse[ItemId]TextureId = {
 	.Empty = .Empty,
 	.Bomb  = .Bomb,
-	.Apple = .Apple,
-	.Rock  = .Rock,
+	// .Apple = .Apple,
+	// .Rock  = .Rock,
 	.Sword = .Sword,
-	.Stick = .Stick,
+	// .Stick = .Stick,
 }
 
 load_textures :: proc() {
 	loaded_textures = {
 		.Empty           = {},
 		.Bomb            = rl.LoadTexture("assets/bomb.png"),
-		.Apple           = rl.LoadTexture("assets/apple.png"),
-		.Rock            = rl.LoadTexture("assets/rock.png"),
+		// .Apple           = rl.LoadTexture("assets/apple.png"),
+		// .Rock            = rl.LoadTexture("assets/rock.png"),
 		.Sword           = rl.LoadTexture("assets/sword.png"),
-		.Stick           = rl.LoadTexture("assets/stick.png"),
+		// .Stick           = rl.LoadTexture("assets/stick.png"),
 		.Player          = rl.LoadTexture("assets/samurai.png"),
 		.Enemy           = rl.LoadTexture("assets/enemy.png"),
 		.Arrow           = rl.LoadTexture("assets/arrow.png"),
