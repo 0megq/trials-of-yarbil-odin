@@ -1,0 +1,9 @@
+- no more roguelike
+- boost off enemies
+- blade slash projectile
+- bullet time
+- deflect bullets
+- wall running and jumping
+- other bomb types
+- other enemy types
+- traps
