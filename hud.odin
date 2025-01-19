@@ -5,8 +5,8 @@ import rl "vendor:raylib"
 
 
 draw_hud :: proc() {
-	slot_size :: 48
-	margin :: 16
+	slot_size :: 64
+	margin :: 20
 	// Display items
 	if !(level.has_tutorial && tutorial.hide_item_hud) {
 		// Show selected item
@@ -114,22 +114,22 @@ draw_hud :: proc() {
 		}
 
 		// Show 2nd (top) slot
-		{
-			pos := Vec2 {
-				f32(UI_SIZE.x) - slot_size - margin,
-				f32(UI_SIZE.y) - slot_size * 2 - margin,
-			}
-			rl.DrawRectangleV(pos, slot_size, rl.GRAY)
-			tex := loaded_textures[item_to_texture[player.weapons[1].id]]
-			src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
-			dst := Rectangle {
-				pos.x + slot_size / 2,
-				pos.y + slot_size / 2,
-				f32(tex.width) * 3,
-				f32(tex.height) * 3,
-			}
-			rl.DrawTexturePro(tex, src, dst, {f32(tex.width), f32(tex.height)} * 1.5, 0, rl.WHITE)
-		}
+		// {
+		// 	pos := Vec2 {
+		// 		f32(UI_SIZE.x) - slot_size - margin,
+		// 		f32(UI_SIZE.y) - slot_size * 2 - margin,
+		// 	}
+		// 	rl.DrawRectangleV(pos, slot_size, rl.GRAY)
+		// 	tex := loaded_textures[item_to_texture[player.weapons[1].id]]
+		// 	src := Rectangle{0, 0, f32(tex.width), f32(tex.height)}
+		// 	dst := Rectangle {
+		// 		pos.x + slot_size / 2,
+		// 		pos.y + slot_size / 2,
+		// 		f32(tex.width) * 3,
+		// 		f32(tex.height) * 3,
+		// 	}
+		// 	rl.DrawTexturePro(tex, src, dst, {f32(tex.width), f32(tex.height)} * 1.5, 0, rl.WHITE)
+		// }
 
 		// Show weapon selection
 		{
@@ -139,22 +139,22 @@ draw_hud :: proc() {
 			}
 
 			// Show durability
-			if weapon := player.weapons[player.selected_weapon_idx]; weapon.id != .Empty {
-				bar_margin :: 4
+			// if weapon := player.weapons[player.selected_weapon_idx]; weapon.id != .Empty {
+			// 	bar_margin :: 4
 
-				durability_bar_length: f32 = slot_size - bar_margin * 2
-				durability_bar_height: f32 = durability_bar_length / 4
-				durability_bar_base_rec := rl.Rectangle {
-					pos.x + bar_margin,
-					pos.y + slot_size - durability_bar_height - bar_margin,
-					durability_bar_length,
-					durability_bar_height,
-				}
-				rl.DrawRectangleRec(durability_bar_base_rec, rl.BLACK)
-				durability_bar_filled_rec := durability_bar_base_rec
-				durability_bar_filled_rec.width *= f32(weapon.count) / f32(weapon.max_count)
-				rl.DrawRectangleRec(durability_bar_filled_rec, rl.GREEN)
-			}
+			// 	durability_bar_length: f32 = slot_size - bar_margin * 2
+			// 	durability_bar_height: f32 = durability_bar_length / 4
+			// 	durability_bar_base_rec := rl.Rectangle {
+			// 		pos.x + bar_margin,
+			// 		pos.y + slot_size - durability_bar_height - bar_margin,
+			// 		durability_bar_length,
+			// 		durability_bar_height,
+			// 	}
+			// 	rl.DrawRectangleRec(durability_bar_base_rec, rl.BLACK)
+			// 	durability_bar_filled_rec := durability_bar_base_rec
+			// 	durability_bar_filled_rec.width *= f32(weapon.count) / f32(weapon.max_count)
+			// 	rl.DrawRectangleRec(durability_bar_filled_rec, rl.GREEN)
+			// }
 
 			if player.attacking {
 				rl.DrawRectangleRec({pos.x, pos.y, slot_size, slot_size}, Color{0, 0, 0, 70})

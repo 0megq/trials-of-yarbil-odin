@@ -1058,14 +1058,14 @@ main :: proc() {
 			}
 
 			// Weapon switching
-			player.weapon_switched = false
-			if is_control_pressed(controls.switch_selected_weapon) &&
-			   !(level.has_tutorial && tutorial.disable_switching) {
-				select_weapon(0 if player.selected_weapon_idx == 1 else 1)
-				stop_player_attack() // Cancel attack
-				player.weapon_switched = true
-				// fmt.println("switched to weapon", player.selected_weapon_idx)
-			}
+			// player.weapon_switched = false
+			// if is_control_pressed(controls.switch_selected_weapon) &&
+			//    !(level.has_tutorial && tutorial.disable_switching) {
+			// 	select_weapon(0 if player.selected_weapon_idx == 1 else 1)
+			// 	stop_player_attack() // Cancel attack
+			// 	player.weapon_switched = true
+			// 	// fmt.println("switched to weapon", player.selected_weapon_idx)
+			// }
 
 			// Weapon animation
 			if player.cur_weapon_anim.pos_rotation_vel == 0 {
@@ -1104,7 +1104,7 @@ main :: proc() {
 				} else {
 					player.attack_dur_timer -= delta
 
-					targets_hit := perform_attack(&player.cur_attack)
+					perform_attack(&player.cur_attack)
 					append(
 						&alerts,
 						Alert {
@@ -1116,11 +1116,11 @@ main :: proc() {
 							time_emitted = f32(rl.GetTime()),
 						},
 					)
-					player.weapons[player.selected_weapon_idx].count -= targets_hit
+					// player.weapons[player.selected_weapon_idx].count -= targets_hit
 					// Put this line inside if player.attack_dur_timer <= 0 if we want the animation to finish before deleting the item
-					if player.weapons[player.selected_weapon_idx].count <= 0 {
-						player.weapons[player.selected_weapon_idx].id = .Empty
-					}
+					// if player.weapons[player.selected_weapon_idx].count <= 0 {
+					// 	player.weapons[player.selected_weapon_idx].id = .Empty
+					// }
 				}
 			} else if !player.can_attack { 	// If right after attack finished then countdown attack interval timer until done
 				if player.attack_interval_timer <= 0 {

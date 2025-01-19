@@ -3,9 +3,9 @@
 		"health": 100.00000000,
 		"weapons": [
 			{
-				"id": 0,
-				"count": 0,
-				"max_count": 0
+				"id": 100,
+				"count": 1,
+				"max_count": 1
 			},
 			{
 				"id": 0,
