@@ -164,6 +164,7 @@ Player :: struct {
 	surfing:               bool, // valid only while playing game
 	can_fire_dash:         bool, // valid only while playing game
 	fire_dash_timer:       f32, // valid only while playing game
+	fire_dash_ready_time:  f32,
 }
 
 ZEntity :: struct {
@@ -313,8 +314,8 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.vision_fov = 115
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
-	enemy.start_flinch_time = 0.2
-	max_health_setter(&enemy.health, &enemy.max_health, 60)
+	enemy.start_flinch_time = 0.27
+	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
 setup_enemy :: proc(enemy: ^Enemy) {

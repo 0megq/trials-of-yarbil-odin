@@ -65,8 +65,8 @@
 			],
 			"start_disabled": false,
 			"look_angle": 180.00000000,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"variant": 1
 		},
 		{
@@ -152,8 +152,8 @@
 			],
 			"start_disabled": false,
 			"look_angle": 90.00000000,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"variant": 1
 		},
 		{
@@ -181,8 +181,8 @@
 			],
 			"start_disabled": false,
 			"look_angle": 0.00000000,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"variant": 1
 		},
 		{
@@ -268,8 +268,8 @@
 			],
 			"start_disabled": false,
 			"look_angle": 0.00000000,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"variant": 1
 		},
 		{
@@ -297,8 +297,8 @@
 			],
 			"start_disabled": false,
 			"look_angle": 0.00000000,
-			"health": 60.00000000,
-			"max_health": 60.00000000,
+			"health": 80.00000000,
+			"max_health": 80.00000000,
 			"variant": 1
 		},
 		{

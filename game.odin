@@ -20,7 +20,7 @@ PLAYER_BASE_FRICTION :: 750
 PLAYER_BASE_HARSH_FRICTION :: 2000
 ENEMY_PATHFINDING_TIME :: 0.2
 FIRE_DASH_RADIUS :: 32
-FIRE_DASH_FIRE_DURATION :: 0.5
+FIRE_DASH_FIRE_DURATION :: 1
 FIRE_DASH_COOLDOWN :: 2
 FIRE_TILE_DAMAGE :: 1
 ITEM_HOLD_DIVISOR :: 1 // Max time
@@ -37,7 +37,7 @@ ENEMY_SEARCH_TOLERANCE :: 16
 // weapon/attack related constants
 ATTACK_DURATION :: 0.15
 ATTACK_INTERVAL :: 0
-SWORD_DAMAGE :: 20
+SWORD_DAMAGE :: 40
 SWORD_KNOCKBACK :: 100
 SWORD_HITBOX_OFFSET :: 4
 STICK_DAMAGE :: 10
@@ -487,6 +487,8 @@ main :: proc() {
 				if player.fire_dash_timer <= 0 {
 					player.can_fire_dash = true
 				}
+			} else {
+				player.fire_dash_ready_time += delta
 			}
 
 			if !(level.has_tutorial && tutorial.disable_ability) &&
@@ -497,7 +499,8 @@ main :: proc() {
 					if player.can_fire_dash {
 						move_successful = true
 						player.can_fire_dash = false
-						player.fire_dash_timer = 0.5
+						player.fire_dash_timer = FIRE_DASH_COOLDOWN
+						player.fire_dash_ready_time = 0
 
 						player.vel = normalize(get_directional_input()) * 400
 						fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
@@ -1914,6 +1917,8 @@ damage_enemy :: proc(enemy_idx: int, amount: f32, should_flinch := true) {
 	enemy.health -= amount
 	if enemy.health <= 0 {
 		unordered_remove(&enemies, enemy_idx)
+		// reset player dash
+		player.fire_dash_timer = 0
 	}
 }
 
