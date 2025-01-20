@@ -172,6 +172,8 @@ play_again_button: Button = Button {
 }
 queue_play_again: bool
 
+speedrun_timer := f32(0)
+
 // misc
 world_camera: rl.Camera2D
 ui_camera: rl.Camera2D
@@ -404,6 +406,9 @@ main :: proc() {
 		case .Tutorial:
 			update_tutorial_editor(&editor_state)
 		case .None:
+			if !is_level_finished() {
+				speedrun_timer += delta
+			}
 			#reverse for &timer, i in timers {
 				timer.time_left -= delta
 				if timer.time_left <= 0 {
@@ -3427,4 +3432,8 @@ update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2) -> bool {
 		return true
 	}
 	return false
+}
+
+reset_speedrun_timer :: proc() {
+	speedrun_timer = 0
 }

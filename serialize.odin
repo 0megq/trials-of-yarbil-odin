@@ -397,6 +397,7 @@ load_game_data :: proc(game_idx := 0) {
 	// Reset all player values
 	player = {}
 	set_player_data(game_data.player_data)
+	reset_speedrun_timer()
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }

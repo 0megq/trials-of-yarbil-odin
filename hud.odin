@@ -1,6 +1,7 @@
 package game
 
 import "core:fmt"
+import "core:time"
 import rl "vendor:raylib"
 
 
@@ -195,5 +196,17 @@ draw_hud :: proc() {
 				rl.GRAY,
 			)
 		}
+	}
+	// Display speedrun timer
+	{
+		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 80}
+		text := fmt.ctprintf(
+			"%2d:%2d:%2d.%2d",
+			time.clock_from_seconds(u64(speedrun_timer)),
+			u64((speedrun_timer - f32(i32(speedrun_timer))) * 100),
+		)
+		pos := get_centered_text_pos(center, text, 20, 2)
+
+		rl.DrawTextEx(rl.GetFontDefault(), text, pos, 20, 2, rl.WHITE)
 	}
 }
