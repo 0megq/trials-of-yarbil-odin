@@ -179,7 +179,7 @@ draw_hud :: proc() {
 	}
 
 	// Display ability HUD
-	if !(level.has_tutorial && tutorial.disable_ability) {
+	if !(level.has_tutorial && (tutorial.disable_ability || tutorial.hide_dash_hud)) {
 		// Dash Status
 		// font_size: f32 = 16
 		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 120}
@@ -198,7 +198,7 @@ draw_hud :: proc() {
 		}
 	}
 	// Display speedrun timer
-	{
+	if !(level.has_tutorial && tutorial.hide_speedrun_timer) {
 		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 80}
 		text := fmt.ctprintf(
 			"%2d:%2d:%2d.%2d",

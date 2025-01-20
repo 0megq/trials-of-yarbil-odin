@@ -139,6 +139,7 @@ BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.
 
 game_data: GameData
 
+debug_speed := f32(1)
 // world data
 player: Player
 enemies: [dynamic]Enemy
@@ -263,9 +264,16 @@ main :: proc() {
 		mouse_window_pos = rl.GetMousePosition()
 		mouse_window_delta = rl.GetMouseDelta()
 
-		// if is_control_down(controls.slow_down) {
-		// 	delta *= 0.2
-		// }
+		when ODIN_DEBUG {
+			delta *= debug_speed
+
+			if rl.IsKeyPressed(.LEFT_BRACKET) {
+				debug_speed -= 0.25
+			}
+			if rl.IsKeyPressed(.RIGHT_BRACKET) {
+				debug_speed += 0.25
+			}
+		}
 
 		if player.queue_free {
 			on_player_death()
@@ -899,6 +907,17 @@ main :: proc() {
 							pos = bomb.pos,
 							shape = Circle{{}, 16},
 							data = ExplosionAttackData{true},
+						},
+					)
+					append(
+						&alerts,
+						Alert {
+							pos = bomb.pos,
+							range = 60,
+							base_intensity = 1.1,
+							base_duration = 0.5,
+							decay_rate = 2,
+							time_emitted = f32(rl.GetTime()),
 						},
 					)
 					unordered_remove(&bombs, i)

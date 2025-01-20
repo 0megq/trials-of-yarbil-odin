@@ -18,6 +18,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
 				e.selected_entity = .Enemy
+				e.selected_enemy = &enemy
 				e.entity_mouse_rel_pos = enemy.pos - mouse_world_pos
 				break outer
 			}
@@ -59,6 +60,11 @@ update_entity_editor :: proc(e: ^EditorState) {
 
 		pos.x = math.round((e.entity_mouse_rel_pos.x + mouse_world_pos.x) / snap_size) * snap_size
 		pos.y = math.round((e.entity_mouse_rel_pos.y + mouse_world_pos.y) / snap_size) * snap_size
+	}
+
+	// rotate enemy
+	if rl.IsMouseButtonDown(.RIGHT) && e.selected_entity == .Enemy {
+		e.selected_enemy.look_angle = angle(mouse_world_pos - e.selected_enemy.pos)
 	}
 
 	// delete entity
