@@ -1,0 +1,29 @@
+{
+	"prompts": [
+		{
+			"pos": [
+				780.00000000,
+				684.00000000
+			],
+			"text": "Space + W A S or D to Dash"
+		},
+		{
+			"pos": [
+				768,
+				788
+			],
+			"text": "Dash to avoid arrows and close the distance"
+		}
+	],
+	"actions": [],
+	"hide_item_hud": true,
+	"hide_weapon_hud": false,
+	"hide_dash_hud": true,
+	"disable_ability": false,
+	"hide_all_hud": false,
+	"hide_speedrun_timer": true,
+	"enable_enemy_dummies": false,
+	"disable_throwing": true,
+	"disable_switching": true,
+	"disable_dropping": true
+}
