@@ -485,6 +485,7 @@ main :: proc() {
 				} else {
 					// if next level exists, play it, else restart from the beginning
 					game_data.cur_level_idx += 1
+					clear_temp_entities()
 					reload_level()
 				}
 			}
@@ -2986,13 +2987,18 @@ damage_player :: proc(amount: f32) {
 }
 
 on_player_death :: proc() {
+	clear_temp_entities()
+	reload_game_data()
+	reload_level()
+}
+
+clear_temp_entities :: proc() {
 	clear(&bombs)
 	// clear(&projectile_weapons)
 	clear(&arrows)
 	// clear(&rocks)
 	clear(&fires)
-	reload_game_data()
-	reload_level()
+	clear(&alerts)
 }
 
 heal_player :: proc(amount: f32) {

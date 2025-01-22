@@ -2,17 +2,32 @@
 	"prompts": [
 		{
 			"pos": [
-				780.00000000,
-				684.00000000
+				932,
+				736
 			],
-			"text": "W A S or D + Space to Dash"
+			"text": "After use, your dash must recharge"
 		},
 		{
 			"pos": [
-				768,
-				788
+				1000,
+				822
 			],
-			"text": "Dash to avoid arrows and close the distance"
+			"text": "Killing enemies will instantly"
+		},
+		{
+			"pos": [
+				1000,
+				830
+			],
+			"text": "recharge your dash."
+		},
+		{
+			"pos": [
+				0.5,
+				0.9
+			],
+			"text": "Dash Meter",
+			"on_screen": true
 		}
 	],
 	"actions": [],
