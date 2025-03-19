@@ -2,154 +2,43 @@
 	"prompts": [
 		{
 			"pos": [
-				612,
-				404
+				932,
+				736
 			],
-			"text": "Holding right click will charge the rock."
+			"text": "After use, your dash must recharge"
 		},
 		{
 			"pos": [
-				612,
-				412
+				1000,
+				822
 			],
-			"text": "The green bar indicates the strength of the throw."
+			"text": "Killing enemies will instantly"
 		},
 		{
 			"pos": [
-				612,
-				420
+				1000,
+				830
 			],
-			"text": "Release at the top for a full strength throw."
-		}
-	],
-	"actions": [
-		{
-			"action": {
-				"type": 2,
-				"id": [	
-					167,
-					154,
-					96,
-					4,
-					236,
-					122,
-					69,
-					162,
-					132,
-					122,
-					2,
-					186,
-					157,
-					165,
-					115,
-					190
-				],
-				"should_clone": true
-			},
-			"condition": {
-				"type": 2,
-				"id": [	
-					167,
-					154,
-					96,
-					4,
-					236,
-					122,
-					69,
-					162,
-					132,
-					122,
-					2,
-					186,
-					157,
-					165,
-					115,
-					190
-				],
-				"check_disabled": false
-			},
-			"invert_condition": true,
-			"condition2": {
-				"type": 1,
-				"id": [
-					67,
-					104,
-					46,
-					109,
-					72,
-					209,
-					64,
-					246,
-					177,
-					108,
-					118,
-					213,
-					209,
-					199,
-					158,
-					167
-				]
-			},
-			"invert_condition2": false,
-			"condition3": {
-				"count": 0,
-				"weapon": false
-			},
-			"invert_condition3": false
+			"text": "recharge your dash."
 		},
 		{
-			"action": {
-				"type": 1,
-				"id": [
-					67,
-					104,
-					46,
-					109,
-					72,
-					209,
-					64,
-					246,
-					177,
-					108,
-					118,
-					213,
-					209,
-					199,
-					158,
-					167
-				]			
-			},
-			"condition": {
-				"type": 2,
-				"id": [	
-					167,
-					154,
-					96,
-					4,
-					236,
-					122,
-					69,
-					162,
-					132,
-					122,
-					2,
-					186,
-					157,
-					165,
-					115,
-					190
-				],
-				"check_disabled": false
-			},
-			"invert_condition": true
+			"pos": [
+				0.5,
+				0.9
+			],
+			"text": "Dash Meter",
+			"on_screen": true
 		}
 	],
-	"hide_item_hud": false,
+	"actions": [],
+	"hide_item_hud": true,
 	"hide_weapon_hud": false,
-	"disable_ability": true,
+	"hide_dash_hud": false,
+	"disable_ability": false,
 	"hide_all_hud": false,
-	"enable_enemy_dummies": true,
+	"hide_speedrun_timer": true,
+	"enable_enemy_dummies": false,
 	"disable_throwing": true,
-	"disable_switching": false,
+	"disable_switching": true,
 	"disable_dropping": true
 }

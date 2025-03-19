@@ -16,6 +16,7 @@ EditorState :: struct {
 	// Entity editor
 	selected_entity:      LevelEntityType,
 	selected_phys_entity: ^PhysicsEntity,
+	selected_enemy:       ^Enemy,
 	entity_mouse_rel_pos: Vec2,
 
 	// Level editor

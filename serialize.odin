@@ -141,7 +141,9 @@ Tutorial :: struct {
 	actions:              [dynamic]TutorialAction,
 	hide_item_hud:        bool,
 	hide_weapon_hud:      bool,
+	hide_dash_hud:        bool,
 	disable_ability:      bool,
+	hide_speedrun_timer:  bool,
 	hide_all_hud:         bool,
 	enable_enemy_dummies: bool,
 	disable_throwing:     bool,
@@ -397,6 +399,7 @@ load_game_data :: proc(game_idx := 0) {
 	// Reset all player values
 	player = {}
 	set_player_data(game_data.player_data)
+	reset_speedrun_timer()
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }
@@ -509,6 +512,7 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.max_health = data.max_health
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
+	e.idle_look_angle = data.look_angle
 	switch data.variant {
 	case 0:
 		setup_melee_enemy(&e)
@@ -563,7 +567,15 @@ draw_level :: proc(show_tile_grid := false) {
 	for enemy in level.enemies {
 		rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
 		rl.DrawCircleV(enemy.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
-		draw_sprite(ENEMY_SPRITE, enemy.pos)
+
+		sprite := ENEMY_SPRITE
+		sprite.rotation = enemy.look_angle
+
+		if sprite.rotation < -90 || sprite.rotation > 90 {
+			sprite.scale = {-1, 1}
+			sprite.rotation += 180
+		}
+		draw_sprite(sprite, enemy.pos)
 	}
 
 	for barrel in level.exploding_barrels {
