@@ -1,3 +1,8 @@
+'''
+Contains various utitlity functions for updating and modifying files
+'''
+
+# Reads a file, searches for lines with `search_phrase`, appends `insert_text`, and writes to file
 def modify_file(file_path, search_phrase, insert_text):
 	# Read the file
 	with open(file_path, 'r') as file:
