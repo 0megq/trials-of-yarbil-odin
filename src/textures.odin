@@ -32,17 +32,17 @@ item_to_texture: #sparse[ItemId]TextureId = {
 load_textures :: proc() {
 	loaded_textures = {
 		.Empty           = {},
-		.Bomb            = rl.LoadTexture("assets/bomb.png"),
-		// .Apple           = rl.LoadTexture("assets/apple.png"),
-		// .Rock            = rl.LoadTexture("assets/rock.png"),
-		.Sword           = rl.LoadTexture("assets/sword.png"),
-		// .Stick           = rl.LoadTexture("assets/stick.png"),
-		.Player          = rl.LoadTexture("assets/samurai.png"),
-		.Enemy           = rl.LoadTexture("assets/enemy.png"),
-		.Arrow           = rl.LoadTexture("assets/arrow.png"),
-		.ExplodingBarrel = rl.LoadTexture("assets/exploding_barrel.png"),
-		.Tilemap         = rl.LoadTexture("assets/tileset.png"),
-		.WinCircle       = rl.LoadTexture("assets/win_circle.png"),
+		.Bomb            = rl.LoadTexture("res/images/bomb.png"),
+		// .Apple           = rl.LoadTexture("res/images/apple.png"),
+		// .Rock            = rl.LoadTexture("res/images/rock.png"),
+		.Sword           = rl.LoadTexture("res/images/sword.png"),
+		// .Stick           = rl.LoadTexture("res/images/stick.png"),
+		.Player          = rl.LoadTexture("res/images/samurai.png"),
+		.Enemy           = rl.LoadTexture("res/images/enemy.png"),
+		.Arrow           = rl.LoadTexture("res/images/arrow.png"),
+		.ExplodingBarrel = rl.LoadTexture("res/images/exploding_barrel.png"),
+		.Tilemap         = rl.LoadTexture("res/images/tileset.png"),
+		.WinCircle       = rl.LoadTexture("res/images/win_circle.png"),
 	}
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }

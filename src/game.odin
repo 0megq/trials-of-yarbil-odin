@@ -1662,7 +1662,9 @@ main :: proc() {
 		free_all(context.temp_allocator)
 	}
 
-	save_level()
+	if editor_state.mode != .None {
+		save_level()
+	}
 	unload_level()
 
 	// save_game_data() Not saving game data automatically now
