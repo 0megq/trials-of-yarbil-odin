@@ -198,6 +198,8 @@ mouse_world_delta: Vec2
 
 delta: f32
 
+menu := Menu.None
+
 main :: proc() {
 	// Init RNG
 	context.random_generator = crypto.random_generator()
@@ -287,7 +289,7 @@ main :: proc() {
 	rl.CloseWindow()
 }
 
-// This is our update loop handles EVERYTHING that happens on a loop
+// This is our update loop handles and draws EVERYTHING every frame
 update :: proc() {
 	delta = rl.GetFrameTime()
 	mouse_window_pos = rl.GetMousePosition()
@@ -302,24 +304,6 @@ update :: proc() {
 		}
 		if rl.IsKeyPressed(.RIGHT_BRACKET) {
 			debug_speed += 0.25
-		}
-	}
-
-	// Queued World Actions (death and deletion). Remove things from the previous frame
-	if player.queue_free {
-		on_player_death()
-		player.queue_free = false
-	}
-	if queue_play_again {
-		play_again_button.status = .Normal
-		display_win_screen = false
-		reload_game_data()
-		reload_level()
-		queue_play_again = false
-	}
-	#reverse for barrel, i in exploding_barrels { 	// This needs to be in reverse since we are removing
-		if barrel.queue_free {
-			unordered_remove(&exploding_barrels, i)
 		}
 	}
 
@@ -352,49 +336,69 @@ update :: proc() {
 		window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 	}
 
-	// Update Camera Settings
-	{
-		world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
-		if editor_state.mode == .None {
-			world_camera.zoom = window_over_game
-			world_camera.target = player.pos
-			// Camera smoothing
-			// world_camera.target = exp_decay(
-			// 	world_camera.target,
-			// 	player.pos + normalize(mouse_world_pos - player.pos) * 32,
-			// 	2,
-			// 	delta,
-			// )
-
-			// camera.target = 0
-			// camera.target = fit_camera_target_to_level_bounds(player.pos)
-		} else {
-			world_camera.zoom += rl.GetMouseWheelMove() * 0.2 * world_camera.zoom
-			world_camera.zoom = max(0.1, world_camera.zoom)
-			if math.abs(world_camera.zoom - window_over_game) < 0.2 {
-				world_camera.zoom = window_over_game
-			}
-
-			if rl.IsMouseButtonDown(.MIDDLE) {
-				world_camera.target -= mouse_world_delta
-			}
-		}
-
-		ui_camera.offset = Vec2{f32(window_size.x), f32(window_size.y)} / 2
-		ui_camera.zoom = window_over_ui
-		ui_camera.target = Vec2{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2
-	}
-
-	// Get UI and World Mouse Input
+	// Update UI Camera and get UI mouse input
+	ui_camera.offset = Vec2{f32(window_size.x), f32(window_size.y)} / 2
+	ui_camera.zoom = window_over_ui
+	ui_camera.target = Vec2{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2
 	mouse_ui_pos = window_to_ui(mouse_window_pos)
 	mouse_ui_delta = mouse_window_delta / ui_camera.zoom
-	mouse_world_pos = window_to_world(mouse_window_pos)
-	mouse_world_delta = mouse_window_delta / world_camera.zoom
-
-	menu := Menu.None
 
 	switch menu {
 	case .None:
+		// 1. Frame setup
+		// 2. Update input
+		// 3. Update editor (animations, movement, collision, attacks, win condition, timers)
+		// 4. Menu-specific Clean up
+
+		// Perform Queued World Actions (death and deletion). Remove things from the previous frame
+		if player.queue_free {
+			on_player_death()
+			player.queue_free = false
+		}
+		if queue_play_again {
+			play_again_button.status = .Normal
+			display_win_screen = false
+			reload_game_data()
+			reload_level()
+			queue_play_again = false
+		}
+		#reverse for barrel, i in exploding_barrels { 	// This needs to be in reverse since we are removing
+			if barrel.queue_free {
+				unordered_remove(&exploding_barrels, i)
+			}
+		}
+
+		// Update World Camera and get World mouse input
+		{
+			world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
+			if editor_state.mode == .None {
+				world_camera.zoom = window_over_game
+				world_camera.target = player.pos
+				// Camera smoothing
+				// world_camera.target = exp_decay(
+				// 	world_camera.target,
+				// 	player.pos + normalize(mouse_world_pos - player.pos) * 32,
+				// 	2,
+				// 	delta,
+				// )
+
+				// camera.target = 0
+				// camera.target = fit_camera_target_to_level_bounds(player.pos)
+			} else {
+				world_camera.zoom += rl.GetMouseWheelMove() * 0.2 * world_camera.zoom
+				world_camera.zoom = max(0.1, world_camera.zoom)
+				if math.abs(world_camera.zoom - window_over_game) < 0.2 {
+					world_camera.zoom = window_over_game
+				}
+
+				if rl.IsMouseButtonDown(.MIDDLE) {
+					world_camera.target -= mouse_world_delta
+				}
+			}
+
+			mouse_world_pos = window_to_world(mouse_window_pos)
+			mouse_world_delta = mouse_window_delta / world_camera.zoom
+		}
 		// Editor Controls
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -497,7 +501,7 @@ update :: proc() {
 				}
 			}
 
-
+			// Fire spread and other tile updates
 			update_tilemap()
 
 			// Check player collision with portal
@@ -1064,7 +1068,9 @@ update :: proc() {
 			}
 		}
 	case .Main:
-
+	// Send input
+	// Update button and ui elements
+	// Do stuff based on new button and ui status
 	case .Pause:
 	}
 
