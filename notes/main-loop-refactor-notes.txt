@@ -1,0 +1,5 @@
+things to look at again
+- see if place_walls_and_calculate_graph(&main_world) is being called correctly
+    - this is mainly for editors, but should always be called when the player enters a new level
+- send an event when enemy dies, instead of having player dash reset happen inside of damage_enemy()
+- i think i just want to make everything use the main_world

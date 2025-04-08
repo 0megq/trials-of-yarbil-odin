@@ -213,12 +213,12 @@ level_tilemap: Tilemap
 tutorial: Tutorial
 
 // MARK: Level
-reload_level :: proc() {
+reload_level :: proc(world: ^World) {
 	unload_level()
-	load_level()
+	load_level(world)
 }
 
-load_level :: proc() {
+load_level :: proc(world: ^World) {
 	data := Level{}
 
 	level_file := fmt.tprintf("%s%02d.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
@@ -264,45 +264,42 @@ load_level :: proc() {
 		setup_item(&item)
 	}
 
-	player.pos = level.player_pos
-	player.vel = {} // we may need to reset other player values
-	setup_player(&player)
+	world.player.pos = level.player_pos
+	world.player.vel = {} // we may need to reset other player values
+	setup_player(&world.player)
 
 	world_camera = rl.Camera2D {
-		target = player.pos + normalize(mouse_world_pos - player.pos) * 16,
+		target = world.player.pos + normalize(mouse_world_pos - world.player.pos) * 16,
 		zoom   = window_over_game,
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
 
 
-	load_tilemap(
-		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
-		&level_tilemap,
-	)
-	tilemap = level_tilemap
+	load_tilemap(&level_tilemap, fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, level_idx))
+	world.tilemap = level_tilemap
 
 	// We clone the arrays so we don't change the level data when we play the game
-	enemies = slice.clone_to_dynamic(level.enemies[:])
-	disabled_enemies = make([dynamic]Enemy)
-	#reverse for enemy, i in enemies {
+	world.enemies = slice.clone_to_dynamic(level.enemies[:])
+	world.disabled_enemies = make([dynamic]Enemy)
+	#reverse for enemy, i in world.enemies {
 		if enemy.start_disabled {
-			append(&disabled_enemies, enemy)
-			unordered_remove(&enemies, i)
+			append(&world.disabled_enemies, enemy)
+			unordered_remove(&world.enemies, i)
 		}
 	}
-	items = slice.clone_to_dynamic(level.items[:])
-	disabled_items = make([dynamic]Item)
-	#reverse for item, i in items {
+	world.items = slice.clone_to_dynamic(level.items[:])
+	world.disabled_items = make([dynamic]Item)
+	#reverse for item, i in world.items {
 		if item.start_disabled {
-			append(&disabled_items, item)
-			unordered_remove(&items, i)
+			append(&world.disabled_items, item)
+			unordered_remove(&world.items, i)
 		}
 	}
-	exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
+	world.exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
 
-	walls = slice.clone_to_dynamic(level.walls[:])
-	half_walls = slice.clone_to_dynamic(level.half_walls[:])
-	place_walls_and_calculate_graph()
+	world.walls = slice.clone_to_dynamic(level.walls[:])
+	world.half_walls = slice.clone_to_dynamic(level.half_walls[:])
+	place_walls_and_calculate_graph(world)
 
 	// Load tutorial if it exists
 	if level.has_tutorial {
@@ -321,10 +318,10 @@ save_level :: proc() {
 		append(&data.enemy_data, get_data_from_enemy(enemy))
 	}
 	data.enemies = nil
-	place_walls_and_calculate_graph()
+
 	save_tilemap(
-		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 		level_tilemap,
+		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
 	)
 
 	if bytes, err := json.marshal(data, allocator = context.allocator, opt = {pretty = true});
@@ -347,20 +344,20 @@ unload_level :: proc() {
 		_unload_tutorial()
 	}
 	// delete world data
-	delete(enemies)
-	enemies = nil
-	delete(disabled_enemies)
-	disabled_enemies = nil
-	delete(items)
-	items = nil
-	delete(disabled_items)
-	disabled_items = nil
-	delete(exploding_barrels)
-	exploding_barrels = nil
-	delete(walls)
-	walls = nil
-	delete(half_walls)
-	half_walls = nil
+	delete(main_world.enemies)
+	main_world.enemies = nil
+	delete(main_world.disabled_enemies)
+	main_world.disabled_enemies = nil
+	delete(main_world.items)
+	main_world.items = nil
+	delete(main_world.disabled_items)
+	main_world.disabled_items = nil
+	delete(main_world.exploding_barrels)
+	main_world.exploding_barrels = nil
+	delete(main_world.walls)
+	main_world.walls = nil
+	delete(main_world.half_walls)
+	main_world.half_walls = nil
 	// delete level data
 	delete(level.enemy_data)
 	level.enemy_data = nil
@@ -397,7 +394,7 @@ load_game_data :: proc(game_idx := 0) {
 	}
 
 	// Reset all player values
-	player = {}
+	main_world.player = {}
 	set_player_data(game_data.player_data)
 	reset_speedrun_timer()
 
@@ -480,19 +477,19 @@ _unload_tutorial :: proc() {
 }
 
 
-set_player_data :: proc(data: PlayerData) {
+set_player_data :: proc(player: ^Player, data: PlayerData) {
 	player.health = data.health
 	player.max_health = data.max_health
 	player.weapons = data.weapons
 	player.items = data.items
-	select_weapon(data.selected_weapon_idx)
+	select_weapon(player, data.selected_weapon_idx)
 	player.selected_item_idx = data.selected_item_idx
 	player.item_count = data.item_count
 	player.cur_ability = data.ability
-	setup_player(&player)
+	setup_player(player)
 }
 
-get_player_data :: proc() -> PlayerData {
+get_player_data :: proc(player: Player) -> PlayerData {
 	return {
 		player.health,
 		player.max_health,

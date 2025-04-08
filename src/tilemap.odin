@@ -26,7 +26,8 @@ TileData :: union #no_nil {
 	DirtData,
 }
 
-EmptyData :: struct {}
+EmptyData :: struct {
+}
 
 GrassData :: struct {
 	on_fire:       bool,
@@ -35,16 +36,19 @@ GrassData :: struct {
 	burnt:         bool,
 }
 
-DirtData :: struct {}
+DirtData :: struct {
+}
 
-StoneData :: struct {}
+StoneData :: struct {
+}
 
-WaterData :: struct {}
+WaterData :: struct {
+}
 
-
-update_tilemap :: proc() {
+update_tilemap :: proc(world: ^World) {
+	tilemap := &world.tilemap
 	// Fire spread for grass tiles
-	for tile_pos in get_tiles_on_fire(tilemap) {
+	for tile_pos in get_tiles_on_fire(tilemap^) {
 		// Update tiles
 		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
 		if !tile_data.burnt {
@@ -53,18 +57,18 @@ update_tilemap :: proc() {
 			if tile_data.spread_timer <= 0 {
 				// Spread once timer is done
 				if tile_data.should_spread {
-					for t in get_neighboring_tiles(tile_pos) {
-						if is_valid_tile_pos(t) {
-							#partial switch data in tilemap[t.x][t.y] {
+					for neighbor_pos in get_neighboring_tiles(tile_pos) {
+						if is_valid_tile_pos(neighbor_pos) {
+							#partial switch data in tilemap[neighbor_pos.x][neighbor_pos.y] {
 							case GrassData:
 								if data.on_fire || data.burnt {
 									continue
 								}
 								// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
 								set_tile(
-									t,
+									tilemap,
+									neighbor_pos,
 									GrassData{true, 1, rand.choice([]bool{false, true}), false},
-									&tilemap,
 								)
 							}
 
@@ -84,7 +88,7 @@ update_tilemap :: proc() {
 			damage  = FIRE_TILE_DAMAGE * delta,
 			targets = {.ExplodingBarrel, .Player, .Enemy},
 		}
-		perform_attack(&fire_attack)
+		perform_attack(world, &fire_attack)
 	}
 }
 
@@ -92,7 +96,7 @@ is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
 	return pos.x >= 0 && pos.x < TILEMAP_SIZE && pos.y >= 0 && pos.y < TILEMAP_SIZE
 }
 
-is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap, wall_tm: WallTilemap) -> bool {
+is_tile_walkable :: proc(tm: Tilemap, wall_tm: WallTilemap, pos: Vec2i) -> bool {
 	if wall_tm[pos.x][pos.y] {
 		return false
 	}
@@ -107,7 +111,78 @@ is_tile_walkable :: proc(pos: Vec2i, tm: Tilemap, wall_tm: WallTilemap) -> bool 
 	return false
 }
 
-get_neighboring_tile_data :: proc(pos: Vec2i, tm: Tilemap) -> [4]TileData {
+is_tile_line_walkable :: proc(tm: Tilemap, wall_tm: WallTilemap, start: Vec2, end: Vec2) -> bool {
+	start := start
+	end := end
+
+	if start.x > end.x { 	// Make sure the start -> end is always left to right (x increases)
+		start, end = end, start
+	}
+
+	// Check if points are strictly horizontal or strictly vertical
+	start_tile := world_to_tilemap(start)
+	end_tile := world_to_tilemap(end)
+	if start_tile == end_tile {
+		return is_tile_walkable(tm, wall_tm, start_tile)
+	} else if start_tile.y == end_tile.y { 	// horizontal
+		if start_tile.x > end_tile.x { 	// Flip it!
+			start_tile.x, end_tile.x = end_tile.x, start_tile.x
+		}
+		for tile_x in start_tile.x ..= end_tile.x {
+			if !is_tile_walkable(tm, wall_tm, {tile_x, start_tile.y}) {
+				return false
+			}
+		}
+	} else if start_tile.x == end_tile.x { 	// vertical
+		if start_tile.y > end_tile.y { 	// Flip y, if one is bigger than the other
+			start_tile.y, end_tile.y = end_tile.y, start_tile.y
+		}
+		for tile_y in start_tile.y ..= end_tile.y {
+			if !is_tile_walkable(tm, wall_tm, {start_tile.x, tile_y}) {
+				return false
+			}
+		}
+	} else {
+		slope := (start.y - end.y) / (start.x - end.x)
+		current := start
+		current_tile := start_tile
+		// Check first tile
+		if !is_tile_walkable(tm, wall_tm, current_tile) {
+			return false
+		}
+
+		// Loop until we reach the end tile
+		for current_tile != end_tile {
+			// Get the next tile in the x direction
+			x_til_next_tile := f32(current_tile.x + 1) * TILE_SIZE - current.x
+			// Get next tile in y direction
+			y_til_next_tile := f32(current_tile.y + 1) * TILE_SIZE - current.y
+			if slope < 0 {
+				y_til_next_tile -= TILE_SIZE // Go up a tile instead if slope is negative (y is decreasing)
+			}
+
+			// Move current position and current tile
+			if math.abs(y_til_next_tile / slope) < x_til_next_tile {
+				// If x distance with y til next tile is smaller, then we move in the y
+				current += {y_til_next_tile / slope, y_til_next_tile}
+				current_tile.y += i32(math.sign(slope))
+			} else {
+				// If x til next tile is smaller, then we move in the x
+				current += {x_til_next_tile, x_til_next_tile * slope}
+				current_tile.x += 1
+			}
+
+			// If tile is not walkable return false, otherwise keep going until end
+			if !is_tile_walkable(tm, wall_tm, current_tile) {
+				return false
+			}
+		}
+	}
+
+	return true
+}
+
+get_neighboring_tile_data :: proc(tm: Tilemap, pos: Vec2i) -> [4]TileData {
 	return {tm[pos.x][pos.y - 1], tm[pos.x - 1][pos.y], tm[pos.x][pos.y + 1], tm[pos.x + 1][pos.y]}
 }
 
@@ -128,7 +203,7 @@ get_neighboring_tiles_diagonal :: proc(pos: Vec2i) -> [8]Vec2i {
 	}
 }
 
-set_tile :: proc(pos: Vec2i, data: TileData, tm: ^Tilemap) {
+set_tile :: proc(tm: ^Tilemap, pos: Vec2i, data: TileData) {
 	if !is_valid_tile_pos(pos) {
 		rl.TraceLog(.ERROR, "Invalid tile position")
 		return
@@ -136,14 +211,14 @@ set_tile :: proc(pos: Vec2i, data: TileData, tm: ^Tilemap) {
 	tm[pos.x][pos.y] = data
 }
 
-fill_tiles :: proc(from: Vec2i, to: Vec2i, data: TileData, tm: ^Tilemap) {
+fill_tiles :: proc(tm: ^Tilemap, from: Vec2i, to: Vec2i, data: TileData) {
 	if from.x > to.x || from.y > to.y {
 		rl.TraceLog(.ERROR, "Invalid range for fill_tile")
 	}
 
 	for x in from.x ..= to.x {
 		for y in from.y ..= to.y {
-			set_tile({x, y}, data, tm)
+			set_tile(tm, {x, y}, data)
 		}
 	}
 }
@@ -252,7 +327,7 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 }
 
 // Allocates using temp allocator. 
-get_tile_shape_collision :: proc(shape: Shape, pos: Vec2, extrusion: f32 = 0) -> []Vec2i {
+get_tiles_in_shape :: proc(shape: Shape, pos: Vec2, extrusion: f32 = 0) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 
 	switch s in shape {
@@ -291,6 +366,7 @@ get_tile_shape_collision :: proc(shape: Shape, pos: Vec2, extrusion: f32 = 0) ->
 	return result[:]
 }
 
+
 world_to_tilemap :: proc(pos: Vec2) -> Vec2i {
 	return {i32(pos.x), i32(pos.y)} / TILE_SIZE
 }
@@ -303,7 +379,7 @@ tilemap_to_world_centered :: proc(pos: Vec2i) -> Vec2 {
 	return {f32(pos.x), f32(pos.y)} * TILE_SIZE + TILE_SIZE / 2
 }
 
-load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
+load_tilemap :: proc(tm: ^Tilemap, filename: cstring) {
 	img := rl.LoadImage(filename)
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {
@@ -328,8 +404,7 @@ load_tilemap :: proc(filename: cstring, tm: ^Tilemap) {
 	}
 }
 
-
-save_tilemap :: proc(filename: cstring, tm: Tilemap) {
+save_tilemap :: proc(tm: Tilemap, filename: cstring) {
 	img := tilemap_to_image(tm)
 
 	rl.ExportImage(img, filename)

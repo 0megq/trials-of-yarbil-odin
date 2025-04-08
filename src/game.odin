@@ -147,24 +147,8 @@ game_data: GameData
 
 debug_speed := f32(1)
 // world data
-player: Player
-enemies: [dynamic]Enemy
-disabled_enemies: [dynamic]Enemy
-items: [dynamic]Item
-disabled_items: [dynamic]Item
-exploding_barrels: [dynamic]ExplodingBarrel
-tilemap: Tilemap
-// nav_mesh: NavMesh
-nav_graph: NavGraph
-walls: [dynamic]Wall
-half_walls: [dynamic]HalfWall
 
-bombs: [dynamic]Bomb
-// projectile_weapons: [dynamic]ProjectileWeapon
-arrows: [dynamic]Arrow
-// rocks: [dynamic]Rock
-fires: [dynamic]Fire
-alerts: [dynamic]Alert
+main_world: World
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
@@ -234,13 +218,13 @@ main :: proc() {
 		load_textures()
 		// pixel_filter := rl.LoadShader(nil, "assets/pixel_filter.fs")
 		load_game_data()
-		load_level()
 	}
 
 	init_editor_state(&editor_state)
 
 	// Init world
 	{
+		load_level()
 		fires = make([dynamic]Fire, context.allocator)
 		bombs = make([dynamic]Bomb, context.allocator)
 		arrows = make([dynamic]Arrow, context.allocator)
@@ -262,9 +246,7 @@ main :: proc() {
 
 	// Update Loop
 	for !rl.WindowShouldClose() {
-		// input()
 		update()
-		// draw()
 	}
 
 	// Save level if in editor
@@ -351,20 +333,20 @@ update :: proc() {
 		// 4. Menu-specific Clean up
 
 		// Perform Queued World Actions (death and deletion). Remove things from the previous frame
-		if player.queue_free {
+		if main_world.player.queue_free {
 			on_player_death()
-			player.queue_free = false
+			main_world.player.queue_free = false
 		}
 		if queue_play_again {
 			play_again_button.status = .Normal
 			display_win_screen = false
 			reload_game_data()
-			reload_level()
+			reload_level(&main_world)
 			queue_play_again = false
 		}
-		#reverse for barrel, i in exploding_barrels { 	// This needs to be in reverse since we are removing
+		#reverse for barrel, i in main_world.exploding_barrels { 	// This needs to be in reverse since we are removing
 			if barrel.queue_free {
-				unordered_remove(&exploding_barrels, i)
+				unordered_remove(&main_world.exploding_barrels, i)
 			}
 		}
 
@@ -425,6 +407,8 @@ update :: proc() {
 					// Save, load, show tile grid
 					if rl.IsKeyPressed(.S) {
 						save_level()
+						// This is here simply to make it easy to update the wall tilemap and navgraph while editing
+						place_walls_and_calculate_graph(&main_world)
 					} else if rl.IsKeyPressed(.L) {
 						reload_level()
 					} else if rl.IsKeyPressed(.G) {
@@ -457,7 +441,7 @@ update :: proc() {
 		case .Tutorial:
 			update_tutorial_editor(&editor_state)
 		case .None:
-			if !is_level_finished() {
+			if !all_enemies_dead() {
 				speedrun_timer += delta
 			}
 
@@ -511,7 +495,7 @@ update :: proc() {
 				player.shape,
 				player.pos,
 			)
-			if is_level_finished() && is_control_pressed(controls.use_portal) && player_at_portal {
+			if all_enemies_dead() && is_control_pressed(controls.use_portal) && player_at_portal {
 				if game_data.cur_level_idx == -1 { 	// no win screen for now
 					display_win_screen = true
 				} else {
@@ -1074,52 +1058,63 @@ update :: proc() {
 	case .Pause:
 	}
 
-
-	// Drawing
-	{
-		rl.BeginDrawing()
-		rl.ClearBackground(rl.DARKGRAY)
-
-		// Currently programmed for drawing Menu.None
-		draw_world()
-		draw_world_ui()
-
-		rl.EndDrawing()
-	}
+	draw_frame()
 
 	free_all(context.temp_allocator)
 }
 
-draw_world :: proc() {
-	/*** WORLD CAMERA ***/
-	rl.BeginMode2D(world_camera)
+draw_frame :: proc() {
+	rl.BeginDrawing()
+	rl.ClearBackground(rl.DARKGRAY)
 
+	rl.BeginMode2D(world_camera)
+	#partial switch menu {
+	case .None:
+		draw_world(main_world)
+	}
+	rl.EndMode2D()
+
+	rl.BeginMode2D(ui_camera)
+	#partial switch menu {
+	case .None:
+		draw_world_ui(main_world)
+	}
+	rl.EndMode2D()
+
+	rl.EndDrawing()
+}
+
+draw_world :: proc(world: World) {
 	if editor_state.mode != .None {
 		draw_level(editor_state.show_tile_grid)
 	}
 
 	switch editor_state.mode {
 	case .Level:
-		draw_geometry_editor_world(editor_state)
+		draw_geometry_editor_world(world, editor_state)
 	case .Entity:
 		draw_entity_editor_world(editor_state)
 	case .Tutorial:
 		draw_tutorial_editor_world(editor_state)
 	case .None:
-		draw_tilemap(tilemap)
+		draw_tilemap(world.tilemap)
 
-		for fire in fires {
+		for fire in world.fires {
 			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
 		}
 
 		// Draw portal
-		portal_color := rl.BLUE if is_level_finished() else Color{50, 50, 50, 255}
+		portal_color := rl.BLUE if all_enemies_dead(world) else Color{50, 50, 50, 255}
 		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
 		// Draw arrow to portal if level finished and player is at least 64 units away
-		if is_level_finished() && !player_at_portal {
-			angle_to_portal := angle(level.portal_pos - player.pos)
-			arrow_polygon := Polygon{player.pos, {{14, -3}, {24, 0}, {14, 3}}, angle_to_portal}
+		if all_enemies_dead(world) && !player_at_portal {
+			angle_to_portal := angle(level.portal_pos - world.player.pos)
+			arrow_polygon := Polygon {
+				world.player.pos,
+				{{14, -3}, {24, 0}, {14, 3}},
+				angle_to_portal,
+			}
 			draw_polygon(arrow_polygon, rl.BLUE)
 		}
 
@@ -1127,7 +1122,7 @@ draw_world :: proc() {
 		if player_at_portal {
 			prompt: cstring
 			prompt = "Press E"
-			if !is_level_finished() {
+			if !all_enemies_dead() {
 				prompt = "Kill All Enemies"
 			}
 			size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
@@ -1142,7 +1137,7 @@ draw_world :: proc() {
 		}
 
 		// Draw items
-		for item in items {
+		for item in world.items {
 			tex_id := item_to_texture[item.data.id]
 			tex := loaded_textures[tex_id]
 			sprite: Sprite = {
@@ -1157,8 +1152,8 @@ draw_world :: proc() {
 			draw_sprite(sprite, item.pos)
 
 			if check_collision_shapes(
-				Circle{{}, player.pickup_range},
-				player.pos,
+				Circle{{}, world.player.pickup_range},
+				world.player.pos,
 				item.shape,
 				item.pos,
 			) {
@@ -1176,11 +1171,11 @@ draw_world :: proc() {
 		}
 
 		// Draw walls and half walls
-		for wall in walls {
+		for wall in world.walls {
 			draw_shape(wall.shape, wall.pos, rl.GRAY)
 		}
 
-		for wall in half_walls {
+		for wall in world.half_walls {
 			draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
 		}
 
@@ -1193,9 +1188,9 @@ draw_world :: proc() {
 					text := fmt.ctprint(prompt.text)
 					pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
 
-					if check_condition(&prompt.condition, prompt.invert_condition) &&
-					   check_condition(&prompt.condition2, prompt.invert_condition2) &&
-					   check_condition(&prompt.condition3, prompt.invert_condition3) {
+					if check_condition(&prompt.condition, prompt.invert_condition, world) &&
+					   check_condition(&prompt.condition2, prompt.invert_condition2, world) &&
+					   check_condition(&prompt.condition3, prompt.invert_condition3, world) {
 						rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.WHITE)
 					} else {
 						when ODIN_DEBUG {
@@ -1361,13 +1356,9 @@ draw_world :: proc() {
 			// draw_shape(player.shape, player.pos, rl.RED)
 		}
 	}
-	rl.EndMode2D()
 }
 
-draw_world_ui :: proc() {
-	/***START UI CAMERA***/
-	rl.BeginMode2D(ui_camera)
-
+draw_world_ui :: proc(world: World) {
 	if world_camera.zoom != window_over_game {
 		rl.DrawText(fmt.ctprintf("Zoom: x%v", world_camera.zoom), 24, 700, 16, rl.BLACK)
 	}
@@ -1402,11 +1393,11 @@ draw_world_ui :: proc() {
 			draw_hud()
 		}
 		when ODIN_DEBUG { 	// Draw player coordinates
-			rl.DrawText(fmt.ctprintf("%v", player.pos), 1200, 16, 20, rl.WHITE)
+			rl.DrawText(fmt.ctprintf("%v", world.player.pos), 1200, 16, 20, rl.WHITE)
 		}
 
 
-		if is_level_finished() {
+		if all_enemies_dead() {
 			message: cstring = "All enemies defeated. Head to the portal."
 			size := rl.MeasureTextEx(rl.GetFontDefault(), message, 24, 1)
 			rl.DrawTextEx(
@@ -1463,13 +1454,6 @@ draw_world_ui :: proc() {
 	}
 
 	// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
-
-	rl.EndMode2D()
-
-}
-
-bomb_explosion :: proc(pos: Vec2, radius: f32) {
-	append(&fires, Fire{Circle{pos, radius}, 0.5})
 }
 
 // Moves entity with current velocity and slows down with friction. no max speed
@@ -1533,10 +1517,10 @@ zentity_move :: proc(e: ^ZEntity, friction: f32, gravity: f32, delta: f32) {
 	e.sprite.rotation = e.rot
 }
 
-player_move :: proc(e: ^Player, delta: f32) {
+player_move :: proc(p: ^Player, delta: f32) {
 	max_speed: f32 = PLAYER_BASE_MAX_SPEED
 	// Slow down player
-	if player.holding_item || player.charging_weapon || player.attacking {
+	if p.holding_item || p.charging_weapon || p.attacking {
 		max_speed = PLAYER_BASE_MAX_SPEED / 2
 	}
 	acceleration: f32 = PLAYER_BASE_ACCELERATION
@@ -1656,7 +1640,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 	e.pos += e.vel * delta
 }
 
-cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -> f32 {
+cast_ray_through_walls :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -> f32 {
 	min_t := math.INF_F32
 	for wall in walls {
 		t := cast_ray(start, dir, wall.shape, wall.pos)
@@ -1690,18 +1674,18 @@ cast_ray_through_level :: proc(walls: []PhysicsEntity, start: Vec2, dir: Vec2) -
 // 	)
 // }
 
-get_weapon_charge_multiplier :: proc() -> f32 {
-	return(
-		math.abs(
-			math.mod(
-				player.weapon_charge_time + WEAPON_CHARGE_DIVISOR,
-				2 * WEAPON_CHARGE_DIVISOR,
-			) -
-			WEAPON_CHARGE_DIVISOR,
-		) /
-		WEAPON_CHARGE_DIVISOR \
-	)
-}
+// get_weapon_charge_multiplier :: proc() -> f32 {
+// 	return(
+// 		math.abs(
+// 			math.mod(
+// 				player.weapon_charge_time + WEAPON_CHARGE_DIVISOR,
+// 				2 * WEAPON_CHARGE_DIVISOR,
+// 			) -
+// 			WEAPON_CHARGE_DIVISOR,
+// 		) /
+// 		WEAPON_CHARGE_DIVISOR \
+// 	)
+// }
 
 draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	tex := loaded_textures[sprite.tex_id]
@@ -1729,8 +1713,8 @@ draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
 	)
 }
 
-damage_enemy :: proc(enemy_idx: int, amount: f32, should_flinch := true) {
-	enemy := &enemies[enemy_idx]
+damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch := true) {
+	enemy := &world.enemies[enemy_idx]
 	if should_flinch {
 		enemy.charging = false
 		enemy.flinching = true
@@ -1738,14 +1722,13 @@ damage_enemy :: proc(enemy_idx: int, amount: f32, should_flinch := true) {
 	}
 	enemy.health -= amount
 	if enemy.health <= 0 {
-		unordered_remove(&enemies, enemy_idx)
+		unordered_remove(&world.enemies, enemy_idx)
 		// reset player dash
-		player.fire_dash_timer = 0
+		world.player.fire_dash_timer = 0 // Maybe we could send an event that an enemy died or something or return a bool when they do
 	}
 }
 
-damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
-	barrel := &exploding_barrels[barrel_idx]
+damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount: f32) {
 	if barrel.queue_free {
 		return
 	}
@@ -1756,9 +1739,10 @@ damage_exploding_barrel :: proc(barrel_idx: int, amount: f32) {
 		fire := Fire{Circle{barrel.pos, 60}, 2}
 		barrel.queue_free = true
 
-		append(&fires, fire)
+		append(&world.fires, fire)
 		// Damage
 		perform_attack(
+			world,
 			&{
 				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
 				damage = 40,
@@ -1784,23 +1768,6 @@ delete_arrow :: proc(idx: int) {
 // 	unordered_remove(&rocks, idx)
 // }
 
-get_directional_input :: proc() -> Vec2 {
-	dir: Vec2
-	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
-		dir += {0, -1}
-	}
-	if rl.IsKeyDown(.DOWN) || rl.IsKeyDown(.S) {
-		dir += {0, 1}
-	}
-	if rl.IsKeyDown(.LEFT) || rl.IsKeyDown(.A) {
-		dir += {-1, 0}
-	}
-	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) {
-		dir += {1, 0}
-	}
-
-	return dir
-}
 
 exp_decay_angle :: proc(a, b: f32, decay: f32, delta: f32) -> f32 {
 	diff := a - b
@@ -1817,10 +1784,7 @@ exp_decay :: proc(a, b: $T, decay: f32, delta: f32) -> T {
 	return b + (a - b) * math.exp(-decay * delta)
 }
 
-turn_off_surf :: proc() {
-	player.surfing = false
-}
-
+// Coordinates
 world_to_window :: proc(point: Vec2) -> Vec2 {
 	return (point - world_camera.target) * world_camera.zoom + world_camera.offset
 }
@@ -1845,439 +1809,23 @@ world_to_ui :: proc(point: Vec2) -> Vec2 {
 	return window_to_ui(world_to_window(point))
 }
 
-
-use_bomb :: proc() {
-	// get selected item ItemId
-	item_data := player.items[player.selected_item_idx]
-	if item_data.id == .Empty || item_data.id >= .Sword {
-		assert(false, "can't use item with empty or weapon id")
+// MARK: Input
+get_directional_input :: proc() -> Vec2 {
+	dir: Vec2
+	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
+		dir += {0, -1}
+	}
+	if rl.IsKeyDown(.DOWN) || rl.IsKeyDown(.S) {
+		dir += {0, 1}
+	}
+	if rl.IsKeyDown(.LEFT) || rl.IsKeyDown(.A) {
+		dir += {-1, 0}
+	}
+	if rl.IsKeyDown(.RIGHT) || rl.IsKeyDown(.D) {
+		dir += {1, 0}
 	}
 
-	to_mouse := normalize(mouse_world_pos - player.pos)
-
-	// hold_multiplier := get_item_hold_multiplier()
-
-	// use item
-	#partial switch item_data.id {
-	case .Bomb:
-		tex := loaded_textures[.Bomb]
-		sprite: Sprite = {
-			.Bomb,
-			{0, 0, f32(tex.width), f32(tex.height)},
-			{1, 1},
-			{1, 2},
-			0,
-			rl.WHITE,
-		}
-
-		sprite.rotation += angle(to_mouse)
-		// 180 is an arbitrary multiplier. TODO: make a constant variable for it
-		base_vel := f32(360)
-		append(
-			&bombs,
-			Bomb {
-				entity = new_entity(player.pos + rotate_vector({-5, 3}, angle(to_mouse))),
-				shape = Rectangle{-1, 0, 3, 3},
-				vel = to_mouse * base_vel,
-				z = 0,
-				vel_z = 10,
-				sprite = sprite,
-				time_left = BOMB_EXPLOSION_TIME,
-			},
-		)
-		add_to_selected_item_count(-1)
-	// case .Apple:
-	// 	// Restore 5 health
-	// 	if player.item_hold_time >= 1 && player.health < player.max_health {
-	// 		heal_player(10)
-	// 		add_to_selected_item_count(-1)
-	// 	}
-	// case .Rock:
-	// 	tex := loaded_textures[.Rock]
-	// 	sprite := Sprite {
-	// 		.Rock,
-	// 		{0, 0, f32(tex.width), f32(tex.height)},
-	// 		{1, 1},
-	// 		{f32(tex.width) / 2, f32(tex.height) / 2},
-	// 		0,
-	// 		rl.WHITE,
-	// 	}
-
-	// 	sprite.rotation += angle(to_mouse)
-	// 	// 300 is an arbitrary multiplier. TODO: make a constant variable for it
-	// 	base_vel := hold_multiplier * 300
-	// 	append(
-	// 		&rocks,
-	// 		Rock {
-	// 			entity = new_entity(
-	// 				player.pos + rotate_vector({-hold_multiplier * 5, 3}, angle(to_mouse)),
-	// 			),
-	// 			shape = Circle{{}, 3},
-	// 			vel = to_mouse * base_vel,
-	// 			z = 0,
-	// 			vel_z = 10,
-	// 			rot = angle(to_mouse),
-	// 			sprite = sprite,
-	// 			attack = Attack{targets = {.Wall, .ExplodingBarrel, .Enemy}},
-	// 		},
-	// 	)
-	// 	add_to_selected_item_count(-1)
-	// }
-
-	// subtract from the count of item in the inventory. if no item is left then
-	}
-}
-
-// Adds to the count of selected item. If the count is less than then it removes the item from the player and deselects it
-// Excess will be negative if count goes below 0
-add_to_selected_item_count :: proc(to_add: int) -> (excess: int) {
-	item_data := &player.items[player.selected_item_idx]
-	if item_data.id == .Empty || item_data.id >= .Sword || item_data.count <= 0 {
-		assert(false, "invalid item data")
-	}
-	item_data.count += to_add
-	if item_data.count <= 0 {
-		// Deselect item if count <= 0
-		excess = item_data.count
-		item_data.count = 0
-		remove_selected_item()
-	}
-	return
-}
-
-stop_player_attack :: proc() {
-	if player.attacking {
-		player.attacking = false
-		delete(player.cur_attack.exclude_targets)
-	}
-}
-
-fire_selected_weapon :: proc() -> int {
-	// get selected weapon ItemId
-	weapon_data := player.weapons[player.selected_weapon_idx]
-	if weapon_data.id < .Sword {
-		assert(false, "can't use weapon with empty or item id")
-	}
-	// to_mouse := normalize(mouse_world_pos - player.pos)
-
-	// Fire weapon
-	#partial switch weapon_data.id {
-	case .Sword:
-		if player.can_attack {
-			// Attack
-			player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
-			player.attack_dur_timer = ATTACK_DURATION
-			player.attack_interval_timer = ATTACK_INTERVAL
-			player.attacking = true
-			player.cur_attack = Attack {
-				pos             = player.pos,
-				shape           = player.attack_poly,
-				damage          = SWORD_DAMAGE,
-				knockback       = SWORD_KNOCKBACK,
-				direction       = normalize(mouse_world_pos - player.pos),
-				data            = SwordAttackData{},
-				targets         = {.Enemy, .Bomb, .ExplodingBarrel},
-				exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-			}
-			player.can_attack = false
-
-			// Animation
-			if player.cur_weapon_anim.pos_cur_rotation ==
-			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_bot_rotation -
-						player.cur_weapon_anim.cpos_top_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_bot_rotation -
-						player.cur_weapon_anim.csprite_top_rotation) /
-					ATTACK_DURATION
-			} else { 	// Animate up
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_top_rotation -
-						player.cur_weapon_anim.cpos_bot_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_top_rotation -
-						player.cur_weapon_anim.csprite_bot_rotation) /
-					ATTACK_DURATION
-			}
-		}
-	// case .Stick:
-	// 	if player.can_attack {
-	// 		// Attack
-	// 		player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
-	// 		player.attack_dur_timer = ATTACK_DURATION
-	// 		player.attack_interval_timer = ATTACK_INTERVAL
-	// 		player.attacking = true
-	// 		player.cur_attack = Attack {
-	// 			pos             = player.pos,
-	// 			shape           = player.attack_poly,
-	// 			damage          = STICK_DAMAGE,
-	// 			knockback       = STICK_KNOCKBACK,
-	// 			direction       = normalize(mouse_world_pos - player.pos),
-	// 			data            = SwordAttackData{},
-	// 			targets         = {.Enemy, .Bomb, .ExplodingBarrel},
-	// 			exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-	// 		}
-	// 		player.can_attack = false
-
-	// 		// Animation
-	// 		if player.cur_weapon_anim.pos_cur_rotation ==
-	// 		   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
-	// 			player.cur_weapon_anim.pos_rotation_vel =
-	// 				(player.cur_weapon_anim.cpos_bot_rotation -
-	// 					player.cur_weapon_anim.cpos_top_rotation) /
-	// 				ATTACK_DURATION
-	// 			player.cur_weapon_anim.sprite_rotation_vel =
-	// 				(player.cur_weapon_anim.csprite_bot_rotation -
-	// 					player.cur_weapon_anim.csprite_top_rotation) /
-	// 				ATTACK_DURATION
-	// 		} else { 	// Animate up
-	// 			player.cur_weapon_anim.pos_rotation_vel =
-	// 				(player.cur_weapon_anim.cpos_top_rotation -
-	// 					player.cur_weapon_anim.cpos_bot_rotation) /
-	// 				ATTACK_DURATION
-	// 			player.cur_weapon_anim.sprite_rotation_vel =
-	// 				(player.cur_weapon_anim.csprite_top_rotation -
-	// 					player.cur_weapon_anim.csprite_bot_rotation) /
-	// 				ATTACK_DURATION
-	// 		}
-	// 	}
-	}
-	return 0
-}
-
-// Returns the count of item used. If the item was not used then this is zero
-// alt_fire_selected_weapon :: proc() -> int {
-// 	// get selected weapon ItemId
-// 	weapon_data := player.weapons[player.selected_weapon_idx]
-// 	if weapon_data.id < .Sword {
-// 		assert(false, "can't use weapon with empty or item id")
-// 	}
-// 	to_mouse := normalize(mouse_world_pos - player.pos)
-
-// 	// Alt fire weapon
-// 	#partial switch weapon_data.id {
-// 	case .Sword:
-// 		// Throw sword here
-// 		tex := loaded_textures[.Sword]
-// 		sprite: Sprite = {
-// 			.Sword,
-// 			{0, 0, f32(tex.width), f32(tex.height)},
-// 			{1, 1},
-// 			{f32(tex.width) / 2, f32(tex.height) / 2},
-// 			0,
-// 			rl.WHITE,
-// 		}
-// 		append(
-// 			&projectile_weapons,
-// 			ProjectileWeapon {
-// 				entity = new_entity(
-// 					player.pos +
-// 					rotate_vector(
-// 						{-2, 5} +
-// 						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
-// 						angle(to_mouse),
-// 					),
-// 				),
-// 				shape = Circle{{}, 4},
-// 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
-// 				z = 0,
-// 				vel_z = 8,
-// 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
-// 				rot_vel = 1200 * get_weapon_charge_multiplier(),
-// 				sprite = sprite,
-// 				data = weapon_data,
-// 				attack = Attack {
-// 					targets = {.Enemy, .Wall, .ExplodingBarrel},
-// 					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-// 				},
-// 			},
-// 		)
-// 		player.weapons[player.selected_weapon_idx].id = .Empty
-// 	case .Stick:
-// 		// Throw stick here
-// 		tex := loaded_textures[.Stick]
-// 		sprite: Sprite = {
-// 			.Stick,
-// 			{0, 0, f32(tex.width), f32(tex.height)},
-// 			{1, 1},
-// 			{f32(tex.width) / 2, f32(tex.height) / 2},
-// 			0,
-// 			rl.WHITE,
-// 		}
-// 		append(
-// 			&projectile_weapons,
-// 			ProjectileWeapon {
-// 				entity = new_entity(
-// 					player.pos +
-// 					rotate_vector(
-// 						{-2, 5} +
-// 						10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50),
-// 						angle(to_mouse),
-// 					),
-// 				),
-// 				shape = Circle{{}, 4},
-// 				vel = to_mouse * get_weapon_charge_multiplier() * 300,
-// 				z = 0,
-// 				vel_z = 8,
-// 				rot = -140 - get_weapon_charge_multiplier() * 110 + angle(to_mouse),
-// 				rot_vel = 1200 * get_weapon_charge_multiplier(),
-// 				sprite = sprite,
-// 				data = weapon_data,
-// 				attack = Attack {
-// 					targets = {.Enemy, .Wall, .ExplodingBarrel},
-// 					exclude_targets = make([dynamic]uuid.Identifier, context.allocator),
-// 				},
-// 			},
-// 		)
-// 		player.weapons[player.selected_weapon_idx].id = .Empty
-// 	}
-// 	return 0
-// }
-
-draw_item :: proc(item: ItemId) {
-	to_mouse := normalize(mouse_world_pos - player.pos)
-	tex_id := item_to_texture[item]
-	tex := loaded_textures[tex_id]
-	sprite: Sprite = {
-		tex_id,
-		{0, 0, f32(tex.width), f32(tex.height)},
-		{1, 1},
-		{f32(tex.width) / 2, f32(tex.height) / 2},
-		0,
-		rl.WHITE,
-	}
-
-	sprite_pos := player.pos + {-5, 3}
-	sprite.scale = 1
-
-
-	sprite.rotation += angle(to_mouse)
-	sprite_pos = rotate_about_origin(sprite_pos, player.pos, angle(to_mouse))
-	draw_sprite(sprite, sprite_pos)
-}
-
-draw_weapon :: proc(weapon: ItemId) {
-	to_mouse := normalize(mouse_world_pos - player.pos)
-	tex_id := item_to_texture[weapon]
-	tex := loaded_textures[tex_id]
-	sprite: Sprite = {tex_id, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {}, 0, rl.WHITE}
-	#partial switch weapon {
-	case .Sword:
-		sprite.tex_origin = {0, 1}
-	// case .Stick:
-	// 	sprite.tex_origin = {0, 8}
-	}
-
-	sprite_pos := player.pos
-	if player.charging_weapon {
-		sprite.rotation = -140 - get_weapon_charge_multiplier() * 110
-		sprite_pos += {-2, 5} + 10 * vector_from_angle(-50 - get_weapon_charge_multiplier() * 50)
-	} else {
-		// Set rotation and position based on if sword is on top or not
-		sprite.rotation = player.cur_weapon_anim.sprite_cur_rotation
-		// The value 4 and {2, 0} are both constants here
-		sprite_pos += {2, 0} + 4 * vector_from_angle(player.cur_weapon_anim.pos_cur_rotation)
-	}
-
-	// Rotate sprite and rotate its position to face mouse
-	sprite.rotation += angle(to_mouse)
-	sprite_pos = rotate_about_origin(sprite_pos, player.pos, angle(to_mouse))
-	draw_sprite(sprite, sprite_pos)
-}
-
-remove_selected_item :: proc() {
-	player.item_count -= 1
-	// If there is no empty in the next slot (last idx in items array or if next idx has Empty)
-	if player.selected_item_idx == len(player.items) - 1 ||
-	   player.items[player.selected_item_idx + 1].id == .Empty {
-		player.items[player.selected_item_idx].id = .Empty
-		player.selected_item_idx = 0
-	} else {
-		// This is not the most efficient way to do this, but it works fine
-		for i := player.selected_item_idx + 1; i < len(player.items); i += 1 {
-			// Copy value to prev index
-			player.items[i - 1] = player.items[i]
-		}
-		// Set last item to empty
-		player.items[len(player.items) - 1].id = .Empty
-	}
-}
-
-// Returns true if the item was succesfully picked up
-pickup_item :: proc(data: ItemData) -> bool {
-	if data.id < ItemId(100) { 	// Not a weapon
-		for &item in player.items {
-			if item.id == .Empty {
-				item = data
-				player.item_count += 1
-				return true
-			} else if item.id == data.id {
-				item.count += data.count
-				return true
-			}
-		}
-	} else { 	// Is a weapon
-		not_selected_idx: int = 0 if player.selected_weapon_idx == 1 else 1
-		if player.weapons[player.selected_weapon_idx].id == .Empty {
-			player.weapons[player.selected_weapon_idx] = data // copy data
-			select_weapon(player.selected_weapon_idx) // select weapon
-			return true // success!
-		} else if player.weapons[not_selected_idx].id == .Empty {
-			player.weapons[not_selected_idx] = data
-			// select_weapon(not_selected_idx)
-			return true
-		}
-		//  else {
-		// Drop current weapon
-		// NOTE: Create a different function. drop_item() could drop an item, not a weapon here
-		// if item_data := drop_item(); item_data.id != .Empty {
-		// 	add_item_to_world(item_data, player.pos)
-		// }
-		// player.weapons[player.selected_weapon_idx] = data // copy data
-		// select_weapon(player.selected_weapon_idx) // select weapon
-		// return true
-		// }
-	}
-	return false
-}
-
-select_weapon :: proc(idx: int) {
-	player.selected_weapon_idx = idx
-	#partial switch player.weapons[idx].id {
-	case .Sword:
-		player.attack_poly.points = SWORD_HITBOX_POINTS
-		player.cur_weapon_anim = SWORD_ANIMATION_DEFAULT
-	// case .Stick:
-	// 	player.attack_poly.points = STICK_HITBOX_POINTS
-	// 	player.cur_weapon_anim = STICK_ANIMATION_DEFAULT
-	}
-}
-
-// Removes the currently selected and active item/weapon from player's inventory and returns its ItemData
-drop_item :: proc() -> ItemData {
-	if !player.holding_item {
-		// If a weapon is selected and it is not empty
-		if player.weapons[player.selected_weapon_idx].id != .Empty {
-			weapon_data := player.weapons[player.selected_weapon_idx]
-			// Set the weapon to empty and deselect it
-			player.weapons[player.selected_weapon_idx].id = .Empty
-			player.charging_weapon = false // Stop charging
-			stop_player_attack() // Cancel attack
-			return weapon_data
-		}
-	} else {
-		// If a item is selected and it is not empty
-		if player.items[player.selected_item_idx].id != .Empty {
-			item_data := player.items[player.selected_item_idx]
-			remove_selected_item()
-			player.holding_item = false
-			return item_data
-		}
-	}
-	return {}
+	return dir
 }
 
 is_control_pressed :: proc(c: Control) -> bool {
@@ -2310,474 +1858,6 @@ is_control_released :: proc(c: Control) -> bool {
 	return false
 }
 
-is_level_finished :: proc() -> bool {
-	return len(enemies) + len(disabled_enemies) == 0
-}
-
-add_item_to_world :: proc(data: ItemData, pos: Vec2) {
-	item: Item
-	item.entity = new_entity(pos)
-	item.data = data
-	setup_item(&item)
-	append(&items, item)
-}
-
-perform_attack :: proc(attack: ^Attack) -> (targets_hit: int) {
-	EXPLOSION_DAMAGE_MULTIPLIER :: 10
-	// Perform attack
-	switch data in attack.data {
-	case SwordAttackData:
-		// Attack all targets
-		if .Enemy in attack.targets {
-			#reverse for &enemy, i in enemies {
-				// Exclude enemy
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], enemy.id);
-				   exclude_found {
-					continue
-				}
-
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-					enemy.vel += attack.direction * attack.knockback
-					damage_enemy(i, attack.damage)
-					append(&attack.exclude_targets, enemy.id)
-					targets_hit += 1
-				}
-			}
-		}
-		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
-				// Exclude
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], barrel.id);
-				   exclude_found || barrel.queue_free {
-					continue
-				}
-
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-					barrel.vel += attack.direction * attack.knockback
-					damage_exploding_barrel(i, attack.damage)
-					append(&attack.exclude_targets, barrel.id)
-					targets_hit += 1
-				}
-			}
-		}
-		if .Bomb in attack.targets {
-			#reverse for &bomb in bombs {
-				// Exclude
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id);
-				   exclude_found {
-					continue
-				}
-
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
-					bomb.vel += attack.direction * attack.knockback
-					append(&attack.exclude_targets, bomb.id)
-					targets_hit += 1
-				}
-			}
-		}
-		if .Player in attack.targets {
-			// Exclude
-			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], player.id);
-			   !exclude_found {
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
-					player.vel += attack.direction * attack.knockback
-					damage_player(attack.damage)
-					append(&attack.exclude_targets, player.id)
-					targets_hit += 1
-				}
-			}
-		}
-	case ExplosionAttackData:
-		if .Enemy in attack.targets {
-			#reverse for &enemy, i in enemies {
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-					// Knockback
-					enemy.vel += normalize(enemy.pos - attack.pos) * attack.knockback
-					// Damage
-					damage_enemy(i, attack.damage)
-					targets_hit += 1
-				}
-			}
-		}
-		if .Player in attack.targets {
-			if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
-				player.vel += normalize(player.pos - attack.pos) * attack.knockback
-				damage_player(attack.damage)
-				targets_hit += 1
-			}
-		}
-		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
-					damage_exploding_barrel(i, attack.damage * EXPLOSION_DAMAGE_MULTIPLIER)
-					targets_hit += 1
-				}
-			}
-		}
-
-		if .Bomb in attack.targets {
-			#reverse for &bomb in bombs {
-				// Exclude
-				if _, exclude_found := slice.linear_search(attack.exclude_targets[:], bomb.id);
-				   exclude_found {
-					continue
-				}
-
-				// Check for collision and apply knockback and damage
-				if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
-					bomb.vel += normalize(bomb.pos - attack.pos) * attack.knockback
-					append(&attack.exclude_targets, bomb.id)
-					targets_hit += 1
-				}
-			}
-		}
-
-		if .Tile in attack.targets {
-			tiles := get_tile_shape_collision(attack.shape, attack.pos)
-			for tile in tiles {
-				#partial switch tile_data in tilemap[tile.x][tile.y] {
-				case GrassData:
-					if data.burn_instantly {
-						tilemap[tile.x][tile.y] = GrassData{false, 0, false, true}
-					} else {
-						tile_should_spread := rand.choice([]bool{true, false})
-						tilemap[tile.x][tile.y] = GrassData{true, 1, tile_should_spread, false}
-					}
-				}
-			}
-		}
-	case FireAttackData:
-		if .Enemy in attack.targets {
-			#reverse for &enemy, i in enemies {
-				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-					// Damage
-					damage_enemy(i, attack.damage, false)
-					targets_hit += 1
-				}
-			}
-		}
-		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
-
-				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-					// Damage
-					damage_exploding_barrel(i, attack.damage)
-					targets_hit += 1
-				}
-			}
-		}
-		if .Player in attack.targets {
-			if check_collision_shapes(attack.shape, attack.pos, player.shape, player.pos) {
-				damage_player(attack.damage)
-			}
-		}
-	// case ProjectileAttackData:
-	// weapon := &projectile_weapons[data.projectile_idx]
-	// if .Wall in attack.targets {
-	// 	for wall in walls {
-	// 		_, normal, depth := resolve_collision_shapes(
-	// 			weapon.shape,
-	// 			weapon.pos,
-	// 			wall.shape,
-	// 			wall.pos,
-	// 		)
-
-	// 		if depth > 0 {
-	// 			// Only damage the weapon if the wall is not already excluded
-	// 			if _, exclude_found := slice.linear_search(attack.exclude_targets[:], wall.id);
-	// 			   !exclude_found {
-	// 				// Add to exclude
-	// 				append(&attack.exclude_targets, wall.id)
-	// 				// Durability
-	// 				weapon.data.count -=
-	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-	// 				if weapon.data.count <= 0 {
-	// 					delete_projectile_weapon(data.projectile_idx)
-	// 					return -1
-	// 				}
-	// 			}
-
-	// 			// Resolve collision
-	// 			weapon.pos -= normal * depth
-	// 			weapon.vel = slide(weapon.vel, normal)
-	// 		}
-	// 	}
-	// }
-
-	// if .Enemy in attack.targets {
-	// 	#reverse for enemy, i in enemies {
-	// 		_, normal, depth := resolve_collision_shapes(
-	// 			weapon.shape,
-	// 			weapon.pos,
-	// 			enemy.shape,
-	// 			enemy.pos,
-	// 		)
-
-	// 		if depth > 0 {
-	// 			// Only damage if enemy is not already excluded
-	// 			if _, exclude_found := slice.linear_search(
-	// 				attack.exclude_targets[:],
-	// 				enemy.id,
-	// 			); !exclude_found {
-	// 				// Add to exclude
-	// 				append(&attack.exclude_targets, enemy.id)
-	// 				// Damage
-	// 				damage_enemy(
-	// 					i,
-	// 					math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
-	// 				)
-	// 				// Durability
-	// 				weapon.data.count -=
-	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-	// 				if weapon.data.count <= 0 {
-	// 					delete_projectile_weapon(data.projectile_idx)
-	// 					return -1
-	// 				}
-	// 			}
-
-	// 			// Resolve collision
-	// 			weapon.pos -= normal * depth
-	// 			weapon.vel = slide(weapon.vel, normal)
-	// 		}
-	// 	}
-	// }
-
-	// if .ExplodingBarrel in attack.targets {
-	// 	for barrel, i in exploding_barrels {
-	// 		if barrel.queue_free {
-	// 			continue
-	// 		}
-	// 		_, normal, depth := resolve_collision_shapes(
-	// 			weapon.shape,
-	// 			weapon.pos,
-	// 			barrel.shape,
-	// 			barrel.pos,
-	// 		)
-
-	// 		if depth > 0 {
-	// 			// Only damage if enemy is not already excluded
-	// 			if _, exclude_found := slice.linear_search(
-	// 				attack.exclude_targets[:],
-	// 				barrel.id,
-	// 			); !exclude_found {
-	// 				// Add to exclude
-	// 				append(&attack.exclude_targets, barrel.id)
-	// 				// Damage
-	// 				damage_exploding_barrel(
-	// 					i,
-	// 					math.abs(dot(normal, weapon.vel)) / data.speed_damage_ratio,
-	// 				)
-	// 				// Durability
-	// 				weapon.data.count -=
-	// 					int(math.abs(dot(normal, weapon.vel))) / data.speed_durablity_ratio
-	// 				if weapon.data.count <= 0 {
-	// 					delete_projectile_weapon(data.projectile_idx)
-	// 					return -1
-	// 				}
-	// 			}
-
-	// 			// Resolve collision
-	// 			weapon.pos -= normal * depth
-	// 			weapon.vel = slide(weapon.vel, normal)
-	// 		}
-	// 	}
-	// }
-
-	// // case SurfAttackData:
-	// if .Enemy in attack.targets {
-	// 	#reverse for &enemy, i in enemies {
-	// 		if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
-	// 			// Knockback
-	// 			enemy.vel = normalize(enemy.pos - attack.pos) * attack.knockback
-	// 			// Damage
-	// 			damage_enemy(i, attack.damage)
-	// 			targets_hit += 1
-	// 		}
-	// 	}
-	// }
-	// if .ExplodingBarrel in attack.targets {
-	// 	for &barrel, i in exploding_barrels {
-	// 		if barrel.queue_free {
-	// 			continue
-	// 		}
-	// 		if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
-	// 			// Knockback
-	// 			barrel.vel = normalize(barrel.pos - attack.pos) * attack.knockback
-	// 			// Damage
-	// 			damage_exploding_barrel(i, attack.damage)
-	// 			targets_hit += 1
-	// 		}
-	// 	}
-	// }
-	// if .Bomb in attack.targets {
-	// 	#reverse for &bomb in bombs {
-	// 		if check_collision_shapes(attack.shape, attack.pos, bomb.shape, bomb.pos) {
-	// 			// Knockback
-	// 			bomb.vel = normalize(bomb.pos - attack.pos) * attack.knockback
-	// 			targets_hit += 1
-	// 		}
-	// 	}
-	// }
-	case ArrowAttackData:
-		arrow := &arrows[data.arrow_idx]
-		if .Wall in attack.targets {
-			for wall in walls {
-				_, _, depth := resolve_collision_shapes(
-					arrow.shape,
-					arrow.pos,
-					wall.shape,
-					wall.pos,
-				)
-
-				if depth > 0 {
-					return -1
-				}
-			}
-		}
-
-		if .Enemy in attack.targets {
-			#reverse for enemy, i in enemies {
-				// Don't hurt the source of the arrow
-				if enemy.id == arrows[data.arrow_idx].source {
-					continue
-				}
-				_, normal, depth := resolve_collision_shapes(
-					arrow.shape,
-					arrow.pos,
-					enemy.shape,
-					enemy.pos,
-				)
-
-				if depth > 0 {
-					// Damage
-					damage_enemy(i, math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio)
-
-					return -1
-				}
-			}
-		}
-
-		if .ExplodingBarrel in attack.targets {
-			for barrel, i in exploding_barrels {
-				if barrel.queue_free {
-					continue
-				}
-
-				_, normal, depth := resolve_collision_shapes(
-					arrow.shape,
-					arrow.pos,
-					barrel.shape,
-					barrel.pos,
-				)
-
-				if depth > 0 {
-					// Damage
-					damage_exploding_barrel(
-						i,
-						math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio,
-					)
-
-					return -1
-				}
-			}
-		}
-
-		if .Player in attack.targets && player.id != arrows[data.arrow_idx].source {
-			_, normal, depth := resolve_collision_shapes(
-				arrow.shape,
-				arrow.pos,
-				player.shape,
-				player.pos,
-			)
-
-			if depth > 0 {
-				damage_player(math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio)
-
-				return -1
-			}
-		}
-	// case RockAttackData:
-	// rock := &rocks[data.rock_idx]
-	// if .Wall in attack.targets {
-	// 	for wall in walls {
-	// 		_, _, depth := resolve_collision_shapes(rock.shape, rock.pos, wall.shape, wall.pos)
-
-	// 		if depth > 0 {
-	// 			return -1
-	// 		}
-	// 	}
-	// }
-
-	// if .Enemy in attack.targets {
-	// 	#reverse for enemy, i in enemies {
-	// 		_, normal, depth := resolve_collision_shapes(
-	// 			rock.shape,
-	// 			rock.pos,
-	// 			enemy.shape,
-	// 			enemy.pos,
-	// 		)
-
-	// 		if depth > 0 {
-	// 			// Damage
-	// 			damage_enemy(i, math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio)
-
-	// 			return -1
-	// 		}
-	// 	}
-	// }
-
-	// if .ExplodingBarrel in attack.targets {
-	// 	for barrel, i in exploding_barrels {
-	// 		if barrel.queue_free {
-	// 			continue
-	// 		}
-
-	// 		_, normal, depth := resolve_collision_shapes(
-	// 			rock.shape,
-	// 			rock.pos,
-	// 			barrel.shape,
-	// 			barrel.pos,
-	// 		)
-
-	// 		if depth > 0 {
-	// 			// Damage
-	// 			damage_exploding_barrel(
-	// 				i,
-	// 				math.abs(dot(normal, rock.vel)) / data.speed_damage_ratio,
-	// 			)
-
-	// 			return -1
-	// 		}
-	// 	}
-	// }
-	}
-	return
-}
-
-damage_player :: proc(amount: f32) {
-	player.health -= amount
-	player.health = max(player.health, 0)
-	if player.health <= 0 {
-		// Player is dead reload the level
-		// TODO: make an actual player death animation
-		fmt.println("you dead D:")
-		player.queue_free = true
-	}
-}
-
 // Clears entities and reloads game data and level
 on_player_death :: proc() {
 	clear_temp_entities()
@@ -2785,21 +1865,6 @@ on_player_death :: proc() {
 	reload_game_data()
 	// Reload the level
 	reload_level()
-}
-
-// Empties the dyn arrays for all temporary entities like bombs or arrows
-clear_temp_entities :: proc() {
-	clear(&bombs)
-	// clear(&projectile_weapons)
-	clear(&arrows)
-	// clear(&rocks)
-	clear(&fires)
-	clear(&alerts)
-}
-
-heal_player :: proc(amount: f32) {
-	player.health += amount
-	player.health = min(player.health, player.max_health)
 }
 
 fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
@@ -2824,27 +1889,28 @@ get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spaci
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
 }
 
-check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
+// tutorial thing
+check_condition :: proc(condition: ^Condition, invert_condition: bool, world: World) -> bool {
 	passed_condition := false
 	switch &c in condition {
 	case EntityCountCondition:
 		#partial switch c.type {
 		case .Enemy:
-			passed_condition = len(enemies) == c.count
+			passed_condition = len(world.enemies) == c.count
 		case:
 		}
 
 	case EntityExistsCondition:
 		#partial switch c.type {
 		case .Enemy:
-			for enemy in enemies {
+			for enemy in world.enemies {
 				if enemy.id == c.id {
 					passed_condition = true
 					break
 				}
 			}
 			if c.check_disabled {
-				for enemy in disabled_enemies {
+				for enemy in world.disabled_enemies {
 					if enemy.id == c.id {
 						passed_condition = true
 						break
@@ -2852,14 +1918,14 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 				}
 			}
 		case .Item:
-			for item in items {
+			for item in world.items {
 				if item.id == c.id {
 					passed_condition = true
 					break
 				}
 			}
 			if c.check_disabled {
-				for item in disabled_items {
+				for item in world.disabled_items {
 					if item.id == c.id {
 						passed_condition = true
 						break
@@ -2871,7 +1937,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 	case InventorySlotsFilledCondition:
 		if c.weapon {
 			count := 0
-			for weapon in player.weapons {
+			for weapon in world.player.weapons {
 				if weapon.id != .Empty {
 					count += 1
 				}
@@ -2879,7 +1945,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 			passed_condition = count == c.count
 
 		} else {
-			passed_condition = player.item_count == c.count
+			passed_condition = world.player.item_count == c.count
 		}
 	case KeyPressedCondition:
 		if rl.IsKeyPressed(c.key) {
@@ -2887,9 +1953,9 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 		}
 		passed_condition = c.fulfilled
 	case PlayerInAreaCondition:
-		passed_condition = check_collision_shapes(player.shape, player.pos, c.area, {})
+		passed_condition = check_collision_shapes(world.player.shape, world.player.pos, c.area, {})
 	case EnemyInStateCondition:
-		for enemy in enemies {
+		for enemy in world.enemies {
 			if enemy.id == c.id {
 				passed_condition = enemy.state == c.state
 			}
@@ -2897,19 +1963,19 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool) -> bool {
 	case PlayerHealthCondition:
 		target_health := c.health
 		if c.max_health {
-			target_health = player.max_health
+			target_health = world.player.max_health
 		}
 		switch c.check {
 		case -2:
-			passed_condition = player.health < target_health
+			passed_condition = world.player.health < target_health
 		case -1:
-			passed_condition = player.health <= target_health
+			passed_condition = world.player.health <= target_health
 		case 0:
-			passed_condition = player.health == target_health
+			passed_condition = world.player.health == target_health
 		case 1:
-			passed_condition = player.health >= target_health
+			passed_condition = world.player.health >= target_health
 		case 2:
-			passed_condition = player.health > target_health
+			passed_condition = world.player.health > target_health
 		}
 	case:
 		passed_condition = true
@@ -3171,7 +2237,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 	}
 }
 
-change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
+change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	// Exit state code
 	switch enemy.state {
 	case .Idle:
@@ -3191,7 +2257,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 	case .Idle:
 		enemy.idle_look_timer = 2
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
-			start_enemy_pathing(enemy, enemy.post_pos)
+			start_enemy_pathing(enemy, world, enemy.post_pos)
 		}
 	case .Alerted:
 		base_duration :: 5
@@ -3200,16 +2266,16 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState) {
 
 		// Determine if we look at or investigate alert
 		if enemy.last_alert_intensity_detected > 0.8 {
-			start_enemy_pathing(enemy, enemy.last_alert.pos)
+			start_enemy_pathing(enemy, world, enemy.last_alert.pos)
 		}
 	case .Combat:
-		start_enemy_pathing(enemy, player.pos)
+		start_enemy_pathing(enemy, world, world.player.pos)
 	case .Fleeing:
 
 	case .Searching:
 		enemy.search_timer = 0
 		enemy.search_state = 0
-		start_enemy_pathing(enemy, enemy.last_seen_player_pos)
+		start_enemy_pathing(enemy, world, enemy.last_seen_player_pos)
 	}
 	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 
@@ -3229,11 +2295,17 @@ get_time_left :: proc(alert: Alert) -> f32 {
 	return alert.base_duration - (f32(rl.GetTime()) - alert.time_emitted)
 }
 
-start_enemy_pathing :: proc(enemy: ^Enemy, dest: Vec2) {
+start_enemy_pathing :: proc(enemy: ^Enemy, world: World, dest: Vec2) {
 	if enemy.current_path != nil {
 		delete(enemy.current_path)
 	}
-	enemy.current_path = find_path_tiles(enemy.pos, dest, nav_graph, tilemap, wall_tilemap)
+	enemy.current_path = find_path_tiles(
+		enemy.pos,
+		dest,
+		world.nav_graph,
+		world.tilemap,
+		world.wall_tilemap,
+	)
 	enemy.current_path_point = 1
 	enemy.pathfinding_timer = ENEMY_PATHFINDING_TIME
 }

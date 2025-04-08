@@ -14,3 +14,7 @@ ItemData :: struct {
 	count:     int, // This can also be used as durability
 	max_count: int,
 }
+
+is_weapon :: proc(id: ItemId) -> bool {
+	return id >= .Sword
+}

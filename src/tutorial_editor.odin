@@ -83,8 +83,8 @@ draw_tutorial_editor_world :: proc(e: EditorState) {
 	}
 }
 
-draw_tutorial_editor_ui :: proc(e: EditorState) {
-	draw_hud()
+draw_tutorial_editor_ui :: proc(e: EditorState, player: Player) {
+	draw_hud(player)
 	rl.DrawLineEx({f32(UI_SIZE.x) / 2, 0}, {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y)}, 3, rl.RED)
 	rl.DrawLineEx({0, f32(UI_SIZE.y) / 2}, {f32(UI_SIZE.x), f32(UI_SIZE.y) / 2}, 3, rl.RED)
 
