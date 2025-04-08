@@ -43,7 +43,7 @@ calculate_tile_graph :: proc(graph: ^NavGraph, tm: Tilemap, wall_tm: WallTilemap
 	}
 	for x in 0 ..< TILEMAP_SIZE {
 		for y in 0 ..< TILEMAP_SIZE {
-			if is_tile_walkable({i32(x), i32(y)}, tm, wall_tm) {
+			if is_tile_walkable(tm, wall_tm, {i32(x), i32(y)}) {
 				append(
 					&graph.nodes,
 					NavGraphNode{tilemap_to_world_centered({i32(x), i32(y)}), {-1, -1, -1, -1}},
@@ -278,14 +278,14 @@ path_smooth_tiles :: proc(
 	prev_pos := start
 	for node_index in path {
 		node_pos := graph.nodes[node_index].pos
-		if !is_tile_line_walkable(last_pos_added, node_pos, tm, wall_tm) {
+		if !is_tile_line_walkable(tm, wall_tm, last_pos_added, node_pos) {
 			append(&result, prev_pos)
 			last_pos_added = prev_pos
 		}
 		prev_pos = node_pos
 	}
 	// Check the position before the end
-	if !is_tile_line_walkable(last_pos_added, end, tm, wall_tm) {
+	if !is_tile_line_walkable(tm, wall_tm, last_pos_added, end) {
 		append(&result, prev_pos)
 		last_pos_added = prev_pos
 	}
@@ -294,76 +294,6 @@ path_smooth_tiles :: proc(
 	return result[:]
 }
 
-is_tile_line_walkable :: proc(start: Vec2, end: Vec2, tm: Tilemap, wall_tm: WallTilemap) -> bool {
-	start := start
-	end := end
-
-	if start.x > end.x { 	// Make sure the start -> end is always left to right (x increases)
-		start, end = end, start
-	}
-
-	// Check if points are strictly horizontal or strictly vertical
-	start_tile := world_to_tilemap(start)
-	end_tile := world_to_tilemap(end)
-	if start_tile == end_tile {
-		return is_tile_walkable(start_tile, tm, wall_tm)
-	} else if start_tile.y == end_tile.y { 	// horizontal
-		if start_tile.x > end_tile.x { 	// Flip it!
-			start_tile.x, end_tile.x = end_tile.x, start_tile.x
-		}
-		for tile_x in start_tile.x ..= end_tile.x {
-			if !is_tile_walkable({tile_x, start_tile.y}, tm, wall_tm) {
-				return false
-			}
-		}
-	} else if start_tile.x == end_tile.x { 	// vertical
-		if start_tile.y > end_tile.y { 	// Flip y, if one is bigger than the other
-			start_tile.y, end_tile.y = end_tile.y, start_tile.y
-		}
-		for tile_y in start_tile.y ..= end_tile.y {
-			if !is_tile_walkable({start_tile.x, tile_y}, tm, wall_tm) {
-				return false
-			}
-		}
-	} else {
-		slope := (start.y - end.y) / (start.x - end.x)
-		current := start
-		current_tile := start_tile
-		// Check first tile
-		if !is_tile_walkable(current_tile, tm, wall_tm) {
-			return false
-		}
-
-		// Loop until we reach the end tile
-		for current_tile != end_tile {
-			// Get the next tile in the x direction
-			x_til_next_tile := f32(current_tile.x + 1) * TILE_SIZE - current.x
-			// Get next tile in y direction
-			y_til_next_tile := f32(current_tile.y + 1) * TILE_SIZE - current.y
-			if slope < 0 {
-				y_til_next_tile -= TILE_SIZE // Go up a tile instead if slope is negative (y is decreasing)
-			}
-
-			// Move current position and current tile
-			if math.abs(y_til_next_tile / slope) < x_til_next_tile {
-				// If x distance with y til next tile is smaller, then we move in the y
-				current += {y_til_next_tile / slope, y_til_next_tile}
-				current_tile.y += i32(math.sign(slope))
-			} else {
-				// If x til next tile is smaller, then we move in the x
-				current += {x_til_next_tile, x_til_next_tile * slope}
-				current_tile.x += 1
-			}
-
-			// If tile is not walkable return false, otherwise keep going until end
-			if !is_tile_walkable(current_tile, tm, wall_tm) {
-				return false
-			}
-		}
-	}
-
-	return true
-}
 
 // calculate_graph :: proc(mesh: ^NavMesh) {
 // 	clear(&mesh.nodes)

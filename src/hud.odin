@@ -5,7 +5,7 @@ import "core:time"
 import rl "vendor:raylib"
 
 
-draw_hud :: proc() {
+draw_hud :: proc(player: Player) {
 	slot_size :: 80
 	margin :: 24
 	// Display items
