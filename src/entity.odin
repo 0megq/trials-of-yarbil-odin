@@ -261,11 +261,14 @@ AttackData :: union {
 	// RockAttackData,
 }
 
-SwordAttackData :: struct {}
+SwordAttackData :: struct {
+}
 
-FireAttackData :: struct {}
+FireAttackData :: struct {
+}
 
-SurfAttackData :: struct {}
+SurfAttackData :: struct {
+}
 
 ExplosionAttackData :: struct {
 	burn_instantly: bool,
@@ -321,7 +324,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 setup_enemy :: proc(enemy: ^Enemy) {
 	enemy.post_pos = enemy.pos
 	enemy.shape = get_centered_rect({}, {16, 16})
-	change_enemy_state(enemy, .Idle)
+	change_enemy_state(enemy, .Idle, main_world)
 }
 
 setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {

@@ -275,7 +275,10 @@ load_level :: proc(world: ^World) {
 	}
 
 
-	load_tilemap(&level_tilemap, fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, level_idx))
+	load_tilemap(
+		&level_tilemap,
+		fmt.ctprintf("%s%02d.png", TILEMAP_FILE_PREFIX, game_data.cur_level_idx),
+	)
 	world.tilemap = level_tilemap
 
 	// We clone the arrays so we don't change the level data when we play the game
@@ -395,7 +398,7 @@ load_game_data :: proc(game_idx := 0) {
 
 	// Reset all player values
 	main_world.player = {}
-	set_player_data(game_data.player_data)
+	set_player_data(&main_world.player, game_data.player_data)
 	reset_speedrun_timer()
 
 	rl.TraceLog(.INFO, "GameData Loaded")
@@ -403,7 +406,7 @@ load_game_data :: proc(game_idx := 0) {
 
 save_game_data :: proc(game_idx := 0) {
 	// save player data
-	game_data.player_data = get_player_data()
+	game_data.player_data = get_player_data(main_world.player)
 
 	// get current level id and save it
 	if bytes, err := json.marshal(game_data, allocator = context.allocator, opt = {pretty = true});
