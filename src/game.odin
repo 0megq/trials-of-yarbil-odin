@@ -6,7 +6,7 @@ import "core:fmt"
 import "core:math"
 import "core:math/rand"
 import "core:mem"
-import "core:slice"
+// import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
 
@@ -224,10 +224,10 @@ main :: proc() {
 
 	// Init world
 	{
-		load_level()
-		fires = make([dynamic]Fire, context.allocator)
-		bombs = make([dynamic]Bomb, context.allocator)
-		arrows = make([dynamic]Arrow, context.allocator)
+		load_level(&main_world)
+		main_world.fires = make([dynamic]Fire, context.allocator)
+		main_world.bombs = make([dynamic]Bomb, context.allocator)
+		main_world.arrows = make([dynamic]Arrow, context.allocator)
 
 		// Generate new ids for the walls. Potential source of bugs
 		// for &wall in level.walls {
@@ -355,7 +355,7 @@ update :: proc() {
 			world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 			if editor_state.mode == .None {
 				world_camera.zoom = window_over_game
-				world_camera.target = player.pos
+				world_camera.target = main_world.player.pos
 				// Camera smoothing
 				// world_camera.target = exp_decay(
 				// 	world_camera.target,
@@ -398,7 +398,7 @@ update :: proc() {
 					if editor_state.mode == .None {
 						save_level()
 						reload_game_data()
-						reload_level()
+						reload_level(&main_world)
 					}
 				}
 
@@ -410,7 +410,7 @@ update :: proc() {
 						// This is here simply to make it easy to update the wall tilemap and navgraph while editing
 						place_walls_and_calculate_graph(&main_world)
 					} else if rl.IsKeyPressed(.L) {
-						reload_level()
+						reload_level(&main_world)
 					} else if rl.IsKeyPressed(.G) {
 						editor_state.show_tile_grid = !editor_state.show_tile_grid
 					}
@@ -421,12 +421,12 @@ update :: proc() {
 						game_data.cur_level_idx += 1
 						// Reset editor
 						init_editor_state(&editor_state)
-						reload_level()
+						reload_level(&main_world)
 					} else if rl.IsKeyPressed(.LEFT) {
 						save_level()
 						game_data.cur_level_idx -= 1
 						init_editor_state(&editor_state)
-						reload_level()
+						reload_level(&main_world)
 					}
 				}
 			}
@@ -435,40 +435,40 @@ update :: proc() {
 		// Update Current Editor (Including World!)
 		switch editor_state.mode {
 		case .Level:
-			update_geometry_editor(&editor_state)
+			update_geometry_editor(&main_world, &editor_state)
 		case .Entity:
 			update_entity_editor(&editor_state)
 		case .Tutorial:
 			update_tutorial_editor(&editor_state)
 		case .None:
-			if !all_enemies_dead() {
+			if !all_enemies_dead(main_world) {
 				speedrun_timer += delta
 			}
 
 			// TUTORIAL ACTIONS
 			for &action in tutorial.actions {
-				if check_condition(&action.condition, action.invert_condition) &&
-				   check_condition(&action.condition2, action.invert_condition2) &&
-				   check_condition(&action.condition3, action.invert_condition3) {
+				if check_condition(&action.condition, action.invert_condition, main_world) &&
+				   check_condition(&action.condition2, action.invert_condition2, main_world) &&
+				   check_condition(&action.condition3, action.invert_condition3, main_world) {
 					switch data in action.action {
 					case EnableEntityAction:
 						#partial switch data.type {
 						case .Item:
-							#reverse for item, i in disabled_items {
+							#reverse for item, i in main_world.disabled_items {
 								if item.id == data.id {
-									append(&items, item)
+									append(&main_world.items, item)
 									if !data.should_clone {
-										unordered_remove(&disabled_items, i)
+										unordered_remove(&main_world.disabled_items, i)
 									}
 									break
 								}
 							}
 						case .Enemy:
-							#reverse for enemy, i in disabled_enemies {
+							#reverse for enemy, i in main_world.disabled_enemies {
 								if enemy.id == data.id {
-									append(&enemies, enemy)
+									append(&main_world.enemies, enemy)
 									if !data.should_clone {
-										unordered_remove(&disabled_enemies, i)
+										unordered_remove(&main_world.disabled_enemies, i)
 									}
 									break
 								}
@@ -486,23 +486,25 @@ update :: proc() {
 			}
 
 			// Fire spread and other tile updates
-			update_tilemap()
+			update_tilemap(&main_world)
 
 			// Check player collision with portal
 			player_at_portal = check_collision_shapes(
 				Circle{{}, PORTAL_RADIUS},
 				level.portal_pos,
-				player.shape,
-				player.pos,
+				main_world.player.shape,
+				main_world.player.pos,
 			)
-			if all_enemies_dead() && is_control_pressed(controls.use_portal) && player_at_portal {
+			if all_enemies_dead(main_world) &&
+			   is_control_pressed(controls.use_portal) &&
+			   player_at_portal {
 				if game_data.cur_level_idx == -1 { 	// no win screen for now
 					display_win_screen = true
 				} else {
 					// if next level exists, play it, else restart from the beginning
 					game_data.cur_level_idx += 1
-					clear_temp_entities()
-					reload_level()
+					clear_temp_entities(&main_world)
+					reload_level(&main_world)
 				}
 			}
 
@@ -514,78 +516,81 @@ update :: proc() {
 			}
 
 			// fire dash timer
-			if !player.can_fire_dash {
-				player.fire_dash_timer -= delta
-				if player.fire_dash_timer <= 0 {
-					player.can_fire_dash = true
+			if !main_world.player.can_fire_dash {
+				main_world.player.fire_dash_timer -= delta
+				if main_world.player.fire_dash_timer <= 0 {
+					main_world.player.can_fire_dash = true
 				}
 			} else {
-				player.fire_dash_ready_time += delta
+				main_world.player.fire_dash_ready_time += delta
 			}
 
 			if !(level.has_tutorial && tutorial.disable_ability) &&
 			   is_control_pressed(controls.movement_ability) {
 				move_successful := false
-				if player.can_fire_dash {
+				if main_world.player.can_fire_dash {
 					move_successful = true
-					player.can_fire_dash = false
-					player.fire_dash_timer = FIRE_DASH_COOLDOWN
-					player.fire_dash_ready_time = 0
+					main_world.player.can_fire_dash = false
+					main_world.player.fire_dash_timer = FIRE_DASH_COOLDOWN
+					main_world.player.fire_dash_ready_time = 0
 
-					player.vel = normalize(get_directional_input()) * 400
-					fire := Fire{{player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
-					append(&fires, fire)
+					main_world.player.vel = normalize(get_directional_input()) * 400
+					fire := Fire {
+						{main_world.player.pos, FIRE_DASH_RADIUS},
+						FIRE_DASH_FIRE_DURATION,
+					}
+					append(&main_world.fires, fire)
 					attack := Attack {
-						pos       = player.pos,
+						pos       = main_world.player.pos,
 						shape     = Circle{{}, FIRE_DASH_RADIUS},
 						damage    = 10,
 						knockback = 100,
 						targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
 						data      = ExplosionAttackData{true},
 					}
-					perform_attack(&attack)
+					perform_attack(&main_world, &attack)
 				}
 				if move_successful {
-					stop_player_attack()
-					player.charging_weapon = false
-					player.holding_item = false
+					stop_player_attack(&main_world.player)
+					main_world.player.charging_weapon = false
+					main_world.player.holding_item = false
 				}
 			}
 
-			player_move(&player, delta)
-			for wall in walls {
+			player_move(&main_world.player, delta)
+			for wall in main_world.walls {
 				_, normal, depth := resolve_collision_shapes(
-					player.shape,
-					player.pos,
+					main_world.player.shape,
+					main_world.player.pos,
 					wall.shape,
 					wall.pos,
 				)
 				// fmt.printfln("%v, %v, %v", collide, normal, depth)
 				if depth > 0 {
-					player.pos -= normal * depth
-					player.vel = slide(player.vel, normal)
+					main_world.player.pos -= normal * depth
+					main_world.player.vel = slide(main_world.player.vel, normal)
 				}
 			}
-			for wall in half_walls {
+			for wall in main_world.half_walls {
 				_, normal, depth := resolve_collision_shapes(
-					player.shape,
-					player.pos,
+					main_world.player.shape,
+					main_world.player.pos,
 					wall.shape,
 					wall.pos,
 				)
 				// fmt.printfln("%v, %v, %v", collide, normal, depth)
 				if depth > 0 {
-					player.pos -= normal * depth
-					player.vel = slide(player.vel, normal)
+					main_world.player.pos -= normal * depth
+					main_world.player.vel = slide(main_world.player.vel, normal)
 				}
 			}
-			for &barrel in exploding_barrels {
+			for &barrel in main_world.exploding_barrels {
 				if barrel.queue_free {
 					continue
 				}
 				_, normal, depth := resolve_collision_shapes(
-					player.shape,
-					player.pos,
+					main_world.player.shape,
+					main_world.player.pos,
 					barrel.shape,
 					barrel.pos,
 				)
@@ -593,25 +598,27 @@ update :: proc() {
 				if depth > 0 {
 					// player.pos -= normal * depth
 					barrel_vel_along_normal := proj(barrel.vel, normal)
-					player_vel_along_normal := proj(player.vel, normal)
+					player_vel_along_normal := proj(main_world.player.vel, normal)
 					barrel.vel -= barrel_vel_along_normal
-					player.vel -= player_vel_along_normal
+					main_world.player.vel -= player_vel_along_normal
 					barrel.vel += (barrel_vel_along_normal + player_vel_along_normal) / 2
-					player.vel += (barrel_vel_along_normal + player_vel_along_normal) / 2
+					main_world.player.vel +=
+						(barrel_vel_along_normal + player_vel_along_normal) / 2
 					barrel.pos += normal * depth
 				}
 			}
 
-			if length_squared(player.vel) >= square(f32(PLAYER_SPEED_DISTRACTION_THRESHOLD)) {
+			if length_squared(main_world.player.vel) >=
+			   square(f32(PLAYER_SPEED_DISTRACTION_THRESHOLD)) {
 				seconds_above_distraction_threshold += delta
 			} else {
 				seconds_above_distraction_threshold = 0
 			}
 			if seconds_above_distraction_threshold >= SPEED_SECOND_THRESHOLD {
 				append(
-					&alerts,
+					&main_world.alerts,
 					Alert {
-						pos = player.pos,
+						pos = main_world.player.pos,
 						range = 90,
 						base_intensity = 0.8,
 						base_duration = 1,
@@ -622,20 +629,20 @@ update :: proc() {
 			}
 
 
-			#reverse for &fire, i in fires {
+			#reverse for &fire, i in main_world.fires {
 				fire.time_left -= delta
 				if fire.time_left <= 0 {
-					unordered_remove(&fires, i)
+					unordered_remove(&main_world.fires, i)
 				}
 			}
 
 			/* -------------------------------------------------------------------------- */
 			/*                               MARK:Enemy Loop                              */
 			/* -------------------------------------------------------------------------- */
-			#reverse for &enemy, idx in enemies {
+			#reverse for &enemy, idx in main_world.enemies {
 				/* ---------------------------- Tutorial Dummies ---------------------------- */
 				if level.has_tutorial && tutorial.enable_enemy_dummies {
-					damage_enemy(idx, 0)
+					damage_enemy(&main_world, idx, 0)
 				}
 
 				/* -------------------------------- Flinching ------------------------------- */
@@ -658,7 +665,7 @@ update :: proc() {
 								p = enemy.pos
 								break
 							}
-							t := cast_ray_through_level(walls[:], enemy.pos, dir)
+							t := cast_ray_through_walls(main_world.walls[:], enemy.pos, dir)
 							if t < enemy.vision_range {
 								p = enemy.pos + t * dir
 							} else {
@@ -672,11 +679,11 @@ update :: proc() {
 						enemy.can_see_player = check_collsion_circular_concave_circle(
 							enemy.vision_points[:],
 							enemy.pos,
-							{player.pos, 8},
+							{main_world.player.pos, 8},
 						)
 						if enemy.can_see_player {
-							enemy.last_seen_player_pos = player.pos
-							enemy.last_seen_player_vel = player.vel
+							enemy.last_seen_player_pos = main_world.player.pos
+							enemy.last_seen_player_vel = main_world.player.vel
 						}
 					}
 
@@ -687,8 +694,8 @@ update :: proc() {
 							enemy.player_in_flee_range = check_collision_shapes(
 								Circle{{}, data.flee_range},
 								enemy.pos,
-								player.shape,
-								player.pos,
+								main_world.player.shape,
+								main_world.player.pos,
 							)
 						}
 					}
@@ -699,7 +706,7 @@ update :: proc() {
 						enemy.alert_just_detected = false
 						detected_alert: Alert
 						detected_effective_intensity: f32 = 0
-						for alert in alerts {
+						for alert in main_world.alerts {
 							effective_intensity := get_effective_intensity(alert)
 							// get effective range
 							effective_enemy_range :=
@@ -750,7 +757,7 @@ update :: proc() {
 				/* -------------------------- Movement and Collsion ------------------------- */
 				enemy_move(&enemy, delta)
 
-				for wall in walls {
+				for wall in main_world.walls {
 					_, normal, depth := resolve_collision_shapes(
 						enemy.shape,
 						enemy.pos,
@@ -762,7 +769,7 @@ update :: proc() {
 						enemy.vel = slide(enemy.vel, normal)
 					}
 				}
-				for wall in half_walls {
+				for wall in main_world.half_walls {
 					_, normal, depth := resolve_collision_shapes(
 						enemy.shape,
 						enemy.pos,
@@ -777,16 +784,16 @@ update :: proc() {
 			}
 
 			/* ------------------------------ Update Alerts ----------------------------- */
-			#reverse for &alert, i in alerts {
+			#reverse for &alert, i in main_world.alerts {
 				if get_time_left(alert) <= 0 || get_effective_intensity(alert) <= 0 {
-					unordered_remove(&alerts, i)
+					unordered_remove(&main_world.alerts, i)
 				}
 			}
 
 
-			#reverse for &entity in exploding_barrels {
+			#reverse for &entity in main_world.exploding_barrels {
 				generic_move(&entity, 1000, delta)
-				for wall in walls {
+				for wall in main_world.walls {
 					_, normal, depth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
@@ -801,14 +808,14 @@ update :: proc() {
 					_, pnormal, pdepth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
-						player.shape,
-						player.pos,
+						main_world.player.shape,
+						main_world.player.pos,
 					)
 					if pdepth > 0 {
-						player.pos += pnormal * pdepth
+						main_world.player.pos += pnormal * pdepth
 					}
 				}
-				for wall in half_walls {
+				for wall in main_world.half_walls {
 					_, normal, depth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
@@ -823,19 +830,19 @@ update :: proc() {
 					_, pnormal, pdepth := resolve_collision_shapes(
 						entity.shape,
 						entity.pos,
-						player.shape,
-						player.pos,
+						main_world.player.shape,
+						main_world.player.pos,
 					)
 					if pdepth > 0 {
-						player.pos += pnormal * pdepth
+						main_world.player.pos += pnormal * pdepth
 					}
 				}
 			}
 
-			#reverse for &bomb, i in bombs {
+			#reverse for &bomb, i in main_world.bombs {
 				zentity_move(&bomb, 300, 50, delta)
 				should_explode := false
-				for wall in walls {
+				for wall in main_world.walls {
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
 						bomb.pos,
@@ -849,7 +856,7 @@ update :: proc() {
 						should_explode = true
 					}
 				}
-				for enemy in enemies {
+				for enemy in main_world.enemies {
 					_, normal, depth := resolve_collision_shapes(
 						bomb.shape,
 						bomb.pos,
@@ -863,7 +870,7 @@ update :: proc() {
 						should_explode = true
 					}
 				}
-				for barrel in exploding_barrels {
+				for barrel in main_world.exploding_barrels {
 					if barrel.queue_free {
 						continue
 					}
@@ -884,8 +891,9 @@ update :: proc() {
 					should_explode = true
 				}
 				if should_explode {
-					bomb_explosion(bomb.pos, 16)
+					bomb_explosion(&main_world, bomb.pos, 16)
 					perform_attack(
+						&main_world,
 						&{
 							targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
 							damage = 20,
@@ -896,7 +904,7 @@ update :: proc() {
 						},
 					)
 					append(
-						&alerts,
+						&main_world.alerts,
 						Alert {
 							pos = bomb.pos,
 							range = 60,
@@ -906,11 +914,11 @@ update :: proc() {
 							time_emitted = f32(rl.GetTime()),
 						},
 					)
-					unordered_remove(&bombs, i)
+					unordered_remove(&main_world.bombs, i)
 				}
 			}
 
-			#reverse for &arrow, i in arrows {
+			#reverse for &arrow, i in main_world.arrows {
 				zentity_move(&arrow, 300, 30, delta)
 
 				speed_damage_ratio :: 15
@@ -920,7 +928,7 @@ update :: proc() {
 				arrow.attack.data = ArrowAttackData{i, speed_damage_ratio}
 
 				// if the arrow hit something while performing its attack, then delete it
-				if perform_attack(&arrow.attack) == -1 {
+				if perform_attack(&main_world, &arrow.attack) == -1 {
 					delete_arrow(i)
 					continue
 				}
@@ -932,75 +940,77 @@ update :: proc() {
 
 			// weapon attack
 			if is_control_pressed(controls.fire) {
-				if player.weapons[player.selected_weapon_idx].id >= .Sword {
-					fire_selected_weapon()
-					player.holding_item = false // Cancel item hold
-					player.charging_weapon = false // cancel charge
+				if main_world.player.weapons[main_world.player.selected_weapon_idx].id >= .Sword {
+					fire_selected_weapon(&main_world.player)
+					main_world.player.holding_item = false // Cancel item hold
+					main_world.player.charging_weapon = false // cancel charge
 				}
 			}
 
 			// Handle player charging/holding item
-			if player.holding_item {
-				if player.item_switched || is_control_pressed(controls.cancel) {
-					player.holding_item = false
+			if main_world.player.holding_item {
+				if main_world.player.item_switched || is_control_pressed(controls.cancel) {
+					main_world.player.holding_item = false
 				} else if is_control_released(controls.use_item) {
-					use_bomb()
-					player.holding_item = false
+					use_bomb(&main_world)
+					main_world.player.holding_item = false
 				}
 
-				player.item_hold_time += delta
+				main_world.player.item_hold_time += delta
 			}
 			// Start player holding item
 			if is_control_pressed(controls.use_item) &&
-			   player.items[player.selected_item_idx].id != .Empty {
-				stop_player_attack() // Cancel attack
-				player.charging_weapon = false // Cancel charge
-				player.holding_item = true
-				player.item_hold_time = 0
+			   main_world.player.items[main_world.player.selected_item_idx].id != .Empty {
+				stop_player_attack(&main_world.player) // Cancel attack
+				main_world.player.charging_weapon = false // Cancel charge
+				main_world.player.holding_item = true
+				main_world.player.item_hold_time = 0
 			}
 
 			// Weapon animation
-			if player.cur_weapon_anim.pos_rotation_vel == 0 {
+			if main_world.player.cur_weapon_anim.pos_rotation_vel == 0 {
 				// Do nothing. when vel is 0 that means we are not animating
 			} else {
 				// Animate
-				player.cur_weapon_anim.pos_cur_rotation +=
-					player.cur_weapon_anim.pos_rotation_vel * delta
-				player.cur_weapon_anim.sprite_cur_rotation +=
-					player.cur_weapon_anim.sprite_rotation_vel * delta
+				main_world.player.cur_weapon_anim.pos_cur_rotation +=
+					main_world.player.cur_weapon_anim.pos_rotation_vel * delta
+				main_world.player.cur_weapon_anim.sprite_cur_rotation +=
+					main_world.player.cur_weapon_anim.sprite_rotation_vel * delta
 			}
 			// Stop Weapon animation
-			if player.cur_weapon_anim.pos_rotation_vel < 0 &&
-			   (player.cur_weapon_anim.pos_cur_rotation <=
-						   player.cur_weapon_anim.cpos_top_rotation ||
-					   !player.attacking) {
+			if main_world.player.cur_weapon_anim.pos_rotation_vel < 0 &&
+			   (main_world.player.cur_weapon_anim.pos_cur_rotation <=
+						   main_world.player.cur_weapon_anim.cpos_top_rotation ||
+					   !main_world.player.attacking) {
 				// Animating to top finished
-				player.cur_weapon_anim.pos_cur_rotation = player.cur_weapon_anim.cpos_top_rotation
-				player.cur_weapon_anim.sprite_cur_rotation =
-					player.cur_weapon_anim.csprite_top_rotation
-				player.cur_weapon_anim.pos_rotation_vel = 0
-			} else if player.cur_weapon_anim.pos_rotation_vel > 0 &&
-			   (player.cur_weapon_anim.pos_cur_rotation >=
-						   player.cur_weapon_anim.cpos_bot_rotation ||
-					   !player.attacking) {
+				main_world.player.cur_weapon_anim.pos_cur_rotation =
+					main_world.player.cur_weapon_anim.cpos_top_rotation
+				main_world.player.cur_weapon_anim.sprite_cur_rotation =
+					main_world.player.cur_weapon_anim.csprite_top_rotation
+				main_world.player.cur_weapon_anim.pos_rotation_vel = 0
+			} else if main_world.player.cur_weapon_anim.pos_rotation_vel > 0 &&
+			   (main_world.player.cur_weapon_anim.pos_cur_rotation >=
+						   main_world.player.cur_weapon_anim.cpos_bot_rotation ||
+					   !main_world.player.attacking) {
 				// Animating to bottom finished
-				player.cur_weapon_anim.pos_cur_rotation = player.cur_weapon_anim.cpos_bot_rotation
-				player.cur_weapon_anim.sprite_cur_rotation =
-					player.cur_weapon_anim.csprite_bot_rotation
-				player.cur_weapon_anim.pos_rotation_vel = 0
+				main_world.player.cur_weapon_anim.pos_cur_rotation =
+					main_world.player.cur_weapon_anim.cpos_bot_rotation
+				main_world.player.cur_weapon_anim.sprite_cur_rotation =
+					main_world.player.cur_weapon_anim.csprite_bot_rotation
+				main_world.player.cur_weapon_anim.pos_rotation_vel = 0
 			}
 
-			if player.attacking {
-				if player.attack_dur_timer <= 0 {
-					stop_player_attack()
+			if main_world.player.attacking {
+				if main_world.player.attack_dur_timer <= 0 {
+					stop_player_attack(&main_world.player)
 				} else {
-					player.attack_dur_timer -= delta
+					main_world.player.attack_dur_timer -= delta
 
-					perform_attack(&player.cur_attack)
+					perform_attack(&main_world, &main_world.player.cur_attack)
 					append(
-						&alerts,
+						&main_world.alerts,
 						Alert {
-							pos = player.pos,
+							pos = main_world.player.pos,
 							range = 60,
 							base_intensity = 0.9,
 							base_duration = 0.5,
@@ -1009,25 +1019,25 @@ update :: proc() {
 						},
 					)
 				}
-			} else if !player.can_attack { 	// If right after attack finished then countdown attack interval timer until done
-				if player.attack_interval_timer <= 0 {
-					player.can_attack = true
+			} else if !main_world.player.can_attack { 	// If right after attack finished then countdown attack interval timer until done
+				if main_world.player.attack_interval_timer <= 0 {
+					main_world.player.can_attack = true
 				}
-				player.attack_interval_timer -= delta
+				main_world.player.attack_interval_timer -= delta
 			}
 
 			// Item pickup
 			if is_control_pressed(controls.pickup) {
 				closest_item_idx := -1
 				closest_item_dist_sqrd := math.INF_F32
-				for item, i in items {
+				for item, i in main_world.items {
 					if check_collision_shapes(
-						Circle{{}, player.pickup_range},
-						player.pos,
+						Circle{{}, main_world.player.pickup_range},
+						main_world.player.pos,
 						item.shape,
 						item.pos,
 					) {
-						dist_sqrd := distance_squared(item.pos, player.pos)
+						dist_sqrd := distance_squared(item.pos, main_world.player.pos)
 						if closest_item_idx == -1 || dist_sqrd < closest_item_dist_sqrd {
 							closest_item_idx = i
 							closest_item_dist_sqrd = dist_sqrd
@@ -1035,9 +1045,9 @@ update :: proc() {
 					}
 				}
 				if closest_item_idx != -1 {
-					item := items[closest_item_idx]
-					if pickup_item(item.data) {
-						unordered_remove(&items, closest_item_idx)
+					item := main_world.items[closest_item_idx]
+					if pickup_item(&main_world.player, item.data) {
+						unordered_remove(&main_world.items, closest_item_idx)
 					}
 				}
 				// DEBUG: Player inventory
@@ -1122,7 +1132,7 @@ draw_world :: proc(world: World) {
 		if player_at_portal {
 			prompt: cstring
 			prompt = "Press E"
-			if !all_enemies_dead() {
+			if !all_enemies_dead(world) {
 				prompt = "Kill All Enemies"
 			}
 			size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
@@ -1212,7 +1222,7 @@ draw_world :: proc(world: World) {
 
 		}
 
-		for enemy in enemies {
+		for enemy in world.enemies {
 			// DEBUG: Draw collision shape
 			// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
 			sprite := ENEMY_SPRITE
@@ -1289,41 +1299,47 @@ draw_world :: proc(world: World) {
 		}
 
 		when ODIN_DEBUG {
-			for alert in alerts {
+			for alert in world.alerts {
 				rl.DrawCircleLinesV(alert.pos, alert.range, rl.RED)
 			}
 		}
 
-		for barrel in exploding_barrels {
+		for barrel in world.exploding_barrels {
 			if barrel.queue_free {
 				continue
 			}
 			draw_sprite(BARREL_SPRITE, barrel.pos)
 		}
 
-		for &entity in bombs {
+		for &entity in world.bombs {
 			entity.sprite.scale = entity.z + 1
 			draw_sprite(entity.sprite, entity.pos)
 		}
 
-		for &entity in arrows {
+		for &entity in world.arrows {
 			entity.sprite.scale = entity.z + 1
 			draw_sprite(entity.sprite, entity.pos)
 		}
 
 		// Draw Player
 		{
+			player := world.player
 			// Player Sprite
 			draw_sprite(PLAYER_SPRITE, player.pos)
 
 			// Draw Item
 			if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
-				draw_item(player.items[player.selected_item_idx].id)
+				draw_item(player.items[player.selected_item_idx].id, player.pos)
 			}
 
 			// Draw Weapon
 			if !player.holding_item && player.weapons[player.selected_weapon_idx].id != .Empty {
-				draw_weapon(player.weapons[player.selected_weapon_idx].id)
+				draw_weapon(
+					player.weapons[player.selected_weapon_idx].id,
+					player.pos,
+					false,
+					player.cur_weapon_anim,
+				)
 			}
 
 			/* Health Bar */
@@ -1390,14 +1406,14 @@ draw_world_ui :: proc(world: World) {
 		rl.DrawText("Tutorial Editor", 1300, 32, 16, rl.WHITE)
 	case .None:
 		if !(level.has_tutorial && tutorial.hide_all_hud) {
-			draw_hud()
+			draw_hud(world.player)
 		}
 		when ODIN_DEBUG { 	// Draw player coordinates
 			rl.DrawText(fmt.ctprintf("%v", world.player.pos), 1200, 16, 20, rl.WHITE)
 		}
 
 
-		if all_enemies_dead() {
+		if all_enemies_dead(world) {
 			message: cstring = "All enemies defeated. Head to the portal."
 			size := rl.MeasureTextEx(rl.GetFontDefault(), message, 24, 1)
 			rl.DrawTextEx(
@@ -1420,9 +1436,9 @@ draw_world_ui :: proc(world: World) {
 					text := fmt.ctprint(prompt.text)
 					pos := get_centered_text_pos(center, text, font_size, spacing)
 
-					if check_condition(&prompt.condition, prompt.invert_condition) &&
-					   check_condition(&prompt.condition2, prompt.invert_condition2) &&
-					   check_condition(&prompt.condition3, prompt.invert_condition3) {
+					if check_condition(&prompt.condition, prompt.invert_condition, world) &&
+					   check_condition(&prompt.condition2, prompt.invert_condition2, world) &&
+					   check_condition(&prompt.condition3, prompt.invert_condition3, world) {
 						rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.WHITE)
 					} else {
 						when ODIN_DEBUG {
@@ -1530,35 +1546,35 @@ player_move :: proc(p: ^Player, delta: f32) {
 	input := get_directional_input()
 	acceleration_v := normalize(input) * acceleration * delta
 
-	friction_dir: Vec2 = -normalize(e.vel)
-	if length(e.vel) > max_speed {
+	friction_dir: Vec2 = -normalize(p.vel)
+	if length(p.vel) > max_speed {
 		friction = harsh_friction
 	}
 	friction_v := normalize(friction_dir) * friction * delta
 
 	// Prevent friction overshooting when deaccelerating
-	// if math.sign(e.vel.x) == sign(friction_dir.x) {e.vel.x = 0}
-	// if math.sign(e.vel.y) == sign(friction_dir.y) {e.vel.y = 0}
+	// if math.sign(p.vel.x) == sign(friction_dir.x) {p.vel.x = 0}
+	// if math.sign(p.vel.y) == sign(friction_dir.y) {p.vel.y = 0}
 
-	if length(e.vel + acceleration_v + friction_v) > max_speed && length(e.vel) <= max_speed { 	// If overshooting above max speed
-		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
-	} else if length(e.vel + acceleration_v + friction_v) < max_speed &&
-	   length(e.vel) > max_speed &&
-	   angle_between(e.vel, acceleration_v) <= 90 { 	// If overshooting below max speed
-		e.vel = normalize(e.vel + acceleration_v + friction_v) * max_speed
+	if length(p.vel + acceleration_v + friction_v) > max_speed && length(p.vel) <= max_speed { 	// If overshooting above max speed
+		p.vel = normalize(p.vel + acceleration_v + friction_v) * max_speed
+	} else if length(p.vel + acceleration_v + friction_v) < max_speed &&
+	   length(p.vel) > max_speed &&
+	   angle_between(p.vel, acceleration_v) <= 90 { 	// If overshooting below max speed
+		p.vel = normalize(p.vel + acceleration_v + friction_v) * max_speed
 	} else {
-		e.vel += acceleration_v
-		e.vel += friction_v
+		p.vel += acceleration_v
+		p.vel += friction_v
 		// Account for friction overshooting when slowing down
-		if acceleration_v.x == 0 && math.sign(e.vel.x) == math.sign(friction_v.x) {
-			e.vel.x = 0
+		if acceleration_v.x == 0 && math.sign(p.vel.x) == math.sign(friction_v.x) {
+			p.vel.x = 0
 		}
-		if acceleration_v.y == 0 && math.sign(e.vel.y) == math.sign(friction_v.y) {
-			e.vel.y = 0
+		if acceleration_v.y == 0 && math.sign(p.vel.y) == math.sign(friction_v.y) {
+			p.vel.y = 0
 		}
 	}
 
-	e.pos += e.vel * delta
+	p.pos += p.vel * delta
 
 	// fmt.printfln(
 	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
@@ -1761,7 +1777,7 @@ damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount:
 // }
 
 delete_arrow :: proc(idx: int) {
-	unordered_remove(&arrows, idx)
+	unordered_remove(&main_world.arrows, idx)
 }
 
 // delete_rock :: proc(idx: int) {
@@ -1860,11 +1876,11 @@ is_control_released :: proc(c: Control) -> bool {
 
 // Clears entities and reloads game data and level
 on_player_death :: proc() {
-	clear_temp_entities()
+	clear_temp_entities(&main_world)
 	// Reload the game data. Maybe we don't need to reload game data each time
 	reload_game_data()
 	// Reload the level
-	reload_level()
+	reload_level(&main_world)
 }
 
 fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
@@ -1992,7 +2008,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 	case .Idle:
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
-			update_enemy_pathing(enemy, delta, enemy.post_pos)
+			update_enemy_pathing(enemy, delta, enemy.post_pos, main_world)
 			lerp_look_angle(
 				enemy,
 				angle(enemy.target - enemy.pos) + f32(math.sin(rl.GetTime()) * 10),
@@ -2023,12 +2039,12 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 
 		if enemy.can_see_player {
 			if enemy.player_in_flee_range {
-				change_enemy_state(enemy, .Fleeing)
+				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat)
+				change_enemy_state(enemy, .Combat, main_world)
 			}
 		} else if enemy.alert_just_detected {
-			change_enemy_state(enemy, .Alerted)
+			change_enemy_state(enemy, .Alerted, main_world)
 		}
 	case .Alerted:
 		enemy.alert_timer -= delta
@@ -2036,7 +2052,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		// look at or investigate distraction
 		if enemy.last_alert_intensity_detected > 0.8 &&
 		   distance_squared(enemy.pos, enemy.last_alert.pos) > 500 {
-			update_enemy_pathing(enemy, delta, enemy.last_alert.pos)
+			update_enemy_pathing(enemy, delta, enemy.last_alert.pos, main_world)
 		}
 		lerp_look_angle(
 			enemy,
@@ -2047,18 +2063,18 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 
 		if enemy.can_see_player {
 			if enemy.player_in_flee_range {
-				change_enemy_state(enemy, .Fleeing)
+				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat)
+				change_enemy_state(enemy, .Combat, main_world)
 			}
 		} else if enemy.alert_just_detected { 	// if new alert is detected
-			change_enemy_state(enemy, .Alerted)
+			change_enemy_state(enemy, .Alerted, main_world)
 		} else if enemy.alert_timer <= 0 {
 			// once alert wears off, go back to idle
-			change_enemy_state(enemy, .Idle)
+			change_enemy_state(enemy, .Idle, main_world)
 		}
 	case .Combat:
-		lerp_look_angle(enemy, angle(player.pos - enemy.pos), delta)
+		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
 		// Attacking
 		enemy.just_attacked = false
@@ -2072,6 +2088,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 					damage :: 5
 					knockback :: 100
 					perform_attack(
+						&main_world,
 						&Attack {
 							targets         = {.Bomb, .ExplodingBarrel, .Player},
 							damage          = damage,
@@ -2088,7 +2105,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 					)
 				case RangedEnemyData:
 					// launch arrow
-					to_player := normalize(player.pos - enemy.pos)
+					to_player := normalize(main_world.player.pos - enemy.pos)
 					tex := loaded_textures[.Arrow]
 					arrow_sprite := Sprite {
 						.Arrow,
@@ -2099,7 +2116,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 						rl.WHITE,
 					}
 					append(
-						&arrows,
+						&main_world.arrows,
 						Arrow {
 							entity = new_entity(enemy.pos),
 							shape = Circle{{}, 4},
@@ -2119,7 +2136,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		// chasing
 		if !enemy.charging {
 			// use pathfinding to chase player
-			update_enemy_pathing(enemy, delta, player.pos)
+			update_enemy_pathing(enemy, delta, main_world.player.pos, main_world)
 		}
 
 		// if player is in attack range, start attacking
@@ -2129,20 +2146,20 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		   check_collision_shapes(
 			   Circle{{}, enemy.attack_charge_range},
 			   enemy.pos,
-			   player.shape,
-			   player.pos,
+			   main_world.player.shape,
+			   main_world.player.pos,
 		   ) {
 			switch &data in enemy.data {
 			case MeleeEnemyData:
-				data.attack_poly.rotation = angle(player.pos - enemy.pos)
+				data.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
 				enemy.charging = true
 				enemy.current_charge_time = enemy.start_charge_time
 			case RangedEnemyData:
 				if !check_collision_shapes(
 					Circle{{}, data.flee_range},
 					enemy.pos,
-					player.shape,
-					player.pos,
+					main_world.player.shape,
+					main_world.player.pos,
 				) {
 					enemy.charging = true
 					enemy.current_charge_time = enemy.start_charge_time
@@ -2152,18 +2169,18 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 
 
 		if !enemy.can_see_player {
-			change_enemy_state(enemy, .Searching)
+			change_enemy_state(enemy, .Searching, main_world)
 		} else if enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Fleeing)
+			change_enemy_state(enemy, .Fleeing, main_world)
 		}
 	case .Fleeing:
 		// Run directly away from player
-		enemy.target = enemy.pos + (enemy.pos - player.pos)
-		lerp_look_angle(enemy, angle(player.pos - enemy.pos), delta)
+		enemy.target = enemy.pos + (enemy.pos - main_world.player.pos)
+		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 		if !enemy.can_see_player {
-			change_enemy_state(enemy, .Searching)
+			change_enemy_state(enemy, .Searching, main_world)
 		} else if !enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Combat)
+			change_enemy_state(enemy, .Combat, main_world)
 		}
 
 	case .Searching:
@@ -2173,7 +2190,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 			if distance_squared(enemy.pos, enemy.last_seen_player_pos) >
 			   square(f32(ENEMY_SEARCH_TOLERANCE)) {
 				enemy.search_timer += delta // accumulate search timer
-				update_enemy_pathing(enemy, delta, enemy.last_seen_player_pos)
+				update_enemy_pathing(enemy, delta, enemy.last_seen_player_pos, main_world)
 				lerp_look_angle(
 					enemy,
 					angle(enemy.target - enemy.pos) + f32(math.sin(8 * rl.GetTime())) * 5,
@@ -2225,14 +2242,14 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 
 		if enemy.can_see_player {
 			if enemy.player_in_flee_range {
-				change_enemy_state(enemy, .Fleeing)
+				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat)
+				change_enemy_state(enemy, .Combat, main_world)
 			}
 		} else if enemy.alert_just_detected {
-			change_enemy_state(enemy, .Alerted)
+			change_enemy_state(enemy, .Alerted, main_world)
 		} else if enemy.search_state == 4 {
-			change_enemy_state(enemy, .Idle)
+			change_enemy_state(enemy, .Idle, main_world)
 		}
 	}
 }
@@ -2312,10 +2329,10 @@ start_enemy_pathing :: proc(enemy: ^Enemy, world: World, dest: Vec2) {
 
 // Counts down the pathfinding timer and recalculates the path if necessary
 // Also, sets the enemy's target to the current path point, if there is a path to follow. Returns true if there is path to follow
-update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2) -> bool {
+update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2, world: World) -> bool {
 	enemy.pathfinding_timer -= delta
 	if enemy.pathfinding_timer < 0 || enemy.current_path_point >= len(enemy.current_path) {
-		start_enemy_pathing(enemy, dest)
+		start_enemy_pathing(enemy, world, dest)
 	}
 	if enemy.current_path != nil && enemy.current_path_point < len(enemy.current_path) {
 		enemy.target = enemy.current_path[enemy.current_path_point]

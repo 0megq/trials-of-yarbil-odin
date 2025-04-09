@@ -28,11 +28,10 @@ World :: struct {
 
 
 world_update :: proc(world: ^World) {
-	update_tilemap(world)
+	// update_tilemap(world)
 }
 
-perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
-	using world
+perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: int) {
 	EXPLOSION_DAMAGE_MULTIPLIER :: 10
 	// Perform attack
 	switch data in attack.data {
@@ -49,7 +48,7 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					enemy.vel += attack.direction * attack.knockback
-					damage_enemy(i, attack.damage)
+					damage_enemy(world, i, attack.damage)
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
 				}
@@ -66,7 +65,7 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += attack.direction * attack.knockback
-					damage_exploding_barrel(&barrel, attack.damage)
+					damage_exploding_barrel(&main_world, &barrel, attack.damage)
 					append(&attack.exclude_targets, barrel.id)
 					targets_hit += 1
 				}
@@ -109,7 +108,7 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 					// Knockback
 					enemy.vel += normalize(enemy.pos - attack.pos) * attack.knockback
 					// Damage
-					damage_enemy(i, attack.damage)
+					damage_enemy(&main_world, i, attack.damage)
 					targets_hit += 1
 				}
 			}
@@ -129,7 +128,11 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
-					damage_exploding_barrel(&barrel, attack.damage * EXPLOSION_DAMAGE_MULTIPLIER)
+					damage_exploding_barrel(
+						&main_world,
+						&barrel,
+						attack.damage * EXPLOSION_DAMAGE_MULTIPLIER,
+					)
 					targets_hit += 1
 				}
 			}
@@ -171,20 +174,20 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 			#reverse for &enemy, i in enemies {
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					// Damage
-					damage_enemy(i, attack.damage, false)
+					damage_enemy(&main_world, i, attack.damage, false)
 					targets_hit += 1
 				}
 			}
 		}
 		if .ExplodingBarrel in attack.targets {
-			for &barrel, i in exploding_barrels {
+			for &barrel in main_world.exploding_barrels {
 				if barrel.queue_free {
 					continue
 				}
 
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					// Damage
-					damage_exploding_barrel(&barrel, attack.damage)
+					damage_exploding_barrel(&main_world, &barrel, attack.damage)
 					targets_hit += 1
 				}
 			}
@@ -373,7 +376,11 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 
 				if depth > 0 {
 					// Damage
-					damage_enemy(i, math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio)
+					damage_enemy(
+						world,
+						i,
+						math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio,
+					)
 
 					return -1
 				}
@@ -381,7 +388,7 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 		}
 
 		if .ExplodingBarrel in attack.targets {
-			for barrel, i in exploding_barrels {
+			for &barrel in exploding_barrels {
 				if barrel.queue_free {
 					continue
 				}
@@ -396,7 +403,8 @@ perform_attack :: proc(world: ^World, attack: ^Attack) -> (targets_hit: int) {
 				if depth > 0 {
 					// Damage
 					damage_exploding_barrel(
-						i,
+						world,
+						&barrel,
 						math.abs(dot(normal, arrow.vel)) / data.speed_damage_ratio,
 					)
 
