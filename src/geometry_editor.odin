@@ -271,7 +271,7 @@ place_walls_and_calculate_graph :: proc(world: ^World) {
 		}
 	}
 	// calculate graph
-	calculate_tile_graph(&world.nav_graph, level_tilemap, world.wall_tilemap)
+	calculate_graph_from_tiles(&world.nav_graph, level_tilemap, world.wall_tilemap)
 }
 
 set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
