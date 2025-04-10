@@ -1,6 +1,7 @@
 package game
 
 import "core:encoding/uuid"
+import "core:math"
 import rl "vendor:raylib"
 
 // EntityType :: union {
@@ -351,4 +352,30 @@ max_health_setter :: proc(health: ^f32, cur_max_health: ^f32, new_max_health: f3
 	}
 	// Set max health
 	cur_max_health^ = new_max_health
+}
+
+draw_sprite :: proc(sprite: Sprite, pos: Vec2) {
+	tex := loaded_textures[sprite.tex_id]
+	dst_rec := Rectangle {
+		pos.x,
+		pos.y,
+		f32(sprite.tex_region.width) * math.abs(sprite.scale.x), // scale the sprite. a negative would mess this up
+		f32(sprite.tex_region.height) * math.abs(sprite.scale.y),
+	}
+
+	src_rec := Rectangle {
+		sprite.tex_region.x,
+		sprite.tex_region.y,
+		sprite.tex_region.width * math.sign(sprite.scale.x), // Flip the texture, based off sprite scale
+		sprite.tex_region.height * math.sign(sprite.scale.y),
+	}
+
+	rl.DrawTexturePro(
+		tex,
+		src_rec,
+		dst_rec,
+		sprite.tex_origin * abs(sprite.scale),
+		sprite.rotation,
+		sprite.tint,
+	)
 }

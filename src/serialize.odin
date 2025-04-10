@@ -399,7 +399,7 @@ load_game_data :: proc(game_idx := 0) {
 	// Reset all player values
 	main_world.player = {}
 	set_player_data(&main_world.player, game_data.player_data)
-	reset_speedrun_timer()
+	speedrun_timer = 0
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }
@@ -532,70 +532,4 @@ get_data_from_enemy :: proc(e: Enemy) -> EnemyData {
 	}
 
 	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
-}
-
-draw_level :: proc(show_tile_grid := false) {
-	draw_tilemap(level_tilemap, show_tile_grid)
-
-	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
-
-	for wall in level.half_walls {
-		draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
-	}
-
-	for item in level.items {
-		tex_id := item_to_texture[item.data.id]
-		tex := loaded_textures[tex_id]
-		sprite: Sprite = {
-			tex_id,
-			{0, 0, f32(tex.width), f32(tex.height)},
-			{1, 1},
-			{f32(tex.width) / 2, f32(tex.height) / 2},
-			0,
-			rl.LIGHTGRAY, // Slight darker tint
-		}
-
-
-		draw_sprite(sprite, item.pos)
-	}
-
-	// level.tilemap_file
-	for wall in level.walls {
-		draw_shape(wall.shape, wall.pos, rl.GRAY)
-	}
-
-	for enemy in level.enemies {
-		rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
-		rl.DrawCircleV(enemy.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
-
-		sprite := ENEMY_SPRITE
-		sprite.rotation = enemy.look_angle
-
-		if sprite.rotation < -90 || sprite.rotation > 90 {
-			sprite.scale = {-1, 1}
-			sprite.rotation += 180
-		}
-		draw_sprite(sprite, enemy.pos)
-	}
-
-	for barrel in level.exploding_barrels {
-		draw_sprite(BARREL_SPRITE, barrel.pos)
-	}
-
-	draw_sprite(PLAYER_SPRITE, level.player_pos)
-
-	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
-
-	// if level.has_tutorial {
-	// 	for prompt in tutorial.prompts {
-	// 		if !prompt.on_screen {
-	// 			font_size: f32 = 6
-	// 			spacing: f32 = 1
-	// 			text := fmt.ctprint(prompt.text)
-	// 			pos := get_centered_text_pos(prompt.pos, text, font_size, spacing)
-	// 			text_size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
-	// 			rl.DrawRectangleLinesEx({pos.x, pos.y, text_size.x, text_size.y}, 0.5, rl.YELLOW)
-	// 		}
-	// 	}
-	// }
 }
