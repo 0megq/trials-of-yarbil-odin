@@ -22,9 +22,13 @@ ButtonStatus :: enum {
 }
 
 Button :: struct {
-	rect:          Rectangle,
-	text:          string,
-	status:        ButtonStatus,
+	rect:   Rectangle,
+	text:   string,
+	status: ButtonStatus,
+	style:  ButtonStyle,
+}
+
+ButtonStyle :: struct {
 	normal_color:  Color,
 	hover_color:   Color,
 	pressed_color: Color,
@@ -355,15 +359,15 @@ draw_button :: proc(button: Button, offset := Vec2{}) {
 	color: Color
 	switch button.status {
 	case .Normal:
-		color = button.normal_color
+		color = button.style.normal_color
 	case .Hovered:
-		color = button.hover_color
+		color = button.style.hover_color
 	case .Pressed:
-		color = button.pressed_color
+		color = button.style.pressed_color
 	case .Down:
-		color = button.pressed_color
+		color = button.style.pressed_color
 	case .Released:
-		color = button.hover_color
+		color = button.style.hover_color
 	}
 
 	rl.DrawRectangleRec(rect, color)
