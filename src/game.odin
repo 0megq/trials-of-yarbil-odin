@@ -163,7 +163,11 @@ main_menu: struct {
 	quit_button: Button,
 }
 pause_menu: struct {
+	resume_button:    Button,
+	main_menu_button: Button,
 }
+menu_change_queued: bool = false
+new_menu: Menu = .Main
 cur_menu: Menu = .Nil
 prev_menu: Menu = .Nil
 
@@ -209,10 +213,14 @@ main :: proc() {
 		rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 		rl.SetWindowMaxSize(1920, 1057)
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
+		rl.SetExitKey(.KEY_NULL)
 		// Set window values
 		window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 		window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 	}
+	icon := rl.LoadImage("res/images/client_icon.png")
+	defer rl.UnloadImage(icon)
+	rl.SetWindowIcon(icon)
 
 	// Load resources and data
 	{
@@ -236,6 +244,7 @@ main :: proc() {
 	}
 
 	setup_main_menu()
+	setup_pause_menu()
 
 	init_editor_state(&editor_state)
 
@@ -246,8 +255,7 @@ main :: proc() {
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
 
-	// Init menus
-	change_menu(.Main)
+	queue_menu_change(.Main)
 
 	// Update Loop
 	for !rl.WindowShouldClose() && !game_should_close {
@@ -304,6 +312,10 @@ update :: proc() {
 		if rl.IsKeyPressed(.RIGHT_BRACKET) {
 			debug_speed += 0.25
 		}
+	}
+
+	if menu_change_queued {
+		perform_menu_change()
 	}
 
 	#partial switch cur_menu {
@@ -370,11 +382,14 @@ update :: proc() {
 		case .None:
 			world_update(&main_world)
 		}
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.Pause)
+		}
 	case .Main:
 		update_button(&main_menu.play_button, mouse_ui_pos)
 		update_button(&main_menu.quit_button, mouse_ui_pos)
 		if main_menu.play_button.status == .Pressed {
-			change_menu(.World)
+			queue_menu_change(.World)
 		} else if main_menu.quit_button.status == .Pressed {
 			game_should_close = true
 		}
@@ -382,6 +397,16 @@ update :: proc() {
 	// Update button and ui elements
 	// Do stuff based on new button and ui status
 	case .Pause:
+		update_button(&pause_menu.resume_button, mouse_ui_pos)
+		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
+		if pause_menu.resume_button.status == .Pressed {
+			queue_menu_change(.World)
+		} else if pause_menu.main_menu_button.status == .Pressed {
+			queue_menu_change(.Main)
+		}
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.World)
+		}
 	}
 
 	draw_frame()
@@ -397,6 +422,8 @@ draw_frame :: proc() {
 	#partial switch cur_menu {
 	case .World:
 		draw_world(main_world)
+	case .Pause:
+		draw_world(main_world)
 	}
 	rl.EndMode2D()
 
@@ -405,16 +432,31 @@ draw_frame :: proc() {
 	case .World:
 		draw_world_ui(main_world)
 	case .Main:
+		rl.DrawTexture(
+			loaded_textures[.TitleScreen],
+			UI_SIZE.x / 2 - loaded_textures[.TitleScreen].width / 2,
+			-80,
+			rl.WHITE,
+		)
 		draw_button(main_menu.play_button)
 		draw_button(main_menu.quit_button)
 	case .Pause:
+		draw_world_ui(main_world)
+		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
+		draw_button(pause_menu.resume_button)
+		draw_button(pause_menu.main_menu_button)
 	}
 	rl.EndMode2D()
 
 	rl.EndDrawing()
 }
 
-change_menu :: proc(new_menu: Menu) {
+queue_menu_change :: proc(menu: Menu) {
+	menu_change_queued = true
+	new_menu = menu
+}
+
+perform_menu_change :: proc() {
 	// Exit
 	switch cur_menu {
 	case .World:
