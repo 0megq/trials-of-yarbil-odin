@@ -50,7 +50,8 @@ EditorMode :: enum {
 }
 
 Menu :: enum {
-	None,
+	Nil,
+	World,
 	Pause,
 	Main,
 }
@@ -139,12 +140,14 @@ player_at_portal: bool
 seconds_above_distraction_threshold: f32
 display_win_screen: bool
 play_again_button: Button = Button {
-	rect          = {700, 300, 200, 24},
-	text          = "Play Again",
-	hover_color   = rl.DARKGRAY,
-	normal_color  = rl.GRAY,
-	pressed_color = Color{80, 80, 80, 255},
-	status        = .Normal,
+	rect = {700, 300, 200, 24},
+	text = "Play Again",
+	style = {
+		normal_color = rl.GRAY,
+		hover_color = rl.DARKGRAY,
+		pressed_color = Color{80, 80, 80, 255},
+	},
+	status = .Normal,
 }
 
 speedrun_timer := f32(0)
@@ -155,7 +158,18 @@ queue_play_again: bool
 game_data: GameData
 
 main_world: World
-menu: Menu
+main_menu: struct {
+	play_button: Button,
+	quit_button: Button,
+}
+pause_menu: struct {
+	resume_button:    Button,
+	main_menu_button: Button,
+}
+menu_change_queued: bool = false
+new_menu: Menu = .Main
+cur_menu: Menu = .Nil
+prev_menu: Menu = .Nil
 
 world_camera: rl.Camera2D
 ui_camera: rl.Camera2D
@@ -172,6 +186,8 @@ mouse_world_pos: Vec2
 mouse_world_delta: Vec2
 
 delta: f32
+
+game_should_close := false
 
 main :: proc() {
 	// Init RNG
@@ -197,10 +213,14 @@ main :: proc() {
 		rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
 		rl.SetWindowMaxSize(1920, 1057)
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
+		rl.SetExitKey(.KEY_NULL)
 		// Set window values
 		window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 		window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
 	}
+	icon := rl.LoadImage("res/images/client_icon.png")
+	defer rl.UnloadImage(icon)
+	rl.SetWindowIcon(icon)
 
 	// Load resources and data
 	{
@@ -209,9 +229,7 @@ main :: proc() {
 		load_game_data()
 	}
 
-	init_editor_state(&editor_state)
-
-	// Init world
+	// Allocate memory for the main world (Should only happen once)
 	{
 		load_level(&main_world)
 		// We need to allocate memory for the temp entities
@@ -225,6 +243,11 @@ main :: proc() {
 		// }
 	}
 
+	setup_main_menu()
+	setup_pause_menu()
+
+	init_editor_state(&editor_state)
+
 	// Init ui camera
 	ui_camera = rl.Camera2D {
 		target = Vec2{f32(window_size.x), f32(window_size.y)} / 2,
@@ -232,10 +255,10 @@ main :: proc() {
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
 
-	menu = .Main
+	queue_menu_change(.Main)
 
 	// Update Loop
-	for !rl.WindowShouldClose() {
+	for !rl.WindowShouldClose() && !game_should_close {
 		update()
 	}
 
@@ -291,8 +314,12 @@ update :: proc() {
 		}
 	}
 
-	switch menu {
-	case .None:
+	if menu_change_queued {
+		perform_menu_change()
+	}
+
+	#partial switch cur_menu {
+	case .World:
 		// Editor Hotkeys
 		when ODIN_DEBUG {
 			if rl.IsKeyDown(.LEFT_CONTROL) {
@@ -355,18 +382,31 @@ update :: proc() {
 		case .None:
 			world_update(&main_world)
 		}
-	case .Main:
-		if rl.IsKeyPressed(.SPACE) {
-			fmt.println("press K to go into game")
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.Pause)
 		}
-		if rl.IsKeyPressed(.K) {
-			fmt.println("gaming time")
-			menu = .None // Make a transition function that handles all deinit and init for menus and world
+	case .Main:
+		update_button(&main_menu.play_button, mouse_ui_pos)
+		update_button(&main_menu.quit_button, mouse_ui_pos)
+		if main_menu.play_button.status == .Pressed {
+			queue_menu_change(.World)
+		} else if main_menu.quit_button.status == .Pressed {
+			game_should_close = true
 		}
 	// Send input
 	// Update button and ui elements
 	// Do stuff based on new button and ui status
 	case .Pause:
+		update_button(&pause_menu.resume_button, mouse_ui_pos)
+		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
+		if pause_menu.resume_button.status == .Pressed {
+			queue_menu_change(.World)
+		} else if pause_menu.main_menu_button.status == .Pressed {
+			queue_menu_change(.Main)
+		}
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.World)
+		}
 	}
 
 	draw_frame()
@@ -379,23 +419,62 @@ draw_frame :: proc() {
 	rl.ClearBackground(rl.DARKGRAY)
 
 	rl.BeginMode2D(world_camera)
-	#partial switch menu {
-	case .None:
+	#partial switch cur_menu {
+	case .World:
+		draw_world(main_world)
+	case .Pause:
 		draw_world(main_world)
 	}
 	rl.EndMode2D()
 
 	rl.BeginMode2D(ui_camera)
-	switch menu {
-	case .None:
+	#partial switch cur_menu {
+	case .World:
 		draw_world_ui(main_world)
 	case .Main:
-		rl.DrawText("Hello", 100, 100, 20, rl.RED)
+		rl.DrawTexture(
+			loaded_textures[.TitleScreen],
+			UI_SIZE.x / 2 - loaded_textures[.TitleScreen].width / 2,
+			-80,
+			rl.WHITE,
+		)
+		draw_button(main_menu.play_button)
+		draw_button(main_menu.quit_button)
 	case .Pause:
+		draw_world_ui(main_world)
+		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
+		draw_button(pause_menu.resume_button)
+		draw_button(pause_menu.main_menu_button)
 	}
 	rl.EndMode2D()
 
 	rl.EndDrawing()
+}
+
+queue_menu_change :: proc(menu: Menu) {
+	menu_change_queued = true
+	new_menu = menu
+}
+
+perform_menu_change :: proc() {
+	// Exit
+	switch cur_menu {
+	case .World:
+	case .Pause:
+	case .Main:
+	case .Nil:
+	}
+
+	// Entry
+	switch new_menu {
+	case .World:
+	case .Pause:
+	case .Main:
+	case .Nil:
+	}
+
+	prev_menu = cur_menu
+	cur_menu = new_menu
 }
 
 fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {

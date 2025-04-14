@@ -15,6 +15,7 @@ TextureId :: enum {
 	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
 	WinCircle,
+	TitleScreen = 400, // 400-499 is UI
 }
 
 loaded_textures: #sparse[TextureId]rl.Texture2D
@@ -43,6 +44,7 @@ load_textures :: proc() {
 		.ExplodingBarrel = rl.LoadTexture("res/images/exploding_barrel.png"),
 		.Tilemap         = rl.LoadTexture("res/images/tileset.png"),
 		.WinCircle       = rl.LoadTexture("res/images/win_circle.png"),
+		.TitleScreen     = rl.LoadTexture("res/images/title_screen.png"),
 	}
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }

@@ -663,6 +663,10 @@ world_update :: proc(using world: ^World) {
 	}
 }
 
+allocate_main_world :: proc() {
+
+}
+
 draw_world :: proc(world: World) {
 	if editor_state.mode != .None {
 		draw_level(editor_state.show_tile_grid)
