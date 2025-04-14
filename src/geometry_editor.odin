@@ -27,10 +27,8 @@ points field is a dynamic array of point fields
 move and/or create points with mouse
 */
 
-wall_tilemap: WallTilemap
 
-
-update_geometry_editor :: proc(e: ^EditorState) {
+update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	update_button(&e.new_shape_but, mouse_ui_pos)
 
 	// New shape
@@ -232,13 +230,13 @@ update_geometry_editor :: proc(e: ^EditorState) {
 			e.test_path = find_path_tiles(
 				e.test_path_start,
 				e.test_path_end,
-				nav_graph,
+				world.nav_graph,
 				level_tilemap,
-				wall_tilemap,
+				world.wall_tilemap,
 			)
 			fmt.println(e.test_path)
 		} else if rl.IsKeyDown(.LEFT_CONTROL) {
-			place_walls_and_calculate_graph()
+			place_walls_and_calculate_graph(world)
 		} else { 	// Toggle path display
 			e.display_test_path = !e.display_test_path
 		}
@@ -257,23 +255,23 @@ update_geometry_editor :: proc(e: ^EditorState) {
 	}
 }
 
-place_walls_and_calculate_graph :: proc() {
+place_walls_and_calculate_graph :: proc(world: ^World) {
 	// Place wall tiles based on wall geometry
-	wall_tilemap = false
+	world.wall_tilemap = false
 	for wall in level.walls {
-		tiles := get_tile_shape_collision(wall.shape, wall.pos, 0.1)
+		tiles := get_tiles_in_shape(wall.shape, wall.pos, 0.1)
 		for tile in tiles {
-			wall_tilemap[tile.x][tile.y] = true
+			world.wall_tilemap[tile.x][tile.y] = true
 		}
 	}
 	for half_wall in level.half_walls {
-		tiles := get_tile_shape_collision(half_wall.shape, half_wall.pos, 0.1)
+		tiles := get_tiles_in_shape(half_wall.shape, half_wall.pos, 0.1)
 		for tile in tiles {
-			wall_tilemap[tile.x][tile.y] = true
+			world.wall_tilemap[tile.x][tile.y] = true
 		}
 	}
 	// calculate graph
-	calculate_tile_graph(&nav_graph, level_tilemap, wall_tilemap)
+	calculate_graph_from_tiles(&world.nav_graph, level_tilemap, world.wall_tilemap)
 }
 
 set_shape_fields_to_selected_shape :: proc(e: ^EditorState) {
@@ -326,7 +324,7 @@ update_shape_fields :: proc(e: ^EditorState) {
 	}
 }
 
-draw_geometry_editor_world :: proc(e: EditorState) {
+draw_geometry_editor_world :: proc(world: World, e: EditorState) {
 	if e.portal_selected {
 		rl.DrawCircleLinesV(level.portal_pos, PORTAL_RADIUS, SELECTED_OUTLINE_COLOR)
 	}
@@ -337,17 +335,17 @@ draw_geometry_editor_world :: proc(e: EditorState) {
 
 	if e.display_nav_graph {
 		// Draw connections
-		for node in nav_graph.nodes {
+		for node in world.nav_graph.nodes {
 			for connection in node.connections {
 				if connection < 0 {
 					break
 				}
-				rl.DrawLineV(node.pos, nav_graph.nodes[connection].pos, rl.GRAY)
+				rl.DrawLineV(node.pos, world.nav_graph.nodes[connection].pos, rl.GRAY)
 			}
 		}
 
 		// Draw nodes
-		for node in nav_graph.nodes {
+		for node in world.nav_graph.nodes {
 			rl.DrawCircleV(node.pos, 1, rl.BLACK)
 		}
 	}
