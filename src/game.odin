@@ -371,13 +371,13 @@ update :: proc() {
 		// Update Current Editor (Including World!)
 		switch editor_state.mode {
 		case .Level:
-			update_world_camera_and_store_mouse_pos()
+			update_world_camera_and_mouse_pos()
 			update_geometry_editor(&main_world, &editor_state)
 		case .Entity:
-			update_world_camera_and_store_mouse_pos()
+			update_world_camera_and_mouse_pos()
 			update_entity_editor(&editor_state)
 		case .Tutorial:
-			update_world_camera_and_store_mouse_pos()
+			update_world_camera_and_mouse_pos()
 			update_tutorial_editor(&editor_state)
 		case .None:
 			world_update()

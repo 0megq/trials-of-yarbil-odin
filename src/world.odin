@@ -46,7 +46,7 @@ world_update :: proc() {
 		}
 	}
 
-	update_world_camera_and_store_mouse_pos()
+	update_world_camera_and_mouse_pos()
 
 	if !all_enemies_dead(main_world) {
 		speedrun_timer += delta
@@ -663,10 +663,6 @@ world_update :: proc() {
 	}
 }
 
-allocate_main_world :: proc() {
-
-}
-
 draw_world :: proc(world: World) {
 	if editor_state.mode != .None {
 		draw_level(editor_state.show_tile_grid)
@@ -1046,9 +1042,7 @@ draw_world_ui :: proc(world: World) {
 }
 
 // Update World Camera and get World mouse input
-update_world_camera_and_store_mouse_pos :: proc() {
-	mouse_world_pos = window_to_world(mouse_window_pos)
-	mouse_world_delta = mouse_window_delta / world_camera.zoom
+update_world_camera_and_mouse_pos :: proc() {
 	world_camera.offset = {f32(window_size.x), f32(window_size.y)} / 2
 	if editor_state.mode == .None {
 		world_camera.zoom = window_over_game
@@ -1074,7 +1068,8 @@ update_world_camera_and_store_mouse_pos :: proc() {
 			world_camera.target -= mouse_world_delta
 		}
 	}
-
+	mouse_world_pos = window_to_world(mouse_window_pos)
+	mouse_world_delta = mouse_window_delta / world_camera.zoom
 }
 
 // Clears entities and reloads game data and level
