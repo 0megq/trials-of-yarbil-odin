@@ -27,7 +27,7 @@ World :: struct {
 }
 
 
-world_update :: proc(using world: ^World) {
+world_update :: proc() {
 	// Perform Queued World Actions (death and deletion). Remove things from the previous frame
 	if main_world.player.queue_free {
 		on_player_death()

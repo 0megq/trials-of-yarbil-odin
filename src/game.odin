@@ -380,7 +380,7 @@ update :: proc() {
 			update_world_camera_and_store_mouse_pos()
 			update_tutorial_editor(&editor_state)
 		case .None:
-			world_update(&main_world)
+			world_update()
 		}
 		if rl.IsKeyPressed(.ESCAPE) {
 			queue_menu_change(.Pause)
