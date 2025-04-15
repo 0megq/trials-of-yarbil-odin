@@ -16,9 +16,15 @@ setup_main_menu :: proc() {
 	cur_y += but_height + but_margin
 	main_menu.quit_button.rect = get_centered_rect({cur_x, cur_y}, {but_width, but_height})
 
+	main_menu.feedback_button.rect = get_centered_rect(
+		{cur_x, 0.9 * f32(UI_SIZE.y)},
+		{but_width, but_height},
+	)
+
 	// Text Setup
 	main_menu.play_button.text = "Play"
 	main_menu.quit_button.text = "Quit"
+	main_menu.feedback_button.text = "Give Feedback Here"
 
 	// Colors
 	style := ButtonStyle {
@@ -28,6 +34,7 @@ setup_main_menu :: proc() {
 	}
 	main_menu.play_button.style = style
 	main_menu.quit_button.style = style
+	main_menu.feedback_button.style = style
 }
 
 setup_pause_menu :: proc() {

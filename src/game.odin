@@ -159,8 +159,9 @@ game_data: GameData
 
 main_world: World
 main_menu: struct {
-	play_button: Button,
-	quit_button: Button,
+	play_button:     Button,
+	quit_button:     Button,
+	feedback_button: Button,
 }
 pause_menu: struct {
 	resume_button:    Button,
@@ -388,10 +389,15 @@ update :: proc() {
 	case .Main:
 		update_button(&main_menu.play_button, mouse_ui_pos)
 		update_button(&main_menu.quit_button, mouse_ui_pos)
-		if main_menu.play_button.status == .Pressed {
+		update_button(&main_menu.feedback_button, mouse_ui_pos)
+		if main_menu.play_button.status == .Released {
 			queue_menu_change(.World)
-		} else if main_menu.quit_button.status == .Pressed {
+		} else if main_menu.quit_button.status == .Released {
 			game_should_close = true
+		} else if main_menu.feedback_button.status == .Released {
+			rl.OpenURL(
+				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
+			)
 		}
 	// Send input
 	// Update button and ui elements
@@ -399,9 +405,9 @@ update :: proc() {
 	case .Pause:
 		update_button(&pause_menu.resume_button, mouse_ui_pos)
 		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
-		if pause_menu.resume_button.status == .Pressed {
+		if pause_menu.resume_button.status == .Released {
 			queue_menu_change(.World)
-		} else if pause_menu.main_menu_button.status == .Pressed {
+		} else if pause_menu.main_menu_button.status == .Released {
 			queue_menu_change(.Main)
 		}
 		if rl.IsKeyPressed(.ESCAPE) {
@@ -440,6 +446,7 @@ draw_frame :: proc() {
 		)
 		draw_button(main_menu.play_button)
 		draw_button(main_menu.quit_button)
+		draw_button(main_menu.feedback_button)
 	case .Pause:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
