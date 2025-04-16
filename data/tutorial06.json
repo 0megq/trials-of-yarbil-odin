@@ -2,17 +2,24 @@
 	"prompts": [
 		{
 			"pos": [
-				636,
-				732
+				592,
+				684
 			],
-			"text": "^^^"
+			"text": "Pick up bomb"
 		},
 		{
 			"pos": [
-				636,
-				740
+				676,
+				700
 			],
-			"text": "Projectiles can pass over half-walls"
+			"text": "Right click to throw bomb"
+		},
+		{
+			"pos": [
+				654,
+				788
+			],
+			"text": "Exploding Barrel ^^^"
 		}
 	],
 	"actions": [],
