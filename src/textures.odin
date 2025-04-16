@@ -10,7 +10,8 @@ TextureId :: enum {
 	Sword = 100, // 100-199 is weapons
 	// Stick,
 	Player = 200, // 200-299 is entities
-	Enemy,
+	EnemyBasic,
+	EnemyRanged,
 	Arrow,
 	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
@@ -39,7 +40,8 @@ load_textures :: proc() {
 		.Sword           = rl.LoadTexture("res/images/sword.png"),
 		// .Stick           = rl.LoadTexture("res/images/stick.png"),
 		.Player          = rl.LoadTexture("res/images/samurai.png"),
-		.Enemy           = rl.LoadTexture("res/images/enemy.png"),
+		.EnemyBasic      = rl.LoadTexture("res/images/enemy_basic.png"),
+		.EnemyRanged     = rl.LoadTexture("res/images/enemy_ranged.png"),
 		.Arrow           = rl.LoadTexture("res/images/arrow.png"),
 		.ExplodingBarrel = rl.LoadTexture("res/images/exploding_barrel.png"),
 		.Tilemap         = rl.LoadTexture("res/images/tileset.png"),

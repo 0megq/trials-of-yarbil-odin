@@ -222,7 +222,10 @@ draw_level :: proc(show_tile_grid := false) {
 		rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
 		rl.DrawCircleV(enemy.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
 
-		sprite := ENEMY_SPRITE
+		sprite := ENEMY_BASIC_SPRITE
+		if _, ok := enemy.data.(RangedEnemyData); ok {
+			sprite.tex_id = .EnemyRanged
+		}
 		sprite.rotation = enemy.look_angle
 
 		if sprite.rotation < -90 || sprite.rotation > 90 {

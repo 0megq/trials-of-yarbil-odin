@@ -794,7 +794,10 @@ draw_world :: proc(world: World) {
 		for enemy in world.enemies {
 			// DEBUG: Draw collision shape
 			// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-			sprite := ENEMY_SPRITE
+			sprite := ENEMY_BASIC_SPRITE
+			if _, ok := enemy.data.(RangedEnemyData); ok {
+				sprite.tex_id = .EnemyRanged
+			}
 			sprite.rotation = enemy.look_angle
 
 			if sprite.rotation < -90 || sprite.rotation > 90 {
