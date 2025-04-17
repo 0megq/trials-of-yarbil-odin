@@ -274,6 +274,8 @@ load_level :: proc(world: ^World) {
 		offset = ({f32(window_size.x), f32(window_size.y)} / 2),
 	}
 
+	// Reset level speedrun timer
+	speedrun_timer = 0
 
 	load_tilemap(
 		&level_tilemap,
@@ -399,7 +401,6 @@ load_game_data :: proc(game_idx := 0) {
 	// Reset all player values
 	main_world.player = {}
 	set_player_data(&main_world.player, game_data.player_data)
-	speedrun_timer = 0
 
 	rl.TraceLog(.INFO, "GameData Loaded")
 }

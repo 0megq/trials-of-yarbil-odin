@@ -48,7 +48,8 @@ world_update :: proc() {
 
 	update_world_camera_and_mouse_pos()
 
-	if !all_enemies_dead(main_world) {
+	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
+	   (speedrun_timer != 0 && !all_enemies_dead(main_world)) {
 		speedrun_timer += delta
 	}
 

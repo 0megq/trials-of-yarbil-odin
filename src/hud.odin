@@ -199,14 +199,15 @@ draw_hud :: proc(player: Player) {
 	}
 	// Display speedrun timer
 	if !(level.has_tutorial && tutorial.hide_speedrun_timer) {
-		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 80}
+		font_size: f32 = 24
+		center: Vec2 = {f32(UI_SIZE.x) / 2, 40}
 		text := fmt.ctprintf(
-			"%2d:%2d:%2d.%2d",
+			"Time: %2d:%2d:%2d.%2d",
 			time.clock_from_seconds(u64(speedrun_timer)),
 			u64((speedrun_timer - f32(i32(speedrun_timer))) * 100),
 		)
-		pos := get_centered_text_pos(center, text, 20, 2)
+		pos := get_centered_text_pos(center, text, font_size, 2)
 
-		rl.DrawTextEx(rl.GetFontDefault(), text, pos, 20, 2, rl.WHITE)
+		rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, 2, rl.WHITE)
 	}
 }
