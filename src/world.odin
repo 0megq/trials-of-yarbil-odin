@@ -771,7 +771,14 @@ draw_world :: proc(world: World) {
 					if check_condition(&prompt.condition, prompt.invert_condition, world) &&
 					   check_condition(&prompt.condition2, prompt.invert_condition2, world) &&
 					   check_condition(&prompt.condition3, prompt.invert_condition3, world) {
-						rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.WHITE)
+						rl.DrawTextEx(
+							rl.GetFontDefault(),
+							text,
+							pos,
+							font_size,
+							spacing,
+							{200, 200, 255, 255},
+						)
 					} else {
 						when ODIN_DEBUG {
 							text_size := rl.MeasureTextEx(
@@ -1012,7 +1019,14 @@ draw_world_ui :: proc(world: World) {
 					if check_condition(&prompt.condition, prompt.invert_condition, world) &&
 					   check_condition(&prompt.condition2, prompt.invert_condition2, world) &&
 					   check_condition(&prompt.condition3, prompt.invert_condition3, world) {
-						rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.WHITE)
+						rl.DrawTextEx(
+							rl.GetFontDefault(),
+							text,
+							pos,
+							font_size,
+							spacing,
+							{200, 200, 255, 255},
+						)
 					} else {
 						when ODIN_DEBUG {
 							text_size := rl.MeasureTextEx(
