@@ -188,24 +188,26 @@ EnemyData1 :: struct {
 Level :: Level3
 Level3 :: struct {
 	// start player pos
-	player_pos:        Vec2,
+	player_pos:            Vec2,
 	// portal pos
-	portal_pos:        Vec2,
+	portal_pos:            Vec2,
 	// enemies
-	enemies:           [dynamic]Enemy2, // This field is only used when level editing
-	enemy_data:        [dynamic]EnemyData1, // Only used for serialization
+	enemies:               [dynamic]Enemy2, // This field is used when level editing
+	enemy_data:            [dynamic]EnemyData1, // Used for serialization
 	// items
-	items:             [dynamic]Item,
+	items:                 [dynamic]Item,
 	// barrels
-	exploding_barrels: [dynamic]ExplodingBarrel,
+	exploding_barrels:     [dynamic]ExplodingBarrel,
 	// walls
-	walls:             [dynamic]PhysicsEntity,
+	walls:                 [dynamic]PhysicsEntity,
 	// half walls
-	half_walls:        [dynamic]HalfWall,
+	half_walls:            [dynamic]HalfWall,
 	// camera bounding box
-	bounds:            Rectangle,
+	bounds:                Rectangle,
 	// tutorial
-	has_tutorial:      bool,
+	has_tutorial:          bool,
+	// if game should be saved after completing the level
+	save_after_completion: bool,
 }
 // updates made while in an editor mode will be saved here
 level: Level

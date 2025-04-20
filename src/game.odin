@@ -150,6 +150,11 @@ play_again_button: Button = Button {
 	status = .Normal,
 }
 
+// "Progress saved!" visuals
+completion_show_time: f32 = 0
+flash_interval: f32 : 1 // will switch on and off with this interval
+max_show_time: f32 : 5
+
 speedrun_timer := f32(0)
 
 debug_speed := f32(1)

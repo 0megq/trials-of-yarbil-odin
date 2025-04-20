@@ -46,7 +46,35 @@ world_update :: proc() {
 		}
 	}
 
+	// Check player collision with portal
+	player_at_portal = check_collision_shapes(
+		Circle{{}, PORTAL_RADIUS},
+		level.portal_pos,
+		main_world.player.shape,
+		main_world.player.pos,
+	)
+	// Do next level stuff
+	if all_enemies_dead(main_world) &&
+	   is_control_pressed(controls.use_portal) &&
+	   player_at_portal {
+		if game_data.cur_level_idx == -1 { 	// no win screen for now
+			display_win_screen = true
+		} else {
+			// if next level exists, play it, else restart from the beginning
+			game_data.cur_level_idx += 1
+			clear_temp_entities(&main_world)
+			reload_level(&main_world)
+		}
+	}
+
 	update_world_camera_and_mouse_pos()
+
+	if display_win_screen {
+		update_button(&play_again_button, mouse_ui_pos)
+		if play_again_button.status == .Released {
+			queue_play_again = true
+		}
+	}
 
 	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
 	   (speedrun_timer != 0 && !all_enemies_dead(main_world)) {
@@ -95,33 +123,6 @@ world_update :: proc() {
 
 	// Fire spread and other tile updates
 	update_tilemap(&main_world)
-
-	// Check player collision with portal
-	player_at_portal = check_collision_shapes(
-		Circle{{}, PORTAL_RADIUS},
-		level.portal_pos,
-		main_world.player.shape,
-		main_world.player.pos,
-	)
-	if all_enemies_dead(main_world) &&
-	   is_control_pressed(controls.use_portal) &&
-	   player_at_portal {
-		if game_data.cur_level_idx == -1 { 	// no win screen for now
-			display_win_screen = true
-		} else {
-			// if next level exists, play it, else restart from the beginning
-			game_data.cur_level_idx += 1
-			clear_temp_entities(&main_world)
-			reload_level(&main_world)
-		}
-	}
-
-	if display_win_screen {
-		update_button(&play_again_button, mouse_ui_pos)
-		if play_again_button.status == .Released {
-			queue_play_again = true
-		}
-	}
 
 	// fire dash timer
 	if !main_world.player.can_fire_dash {
@@ -994,16 +995,41 @@ draw_world_ui :: proc(world: World) {
 
 
 		if all_enemies_dead(world) {
+			if level.save_after_completion && completion_show_time < max_show_time {
+				completion_show_time += delta
+				is_on := int(math.floor(completion_show_time / flash_interval)) % 2 == 0
+				if is_on {
+					message: cstring = "Progress saved!"
+					font_size: f32 = 36
+					spacing: f32 = 1
+					pos := get_centered_text_pos(
+						{f32(UI_SIZE.x) * 0.5, f32(UI_SIZE.y) * 0.5},
+						message,
+						font_size,
+						spacing,
+					)
+					rl.DrawTextEx(
+						rl.GetFontDefault(),
+						message,
+						pos,
+						font_size,
+						spacing,
+						{200, 255, 200, 255},
+					)
+				}
+
+			}
+
 			message: cstring = "All enemies defeated. Head to the portal."
-			size := rl.MeasureTextEx(rl.GetFontDefault(), message, 24, 1)
-			rl.DrawTextEx(
-				rl.GetFontDefault(),
+			font_size: f32 = 24
+			spacing: f32 = 1
+			pos := get_centered_text_pos(
+				{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) * 0.95},
 				message,
-				{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y)} - {size.x / 2, size.y + 16},
-				24,
-				1,
-				rl.DARKGREEN,
+				font_size,
+				spacing,
 			)
+			rl.DrawTextEx(rl.GetFontDefault(), message, pos, font_size, spacing, rl.DARKGREEN)
 		}
 
 		// draw on screen tutorial prompt
@@ -2424,10 +2450,31 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 	enemy.health -= amount
 	if enemy.health <= 0 {
 		unordered_remove(&world.enemies, enemy_idx)
-		// reset player dash
-		world.player.fire_dash_timer = 0 // Maybe we could send an event that an enemy died or something or return a bool when they do
+		// Maybe we could send an event or return a bool when they do
+		_on_enemy_death()
+		if all_enemies_dead(world^) {
+			_on_all_enemies_dead()
+		}
 	}
 }
+
+_on_enemy_death :: proc() {
+	// Reset player dash
+	main_world.player.fire_dash_timer = 0
+}
+
+_on_all_enemies_dead :: proc() {
+	if level.save_after_completion {
+		main_world.player.health = main_world.player.max_health
+		game_data.cur_level_idx += 1
+		save_game_data()
+		game_data.cur_level_idx -= 1
+
+		// start the visuals
+		completion_show_time = 0
+	}
+}
+
 
 lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {
 	enemy.look_angle = exp_decay_angle(enemy.look_angle, target_angle, 4, delta)

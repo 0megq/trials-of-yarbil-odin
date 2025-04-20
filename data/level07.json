@@ -824,5 +824,6 @@
 		"width": 0.00000000,
 		"height": 0.00000000
 	},
-	"has_tutorial": true
+	"has_tutorial": true,
+	"save_after_completion": true
 }
