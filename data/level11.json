@@ -355,8 +355,8 @@
 							172
 						],
 						"pos": [
-							562.03704834,
-							339.53085327
+							571.00000000,
+							311.00000000
 						],
 						"queue_free": false,
 						"start_disabled": false
@@ -376,7 +376,7 @@
 			},
 			"data": {
 				"id": 1,
-				"count": 3,
+				"count": 1,
 				"max_count": 0
 			}
 		}
@@ -949,5 +949,6 @@
 		"width": 0.00000000,
 		"height": 0.00000000
 	},
-	"has_tutorial": false
+	"has_tutorial": false,
+	"save_after_completion": false
 }
