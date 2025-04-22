@@ -4,6 +4,7 @@ import "core:crypto"
 import "core:fmt"
 import "core:math"
 import "core:mem"
+import "core:reflect"
 // import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
@@ -169,8 +170,12 @@ main_menu: struct {
 	feedback_button: Button,
 }
 pause_menu: struct {
-	resume_button:    Button,
-	main_menu_button: Button,
+	resume_button:               Button,
+	main_menu_button:            Button,
+	controls_button:             Button,
+	feedback_button:             Button,
+	controls_panel_close_button: Button,
+	controls_panel_showing:      bool,
 }
 menu_change_queued: bool = false
 new_menu: Menu = .Main
@@ -404,19 +409,32 @@ update :: proc() {
 				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
 			)
 		}
-	// Send input
-	// Update button and ui elements
-	// Do stuff based on new button and ui status
 	case .Pause:
-		update_button(&pause_menu.resume_button, mouse_ui_pos)
-		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
-		if pause_menu.resume_button.status == .Released {
-			queue_menu_change(.World)
-		} else if pause_menu.main_menu_button.status == .Released {
-			queue_menu_change(.Main)
-		}
-		if rl.IsKeyPressed(.ESCAPE) {
-			queue_menu_change(.World)
+		if !pause_menu.controls_panel_showing {
+			update_button(&pause_menu.resume_button, mouse_ui_pos)
+			update_button(&pause_menu.controls_button, mouse_ui_pos)
+			update_button(&pause_menu.main_menu_button, mouse_ui_pos)
+			update_button(&pause_menu.feedback_button, mouse_ui_pos)
+			if pause_menu.resume_button.status == .Released {
+				queue_menu_change(.World)
+			} else if pause_menu.controls_button.status == .Released {
+				pause_menu.controls_panel_showing = true
+			} else if pause_menu.main_menu_button.status == .Released {
+				queue_menu_change(.Main)
+			} else if pause_menu.feedback_button.status == .Released {
+				rl.OpenURL(
+					"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
+				)
+			}
+			if rl.IsKeyPressed(.ESCAPE) {
+				queue_menu_change(.World)
+			}
+		} else {
+			update_button(&pause_menu.controls_panel_close_button, mouse_ui_pos)
+			if pause_menu.controls_panel_close_button.status == .Released ||
+			   rl.IsKeyPressed(.ESCAPE) {
+				pause_menu.controls_panel_showing = false
+			}
 		}
 	}
 
@@ -456,7 +474,86 @@ draw_frame :: proc() {
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 		draw_button(pause_menu.resume_button)
+		draw_button(pause_menu.controls_button)
 		draw_button(pause_menu.main_menu_button)
+		draw_button(pause_menu.feedback_button)
+		if pause_menu.controls_panel_showing {
+			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
+			rec := get_centered_rect(
+				{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2,
+				{f32(UI_SIZE.x) * 0.3, f32(UI_SIZE.y) * 0.8},
+			)
+			// Panel Background
+			rl.DrawRectangleRec(rec, {103, 132, 201, 255})
+
+			// Panel Elements
+			draw_button(pause_menu.controls_panel_close_button)
+
+			x := rec.x + rec.width * 0.5
+			cur_y: f32 = rec.y + 80
+			width: f32 = 300
+			height: f32 = 40
+			font_size: f32 = 20
+			spacing: f32 = 2
+
+			{
+				// Draw background panel
+				// rl.DrawRectangleRec(get_centered_rect({x, cur_y}, {width, height}), rl.WHITE)
+
+				label: cstring = "Move"
+				control: cstring = "WASD"
+
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+			}
+
+			// fire
+			cur_y += height
+			{
+				label: cstring = "Attack"
+				scontrol: string
+				ok: bool
+				control: cstring
+				switch data in controls.fire {
+				case rl.KeyboardKey:
+					scontrol, ok = reflect.enum_name_from_value(data)
+					if !ok {
+						control = "Error :("
+					} else {
+						control = fmt.ctprint(scontrol)
+					}
+				case rl.MouseButton:
+					scontrol, ok = reflect.enum_name_from_value(data)
+					if !ok {
+						control = "Error :("
+					} else {
+						control = fmt.ctprint(scontrol, " Click")
+					}
+				}
+				// Let's create our own array with the right string names. That way we also don't need to allocate a new string
+
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+				if ok {
+					delete(scontrol)
+				}
+			}
+
+			// dash
+
+			// use_item
+
+			// pickup/use_portal
+
+		}
 	}
 	rl.EndMode2D()
 
@@ -626,4 +723,16 @@ is_control_released :: proc(c: Control) -> bool {
 // returns the position of the given text centered at center
 get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
+}
+
+// returns the position of the given text aligned to the right
+get_right_text_pos :: proc(right: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
+	size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
+	return right - {size.x, size.y / 2}
+}
+
+// returns the position of the given text aligned to the left
+get_left_text_pos :: proc(left: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
+	size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
+	return left - {0, size.y / 2}
 }
