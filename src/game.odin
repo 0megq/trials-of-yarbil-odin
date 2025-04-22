@@ -4,7 +4,6 @@ import "core:crypto"
 import "core:fmt"
 import "core:math"
 import "core:mem"
-import "core:reflect"
 // import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
@@ -490,7 +489,7 @@ draw_frame :: proc() {
 			draw_button(pause_menu.controls_panel_close_button)
 
 			x := rec.x + rec.width * 0.5
-			cur_y: f32 = rec.y + 80
+			cur_y: f32 = rec.y + 120
 			width: f32 = 300
 			height: f32 = 40
 			font_size: f32 = 20
@@ -515,26 +514,7 @@ draw_frame :: proc() {
 			cur_y += height
 			{
 				label: cstring = "Attack"
-				scontrol: string
-				ok: bool
-				control: cstring
-				switch data in controls.fire {
-				case rl.KeyboardKey:
-					scontrol, ok = reflect.enum_name_from_value(data)
-					if !ok {
-						control = "Error :("
-					} else {
-						control = fmt.ctprint(scontrol)
-					}
-				case rl.MouseButton:
-					scontrol, ok = reflect.enum_name_from_value(data)
-					if !ok {
-						control = "Error :("
-					} else {
-						control = fmt.ctprint(scontrol, " Click")
-					}
-				}
-				// Let's create our own array with the right string names. That way we also don't need to allocate a new string
+				control: cstring = "LMB"
 
 				// Draw label
 				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
@@ -542,17 +522,62 @@ draw_frame :: proc() {
 				// Draw control
 				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
 				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
-				if ok {
-					delete(scontrol)
-				}
 			}
 
 			// dash
+			cur_y += height
+			{
+				label: cstring = "Dash"
+				control: cstring = "Space"
+
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+			}
 
 			// use_item
+			cur_y += height
+			{
+				label: cstring = "Use Item"
+				control: cstring = "RMB"
+
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+			}
 
 			// pickup/use_portal
+			cur_y += height
+			{
+				label: cstring = "Pickup Item"
+				control: cstring = "E"
 
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+			}
+
+			cur_y += height
+			{
+				label: cstring = "Enter Portal"
+				control: cstring = "E"
+
+				// Draw label
+				left: Vec2 = get_left_text_pos({x - width / 2, cur_y}, label, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), label, left, font_size, spacing, rl.BLACK)
+				// Draw control
+				right := get_right_text_pos({x + width / 2, cur_y}, control, font_size, spacing)
+				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
+			}
 		}
 	}
 	rl.EndMode2D()
