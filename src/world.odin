@@ -524,7 +524,7 @@ world_update :: proc() {
 	#reverse for &arrow, i in main_world.arrows {
 		zentity_move(&arrow, 300, 30, delta)
 
-		speed_damage_ratio :: 15
+		speed_damage_ratio :: 25
 
 		arrow.attack.pos = arrow.pos
 		arrow.attack.shape = arrow.shape
