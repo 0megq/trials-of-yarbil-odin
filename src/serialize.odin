@@ -294,6 +294,7 @@ load_level :: proc(world: ^World) {
 			unordered_remove(&world.enemies, i)
 		}
 	}
+
 	world.items = slice.clone_to_dynamic(level.items[:])
 	world.disabled_items = make([dynamic]Item)
 	#reverse for item, i in world.items {
@@ -311,6 +312,10 @@ load_level :: proc(world: ^World) {
 	// Load tutorial if it exists
 	if level.has_tutorial {
 		_load_tutorial()
+	}
+
+	if all_enemies_dead(world^) {
+		_on_all_enemies_dead()
 	}
 }
 

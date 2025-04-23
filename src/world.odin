@@ -57,7 +57,7 @@ world_update :: proc() {
 	if all_enemies_dead(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
-		if game_data.cur_level_idx == -1 { 	// no win screen for now
+		if game_data.cur_level_idx == 12 { 	// no win screen for now
 			display_win_screen = true
 		} else {
 			// if next level exists, play it, else restart from the beginning
