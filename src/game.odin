@@ -54,6 +54,7 @@ Menu :: enum {
 	World,
 	Pause,
 	Main,
+	Win,
 }
 
 MovementAbility :: enum {
@@ -138,17 +139,6 @@ BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
-display_win_screen: bool
-play_again_button: Button = Button {
-	rect = {700, 300, 200, 24},
-	text = "Play Again",
-	style = {
-		normal_color = rl.GRAY,
-		hover_color = rl.DARKGRAY,
-		pressed_color = Color{80, 80, 80, 255},
-	},
-	status = .Normal,
-}
 
 // "Progress saved!" visuals
 completion_show_time: f32 = 0
@@ -158,7 +148,6 @@ max_show_time: f32 : 5
 speedrun_timer := f32(0)
 
 debug_speed := f32(1)
-queue_play_again: bool
 
 game_data: GameData
 
@@ -175,6 +164,12 @@ pause_menu: struct {
 	feedback_button:             Button,
 	controls_panel_close_button: Button,
 	controls_panel_showing:      bool,
+}
+win_menu: struct {
+	play_again_button: Button,
+	main_menu_button:  Button,
+	quit_button:       Button,
+	feedback_button:   Button,
 }
 menu_change_queued: bool = false
 new_menu: Menu = .Main
@@ -255,6 +250,7 @@ main :: proc() {
 
 	setup_main_menu()
 	setup_pause_menu()
+	setup_win_menu()
 
 	init_editor_state(&editor_state)
 
@@ -435,6 +431,29 @@ update :: proc() {
 				pause_menu.controls_panel_showing = false
 			}
 		}
+	case .Win:
+		update_button(&win_menu.play_again_button, mouse_ui_pos)
+		update_button(&win_menu.main_menu_button, mouse_ui_pos)
+		update_button(&win_menu.quit_button, mouse_ui_pos)
+		update_button(&win_menu.feedback_button, mouse_ui_pos)
+		if win_menu.play_again_button.status == .Released {
+			// Load base data (99) and save it into our current data
+			reload_game_data(99)
+			save_game_data()
+			reload_level(&main_world)
+			queue_menu_change(.World)
+		} else if win_menu.main_menu_button.status == .Released {
+			reload_game_data(99)
+			save_game_data()
+			reload_level(&main_world)
+			queue_menu_change(.Main)
+		} else if win_menu.quit_button.status == .Released {
+			game_should_close = true
+		} else if win_menu.feedback_button.status == .Released {
+			rl.OpenURL(
+				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
+			)
+		}
 	}
 
 	draw_frame()
@@ -451,6 +470,8 @@ draw_frame :: proc() {
 	case .World:
 		draw_world(main_world)
 	case .Pause:
+		draw_world(main_world)
+	case .Win:
 		draw_world(main_world)
 	}
 	rl.EndMode2D()
@@ -476,6 +497,7 @@ draw_frame :: proc() {
 		draw_button(pause_menu.controls_button)
 		draw_button(pause_menu.main_menu_button)
 		draw_button(pause_menu.feedback_button)
+		// Controls panel
 		if pause_menu.controls_panel_showing {
 			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 			rec := get_centered_rect(
@@ -579,6 +601,14 @@ draw_frame :: proc() {
 				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
 			}
 		}
+	case .Win:
+		draw_world_ui(main_world)
+		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
+		draw_button(win_menu.play_again_button)
+		draw_button(win_menu.main_menu_button)
+		draw_button(win_menu.feedback_button)
+		draw_button(win_menu.quit_button)
+		fmt.println(win_menu.play_again_button)
 	}
 	rl.EndMode2D()
 
@@ -596,6 +626,7 @@ perform_menu_change :: proc() {
 	case .World:
 	case .Pause:
 	case .Main:
+	case .Win:
 	case .Nil:
 	}
 
@@ -604,6 +635,7 @@ perform_menu_change :: proc() {
 	case .World:
 	case .Pause:
 	case .Main:
+	case .Win:
 	case .Nil:
 	}
 

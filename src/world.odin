@@ -33,13 +33,6 @@ world_update :: proc() {
 		on_player_death()
 		main_world.player.queue_free = false
 	}
-	if queue_play_again {
-		play_again_button.status = .Normal
-		display_win_screen = false
-		reload_game_data()
-		reload_level(&main_world)
-		queue_play_again = false
-	}
 	#reverse for barrel, i in main_world.exploding_barrels { 	// This needs to be in reverse since we are removing
 		if barrel.queue_free {
 			unordered_remove(&main_world.exploding_barrels, i)
@@ -57,10 +50,10 @@ world_update :: proc() {
 	if all_enemies_dead(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
-		if game_data.cur_level_idx == 12 { 	// no win screen for now
-			display_win_screen = true
+		if game_data.cur_level_idx == 12 {
+			queue_menu_change(.Win)
 		} else {
-			// if next level exists, play it, else restart from the beginning
+			// if not last level
 			game_data.cur_level_idx += 1
 			clear_temp_entities(&main_world)
 			reload_level(&main_world)
@@ -68,13 +61,6 @@ world_update :: proc() {
 	}
 
 	update_world_camera_and_mouse_pos()
-
-	if display_win_screen {
-		update_button(&play_again_button, mouse_ui_pos)
-		if play_again_button.status == .Released {
-			queue_play_again = true
-		}
-	}
 
 	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
 	   (speedrun_timer != 0 && !all_enemies_dead(main_world)) {
@@ -1071,15 +1057,6 @@ draw_world_ui :: proc(world: World) {
 				}
 			}
 		}
-	}
-
-	if display_win_screen {
-		// draw background
-		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
-		// draw text
-		rl.DrawText("Thanks for playing!", 700, 200, 24, rl.BLACK)
-		// draw button,
-		draw_button(play_again_button)
 	}
 
 	// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
