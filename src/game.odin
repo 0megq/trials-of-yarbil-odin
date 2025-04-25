@@ -446,9 +446,9 @@ update :: proc() {
 			reload_level(&main_world)
 			queue_menu_change(.World)
 		} else if win_menu.main_menu_button.status == .Released {
-			reload_game_data(99)
-			save_game_data()
-			call_after_draw(proc() {reload_level(&main_world)})
+			// reload_game_data(99)
+			// save_game_data()
+			// call_after_draw(proc() {reload_level(&main_world)})
 			queue_menu_change(.Main)
 		} else if win_menu.quit_button.status == .Released {
 			game_should_close = true
