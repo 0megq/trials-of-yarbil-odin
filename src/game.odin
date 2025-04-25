@@ -194,6 +194,9 @@ delta: f32
 
 game_should_close := false
 
+call_after_draw_queue: [100]proc()
+call_after_draw_length := 0
+
 main :: proc() {
 	// Init RNG
 	context.random_generator = crypto.random_generator()
@@ -445,7 +448,7 @@ update :: proc() {
 		} else if win_menu.main_menu_button.status == .Released {
 			reload_game_data(99)
 			save_game_data()
-			reload_level(&main_world)
+			call_after_draw(proc() {reload_level(&main_world)})
 			queue_menu_change(.Main)
 		} else if win_menu.quit_button.status == .Released {
 			game_should_close = true
@@ -457,6 +460,11 @@ update :: proc() {
 	}
 
 	draw_frame()
+
+	for idx in 0 ..< call_after_draw_length {
+		call_after_draw_queue[idx]()
+	}
+	call_after_draw_length = 0
 
 	free_all(context.temp_allocator)
 }
@@ -497,6 +505,20 @@ draw_frame :: proc() {
 		draw_button(pause_menu.controls_button)
 		draw_button(pause_menu.main_menu_button)
 		draw_button(pause_menu.feedback_button)
+
+		// Pause text
+		{
+			text: cstring = "Paused"
+			font_size: f32 = 30
+			spacing: f32 = 2
+			center := Vec2{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) * 0.1}
+			pos := get_centered_text_pos(center, text, font_size, spacing)
+			rl.DrawRectangleRec(
+				get_centered_rect(center, {f32(UI_SIZE.x), 50}),
+				{200, 200, 255, 255},
+			)
+			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
+		}
 		// Controls panel
 		if pause_menu.controls_panel_showing {
 			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
@@ -608,11 +630,31 @@ draw_frame :: proc() {
 		draw_button(win_menu.main_menu_button)
 		draw_button(win_menu.feedback_button)
 		draw_button(win_menu.quit_button)
-		fmt.println(win_menu.play_again_button)
+		// Draw win text and background
+		{
+			text: cstring = "You win!"
+			font_size: f32 = 30
+			spacing: f32 = 2
+			center := Vec2{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) * 0.1}
+			pos := get_centered_text_pos(center, text, font_size, spacing)
+			rl.DrawRectangleRec(
+				get_centered_rect(center, {f32(UI_SIZE.x), 50}),
+				{200, 255, 255, 255},
+			)
+			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
+		}
 	}
 	rl.EndMode2D()
 
 	rl.EndDrawing()
+}
+
+call_after_draw :: proc(call: proc()) {
+	if call_after_draw_length >= len(call_after_draw_queue) {
+		rl.TraceLog(.ERROR, "call_after_draw_queue not big enough! Increase size")
+	}
+	call_after_draw_queue[call_after_draw_length] = call
+	call_after_draw_length += 1
 }
 
 queue_menu_change :: proc(menu: Menu) {
