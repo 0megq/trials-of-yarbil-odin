@@ -17,6 +17,7 @@ TextureId :: enum {
 	Tilemap = 300, // 300-399 is environment
 	WinCircle,
 	TitleScreen = 400, // 400-499 is UI
+	HitVfx = 500, // 500-599 is Vfx and others
 }
 
 loaded_textures: #sparse[TextureId]rl.Texture2D
@@ -47,6 +48,7 @@ load_textures :: proc() {
 		.Tilemap         = rl.LoadTexture("res/images/tileset.png"),
 		.WinCircle       = rl.LoadTexture("res/images/win_circle.png"),
 		.TitleScreen     = rl.LoadTexture("res/images/title_screen.png"),
+		.HitVfx          = rl.LoadTexture("res/images/hitfx.png"),
 	}
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }
@@ -55,4 +57,12 @@ unload_textures :: proc() {
 	for tex in loaded_textures {
 		rl.UnloadTexture(tex)
 	}
+}
+
+get_frames :: proc(tex: TextureId) -> int {
+	#partial switch tex {
+	case .HitVfx:
+		return 4
+	}
+	return 1
 }

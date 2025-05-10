@@ -114,9 +114,9 @@ controls: Controls = {
 
 SWORD_HITBOX_POINTS := []Vec2 {
 	{SWORD_HITBOX_OFFSET, -12},
-	{SWORD_HITBOX_OFFSET + 10, -5},
-	{SWORD_HITBOX_OFFSET + 12, 0},
-	{SWORD_HITBOX_OFFSET + 10, 5},
+	{SWORD_HITBOX_OFFSET + 15, -5},
+	{SWORD_HITBOX_OFFSET + 17, 0},
+	{SWORD_HITBOX_OFFSET + 15, 5},
 	{SWORD_HITBOX_OFFSET, 12},
 }
 
@@ -743,6 +743,10 @@ exp_decay_angle :: proc(a, b: f32, decay: f32, delta: f32) -> f32 {
 
 exp_decay :: proc(a, b: $T, decay: f32, delta: f32) -> T {
 	return b + (a - b) * math.exp(-decay * delta)
+}
+
+almost_equals :: proc(a: f32, b: f32, epsilon: f32 = 0.001) -> bool {
+	return math.abs(a - b) <= epsilon
 }
 
 // Coordinates

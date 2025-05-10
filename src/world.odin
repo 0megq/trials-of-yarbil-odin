@@ -846,16 +846,16 @@ draw_world :: proc(world: World) {
 			}
 
 			// Draw vision area
-			when ODIN_DEBUG {
-				rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
-				for p, i in enemy.vision_points {
-					rl.DrawLineV(
-						p,
-						enemy.vision_points[(i + 1) % len(enemy.vision_points)],
-						rl.YELLOW,
-					)
-				}
-			}
+			// when ODIN_DEBUG {
+			// 	rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
+			// 	for p, i in enemy.vision_points {
+			// 		rl.DrawLineV(
+			// 			p,
+			// 			enemy.vision_points[(i + 1) % len(enemy.vision_points)],
+			// 			rl.YELLOW,
+			// 		)
+			// 	}
+			// }
 
 			// DEBUG: Enemy path
 			// if enemy.current_path != nil {
@@ -865,11 +865,11 @@ draw_world :: proc(world: World) {
 			// }
 		}
 
-		when ODIN_DEBUG {
-			for alert in world.alerts {
-				rl.DrawCircleLinesV(alert.pos, alert.range, rl.RED)
-			}
-		}
+		// when ODIN_DEBUG {
+		// 	for alert in world.alerts {
+		// 		rl.DrawCircleLinesV(alert.pos, alert.range, rl.RED)
+		// 	}
+		// }
 
 		for barrel in world.exploding_barrels {
 			if barrel.queue_free {
@@ -909,6 +909,41 @@ draw_world :: proc(world: World) {
 				)
 			}
 
+			// Vfx slash
+			if player.attacking {
+				frame_count := get_frames(.HitVfx)
+				frame_index := int(
+					math.floor(
+						math.remap(
+							ATTACK_DURATION - main_world.player.attack_dur_timer,
+							0,
+							ATTACK_DURATION,
+							0,
+							f32(frame_count),
+						),
+					),
+				)
+				if frame_index >= frame_count {
+					frame_index -= 1
+				}
+				tex := loaded_textures[.HitVfx]
+				frame_size := tex.width / i32(frame_count)
+				sprite := Sprite {
+					tex_id     = .HitVfx,
+					tex_region = {
+						f32(frame_index) * f32(frame_size),
+						0,
+						f32(frame_size),
+						f32(tex.height),
+					},
+					scale      = 1,
+					tex_origin = {0, f32(tex.height) / 2},
+					rotation   = player.attack_poly.rotation,
+					tint       = rl.WHITE,
+				}
+				draw_sprite(sprite, player.pos)
+			}
+
 			/* Health Bar */
 			health_bar_length: f32 = 20
 			health_bar_height: f32 = 5
@@ -922,16 +957,16 @@ draw_world :: proc(world: World) {
 			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
 			/* End of Health Bar */
 
-			when ODIN_DEBUG {
-				if !player.holding_item &&
-				   player.weapons[player.selected_weapon_idx].id >= .Sword {
-					attack_hitbox_color := rl.Color{255, 255, 255, 120}
-					if player.attacking {
-						attack_hitbox_color = rl.Color{255, 0, 0, 120}
-					}
-					draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
-				}
-			}
+			// when ODIN_DEBUG {
+			// 	if !player.holding_item &&
+			// 	   player.weapons[player.selected_weapon_idx].id >= .Sword {
+			// 		attack_hitbox_color := rl.Color{255, 255, 255, 120}
+			// 		if player.attacking {
+			// 			attack_hitbox_color = rl.Color{255, 0, 0, 120}
+			// 		}
+			// 		draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
+			// 	}
+			// }
 
 			// DEBUG: Player pickup range
 			// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
@@ -975,9 +1010,9 @@ draw_world_ui :: proc(world: World) {
 		if !(level.has_tutorial && tutorial.hide_all_hud) {
 			draw_hud(world.player)
 		}
-		when ODIN_DEBUG { 	// Draw player coordinates
-			rl.DrawText(fmt.ctprintf("%v", world.player.pos), 1200, 16, 20, rl.WHITE)
-		}
+		// when ODIN_DEBUG { 	// Draw player coordinates
+		// 	rl.DrawText(fmt.ctprintf("%v", world.player.pos), 1200, 16, 20, rl.WHITE)
+		// }
 
 
 		if all_enemies_dead(world) {
@@ -1040,19 +1075,19 @@ draw_world_ui :: proc(world: World) {
 							{200, 200, 255, 255},
 						)
 					} else {
-						when ODIN_DEBUG {
-							text_size := rl.MeasureTextEx(
-								rl.GetFontDefault(),
-								text,
-								font_size,
-								spacing,
-							)
-							rl.DrawRectangleLinesEx(
-								{pos.x, pos.y, text_size.x, text_size.y},
-								1,
-								rl.YELLOW,
-							)
-						}
+						// when ODIN_DEBUG {
+						// 	text_size := rl.MeasureTextEx(
+						// 		rl.GetFontDefault(),
+						// 		text,
+						// 		font_size,
+						// 		spacing,
+						// 	)
+						// 	rl.DrawRectangleLinesEx(
+						// 		{pos.x, pos.y, text_size.x, text_size.y},
+						// 		1,
+						// 		rl.YELLOW,
+						// 	)
+						// }
 					}
 				}
 			}
