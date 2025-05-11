@@ -26,6 +26,7 @@ World :: struct {
 	alerts:            [dynamic]Alert,
 }
 
+// pause_game: f32 = 0
 
 world_update :: proc() {
 	// Perform Queued World Actions (death and deletion). Remove things from the previous frame
@@ -106,6 +107,12 @@ world_update :: proc() {
 			}
 		}
 	}
+
+	// FIX THIS. This stops the rest of the proc, including collecting input stuff which is kind of bad!!!
+	// if pause_game > 0 {
+	// 	pause_game -= delta
+	// 	return
+	// }
 
 	// Fire spread and other tile updates
 	update_tilemap(&main_world)
@@ -233,6 +240,16 @@ world_update :: proc() {
 		/* ---------------------------- Tutorial Dummies ---------------------------- */
 		if level.has_tutorial && tutorial.enable_enemy_dummies {
 			damage_enemy(&main_world, idx, 0)
+		}
+
+		// Sprite flash
+		if enemy.flash_opacity > 0 {
+			enemy.flash_opacity -=
+				delta /
+				(enemy.flash_opacity *
+						enemy.flash_opacity *
+						enemy.flash_opacity *
+						enemy.flash_opacity)
 		}
 
 		/* -------------------------------- Flinching ------------------------------- */
@@ -528,7 +545,7 @@ world_update :: proc() {
 	}
 
 	// weapon attack
-	if is_control_pressed(controls.fire) {
+	if is_control_down(controls.fire) {
 		if main_world.player.weapons[main_world.player.selected_weapon_idx].id >= .Sword {
 			fire_selected_weapon(&main_world.player)
 			main_world.player.holding_item = false // Cancel item hold
@@ -789,17 +806,36 @@ draw_world :: proc(world: World) {
 		for enemy in world.enemies {
 			// DEBUG: Draw collision shape
 			// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-			sprite := ENEMY_BASIC_SPRITE
-			if _, ok := enemy.data.(RangedEnemyData); ok {
-				sprite.tex_id = .EnemyRanged
-			}
-			sprite.rotation = enemy.look_angle
 
+			// Setup sprites
+			sprite := ENEMY_BASIC_SPRITE
+
+			// Looking
+			sprite.rotation = enemy.look_angle
 			if sprite.rotation < -90 || sprite.rotation > 90 {
 				sprite.scale = {-1, 1}
 				sprite.rotation += 180
 			}
+
+			// Flash sprite
+			flash_sprite := sprite
+			flash_sprite.tint = {
+				255,
+				255,
+				255,
+				u8(math.clamp(math.remap(enemy.flash_opacity, 0, 1, 0, 255), 0, 255)),
+			}
+			flash_sprite.tex_id = .EnemyBasicFlash
+
+			// Switch to ranged version
+			if _, ok := enemy.data.(RangedEnemyData); ok {
+				sprite.tex_id = .EnemyRanged
+				flash_sprite.tex_id = .EnemyRangedFlash
+			}
+
+			// Draw sprites
 			draw_sprite(sprite, enemy.pos)
+			draw_sprite(flash_sprite, enemy.pos)
 			health_bar_length: f32 = 20
 			health_bar_height: f32 = 5
 			health_bar_base_rec := get_centered_rect(
@@ -1231,6 +1267,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool, world: Wo
 	return passed_condition ~ invert_condition
 }
 
+// :attack
 perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: int) {
 	EXPLOSION_DAMAGE_MULTIPLIER :: 10
 	// Perform attack
@@ -1251,6 +1288,8 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					damage_enemy(world, i, attack.damage)
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
+					play_sound(.SwordHit)
+					// pause_game = 0.05
 				}
 			}
 		}
@@ -1846,6 +1885,7 @@ add_to_selected_item_count :: proc(player: ^Player, to_add: int) -> (excess: int
 	return
 }
 
+// :attack player
 fire_selected_weapon :: proc(player: ^Player) -> int {
 	// get selected weapon ItemId
 	weapon_data := player.weapons[player.selected_weapon_idx]
@@ -1875,7 +1915,10 @@ fire_selected_weapon :: proc(player: ^Player) -> int {
 			}
 			player.can_attack = false
 
-			// Animation
+			// Sound
+			play_sound(.SwordSlash)
+
+			// Start Animation
 			if player.cur_weapon_anim.pos_cur_rotation ==
 			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
 				player.cur_weapon_anim.pos_rotation_vel =
@@ -2458,6 +2501,7 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 		enemy.charging = false
 		enemy.flinching = true
 		enemy.current_flinch_time = enemy.start_flinch_time
+		enemy.flash_opacity = 1
 	}
 	enemy.health -= amount
 	if enemy.health <= 0 {

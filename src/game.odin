@@ -36,7 +36,7 @@ ENEMY_SEARCH_TOLERANCE :: 16
 ATTACK_DURATION :: 0.15
 ATTACK_INTERVAL :: 0
 SWORD_DAMAGE :: 40
-SWORD_KNOCKBACK :: 60
+SWORD_KNOCKBACK :: 100
 SWORD_HITBOX_OFFSET :: 4
 STICK_DAMAGE :: 10
 STICK_KNOCKBACK :: 70
@@ -114,9 +114,9 @@ controls: Controls = {
 
 SWORD_HITBOX_POINTS := []Vec2 {
 	{SWORD_HITBOX_OFFSET, -12},
-	{SWORD_HITBOX_OFFSET + 15, -5},
-	{SWORD_HITBOX_OFFSET + 17, 0},
-	{SWORD_HITBOX_OFFSET + 15, 5},
+	{SWORD_HITBOX_OFFSET + 18, -5},
+	{SWORD_HITBOX_OFFSET + 20, 0},
+	{SWORD_HITBOX_OFFSET + 18, 5},
 	{SWORD_HITBOX_OFFSET, 12},
 }
 
@@ -229,6 +229,9 @@ main :: proc() {
 	icon := rl.LoadImage("res/images/client_icon.png")
 	defer rl.UnloadImage(icon)
 	rl.SetWindowIcon(icon)
+
+	init_audio_and_load_sounds()
+	defer close_audio_and_unload_sounds()
 
 	// Load resources and data
 	{

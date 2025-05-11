@@ -12,6 +12,8 @@ TextureId :: enum {
 	Player = 200, // 200-299 is entities
 	EnemyBasic,
 	EnemyRanged,
+	EnemyBasicFlash,
+	EnemyRangedFlash,
 	Arrow,
 	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
@@ -34,21 +36,23 @@ item_to_texture: #sparse[ItemId]TextureId = {
 
 load_textures :: proc() {
 	loaded_textures = {
-		.Empty           = {},
-		.Bomb            = rl.LoadTexture("res/images/bomb.png"),
+		.Empty            = {},
+		.Bomb             = rl.LoadTexture("res/images/bomb.png"),
 		// .Apple           = rl.LoadTexture("res/images/apple.png"),
 		// .Rock            = rl.LoadTexture("res/images/rock.png"),
-		.Sword           = rl.LoadTexture("res/images/sword.png"),
+		.Sword            = rl.LoadTexture("res/images/sword.png"),
 		// .Stick           = rl.LoadTexture("res/images/stick.png"),
-		.Player          = rl.LoadTexture("res/images/samurai.png"),
-		.EnemyBasic      = rl.LoadTexture("res/images/enemy_basic.png"),
-		.EnemyRanged     = rl.LoadTexture("res/images/enemy_ranged.png"),
-		.Arrow           = rl.LoadTexture("res/images/arrow.png"),
-		.ExplodingBarrel = rl.LoadTexture("res/images/exploding_barrel.png"),
-		.Tilemap         = rl.LoadTexture("res/images/tileset.png"),
-		.WinCircle       = rl.LoadTexture("res/images/win_circle.png"),
-		.TitleScreen     = rl.LoadTexture("res/images/title_screen.png"),
-		.HitVfx          = rl.LoadTexture("res/images/hitfx.png"),
+		.Player           = rl.LoadTexture("res/images/samurai.png"),
+		.EnemyBasic       = rl.LoadTexture("res/images/enemy_basic.png"),
+		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
+		.EnemyBasicFlash  = rl.LoadTexture("res/images/enemy_basic_flash.png"),
+		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
+		.Arrow            = rl.LoadTexture("res/images/arrow.png"),
+		.ExplodingBarrel  = rl.LoadTexture("res/images/exploding_barrel.png"),
+		.Tilemap          = rl.LoadTexture("res/images/tileset.png"),
+		.WinCircle        = rl.LoadTexture("res/images/win_circle.png"),
+		.TitleScreen      = rl.LoadTexture("res/images/title_screen.png"),
+		.HitVfx           = rl.LoadTexture("res/images/hitfx.png"),
 	}
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }

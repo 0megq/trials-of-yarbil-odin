@@ -110,6 +110,8 @@ Enemy2 :: struct {
 	search_timer:                  f32,
 	// Type specific
 	data:                          EnemyVariantData,
+	// Sprite flash
+	flash_opacity:                 f32,
 }
 
 EnemyState :: enum {
