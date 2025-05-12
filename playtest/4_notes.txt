@@ -1,0 +1,15 @@
+- window resizing bug with richard
+- glitching lines
+- going through map
+- pause game when enemy dies
+- melee enemy too easy
+- traps
+- punish the player for dashing. section with barrels 
+- no more roguelike
+- level editor
+- more enemy types
+	- shield
+	- fast, weak
+	- slow, strong
+- i really need to make better art
+- more clarity

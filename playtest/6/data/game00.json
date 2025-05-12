@@ -1,0 +1,55 @@
+{
+	"player_data": {
+		"health": 100.00000000,
+		"max_health": 100.00000000,
+		"weapons": [
+			{
+				"id": 100,
+				"count": 1,
+				"max_count": 1
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			}
+		],
+		"items": [
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			},
+			{
+				"id": 0,
+				"count": 0,
+				"max_count": 0
+			}
+		],
+		"selected_weapon_idx": 0,
+		"selected_item_idx": 0,
+		"item_count": 0,
+		"ability": 0
+	},
+	"cur_level_idx": 9
+}

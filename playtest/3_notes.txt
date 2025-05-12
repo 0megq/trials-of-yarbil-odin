@@ -1,0 +1,4 @@
+- clean enemy looking: keep body vertical and move head separately
+- player clipping after dashing
+- add movement element to the sword
+- indication of enemy fleeing
