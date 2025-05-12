@@ -1,5 +1,6 @@
 package game
 
+import "core:math/rand"
 import rl "vendor:raylib"
 
 SoundId :: enum {
@@ -12,6 +13,10 @@ loaded_sounds: [SoundId]rl.Sound
 MAX_SOUNDS :: 10
 sound_pool: [SoundId][MAX_SOUNDS]rl.Sound
 sound_pool_cur: [SoundId]int
+pitch_variation: [SoundId]f32 = {
+	.SwordSlash = 0.1,
+	.SwordHit   = 0,
+}
 
 init_audio_and_load_sounds :: proc() {
 	rl.InitAudioDevice()
@@ -33,6 +38,8 @@ load_sounds :: proc() {
 play_sound :: proc(sound: SoundId) {
 	pool := sound_pool[sound]
 	pool_ptr := &sound_pool_cur[sound]
+	pitch := 1 + pitch_variation[sound] * rand.float32_range(-1, 1)
+	rl.SetSoundPitch(pool[pool_ptr^], pitch)
 	rl.PlaySound(pool[pool_ptr^])
 	pool_ptr^ += 1
 	if pool_ptr^ >= MAX_SOUNDS {
