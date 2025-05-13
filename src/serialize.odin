@@ -315,7 +315,7 @@ load_level :: proc(world: ^World) {
 	}
 
 	if all_enemies_dead(world^) {
-		_on_all_enemies_dead()
+		_on_all_enemies_fully_dead()
 	}
 }
 

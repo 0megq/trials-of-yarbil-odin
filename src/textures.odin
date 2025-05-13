@@ -14,6 +14,8 @@ TextureId :: enum {
 	EnemyRanged,
 	EnemyBasicFlash,
 	EnemyRangedFlash,
+	EnemyBasicDeath,
+	EnemyRangedDeath,
 	Arrow,
 	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
@@ -47,6 +49,8 @@ load_textures :: proc() {
 		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
 		.EnemyBasicFlash  = rl.LoadTexture("res/images/enemy_basic_flash.png"),
 		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
+		.EnemyBasicDeath  = rl.LoadTexture("res/images/enemy_basic_death.png"),
+		.EnemyRangedDeath = rl.LoadTexture("res/images/enemy_ranged_death.png"),
 		.Arrow            = rl.LoadTexture("res/images/arrow.png"),
 		.ExplodingBarrel  = rl.LoadTexture("res/images/exploding_barrel.png"),
 		.Tilemap          = rl.LoadTexture("res/images/tileset.png"),
@@ -67,6 +71,8 @@ get_frames :: proc(tex: TextureId) -> int {
 	#partial switch tex {
 	case .HitVfx:
 		return 4
+	case .EnemyBasicDeath:
+		return 7
 	}
 	return 1
 }

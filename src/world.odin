@@ -236,7 +236,7 @@ world_update :: proc() {
 	/* -------------------------------------------------------------------------- */
 	/*                               MARK:Enemy Loop                              */
 	/* -------------------------------------------------------------------------- */
-	#reverse for &enemy, idx in main_world.enemies {
+	enemy_loop: #reverse for &enemy, idx in main_world.enemies {
 		/* ---------------------------- Tutorial Dummies ---------------------------- */
 		if level.has_tutorial && tutorial.enable_enemy_dummies {
 			damage_enemy(&main_world, idx, 0)
@@ -355,7 +355,13 @@ world_update :: proc() {
 
 			/* ------------------------------ Update State ------------------------------ */
 			{
-				update_enemy_state(&enemy, delta)
+				fully_dead := update_enemy_state(&enemy, delta)
+				if fully_dead {
+					unordered_remove(&main_world.enemies, idx)
+					_on_enemy_fully_dead()
+
+					continue enemy_loop
+				}
 			}
 		}
 
@@ -462,6 +468,9 @@ world_update :: proc() {
 			}
 		}
 		for enemy in main_world.enemies {
+			if enemy.state == .Death {
+				continue
+			}
 			_, normal, depth := resolve_collision_shapes(
 				bomb.shape,
 				bomb.pos,
@@ -803,6 +812,7 @@ draw_world :: proc(world: World) {
 
 		}
 
+		// :draw enemy
 		for enemy in world.enemies {
 			// DEBUG: Draw collision shape
 			// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
@@ -815,6 +825,34 @@ draw_world :: proc(world: World) {
 			if sprite.rotation < -90 || sprite.rotation > 90 {
 				sprite.scale = {-1, 1}
 				sprite.rotation += 180
+			}
+
+			// Animate when death
+			if enemy.state == .Death {
+				sprite.tex_id = .EnemyBasicDeath
+				frame_count := get_frames(.EnemyBasicDeath)
+				frame_index := int(
+					math.floor(
+						math.remap(
+							enemy.death_timer,
+							0,
+							ENEMY_DEATH_ANIMATION_TIME,
+							0,
+							f32(frame_count),
+						),
+					),
+				)
+				if frame_index >= frame_count {
+					frame_index -= 1
+				}
+				tex := loaded_textures[.EnemyBasicDeath]
+				frame_size := tex.width / i32(frame_count)
+				sprite.tex_region = {
+					f32(frame_index) * f32(frame_size),
+					0,
+					f32(frame_size),
+					f32(tex.height),
+				}
 			}
 
 			// Flash sprite
@@ -830,22 +868,29 @@ draw_world :: proc(world: World) {
 			// Switch to ranged version
 			if _, ok := enemy.data.(RangedEnemyData); ok {
 				sprite.tex_id = .EnemyRanged
+				if enemy.state == .Death {
+					sprite.tex_id = .EnemyRangedDeath
+				}
 				flash_sprite.tex_id = .EnemyRangedFlash
 			}
 
 			// Draw sprites
 			draw_sprite(sprite, enemy.pos)
 			draw_sprite(flash_sprite, enemy.pos)
-			health_bar_length: f32 = 20
-			health_bar_height: f32 = 5
-			health_bar_base_rec := get_centered_rect(
-				{enemy.pos.x, enemy.pos.y - 20},
-				{health_bar_length, health_bar_height},
-			)
-			rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-			health_bar_filled_rec := health_bar_base_rec
-			health_bar_filled_rec.width *= enemy.health / enemy.max_health
-			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+			// Draw health bar
+			if enemy.state != .Death {
+				health_bar_length: f32 = 20
+				health_bar_height: f32 = 5
+				health_bar_base_rec := get_centered_rect(
+					{enemy.pos.x, enemy.pos.y - 20},
+					{health_bar_length, health_bar_height},
+				)
+				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+				health_bar_filled_rec := health_bar_base_rec
+				health_bar_filled_rec.width *= enemy.health / enemy.max_health
+				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+			}
 
 			// DEBUG: Draw ID
 			// rl.DrawTextEx(
@@ -861,7 +906,7 @@ draw_world :: proc(world: World) {
 			if enemy.just_attacked {
 				attack_area_color = rl.Color{255, 0, 0, 120}
 			}
-			if enemy.charging || enemy.just_attacked {
+			if enemy.state != .Death && (enemy.charging || enemy.just_attacked) {
 				bar_length: f32 = 3
 				bar_height: f32 = 10
 				bar_base_rec := get_centered_rect(
@@ -924,7 +969,7 @@ draw_world :: proc(world: World) {
 			draw_sprite(entity.sprite, entity.pos)
 		}
 
-		// Draw Player
+		// :draw player
 		{
 			player := world.player
 			// Player Sprite
@@ -1282,10 +1327,17 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					continue
 				}
 
+				if enemy.state == .Death {
+					continue
+				}
+
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
+					just_killed := damage_enemy(world, i, attack.damage)
 					enemy.vel += attack.direction * attack.knockback
-					damage_enemy(world, i, attack.damage)
+					if just_killed {
+						enemy.vel += attack.direction * attack.knockback
+					}
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
 					play_sound(.SwordHit)
@@ -1604,6 +1656,9 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 			#reverse for enemy, i in enemies {
 				// Don't hurt the source of the arrow
 				if enemy.id == arrows[data.arrow_idx].source {
+					continue
+				}
+				if enemy.state == .Death {
 					continue
 				}
 				_, normal, depth := resolve_collision_shapes(
@@ -2149,7 +2204,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 
 	desired_vel: Vec2
 	steering: Vec2
-	if  /*!e.charging && !e.flinching && */e.target != e.pos {
+	if !e.flinching && e.target != e.pos {
 		desired_vel = normalize(e.target - e.pos) * max_speed
 		steering = desired_vel - e.vel
 	}
@@ -2198,7 +2253,8 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 	e.pos += e.vel * delta
 }
 
-update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
+// Returns true if enemy is fully dead (at the end of death state)
+update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
@@ -2447,7 +2503,13 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) {
 		} else if enemy.search_state == 4 {
 			change_enemy_state(enemy, .Idle, main_world)
 		}
+	case .Death:
+		if length(enemy.vel) < 1 {
+			enemy.death_timer += delta
+		}
+		return enemy.death_timer >= ENEMY_DEATH_ANIMATION_TIME
 	}
+	return false
 }
 
 change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
@@ -2463,6 +2525,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 
 	case .Searching:
 
+	case .Death:
 	}
 
 	// Enter state code
@@ -2489,37 +2552,51 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		enemy.search_timer = 0
 		enemy.search_state = 0
 		start_enemy_pathing(enemy, world, enemy.last_seen_player_pos)
+	case .Death:
+		// Start death animation
+		enemy.death_timer = 0
 	}
 	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 
 	enemy.state = state
 }
 
-damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch := true) {
+// returns true if enemy was just killed
+// :damage enemy
+damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch := true) -> bool {
 	enemy := &world.enemies[enemy_idx]
-	if should_flinch {
+	if enemy.state == .Death {
+		return false
+	}
+	enemy.health -= amount
+	if enemy.health <= 0 {
+		enemy.flinching = false
+		enemy.flash_opacity = 0
+		enemy.current_flinch_time = 0
+		change_enemy_state(&world.enemies[enemy_idx], .Death, world^)
+		_on_enemy_death_start()
+		return true
+	} else if should_flinch {
 		enemy.charging = false
 		enemy.flinching = true
 		enemy.current_flinch_time = enemy.start_flinch_time
 		enemy.flash_opacity = 1
 	}
-	enemy.health -= amount
-	if enemy.health <= 0 {
-		unordered_remove(&world.enemies, enemy_idx)
-		// Maybe we could send an event or return a bool when they do
-		_on_enemy_death()
-		if all_enemies_dead(world^) {
-			_on_all_enemies_dead()
-		}
-	}
+	return false
 }
 
-_on_enemy_death :: proc() {
+_on_enemy_death_start :: proc() {
 	// Reset player dash
 	main_world.player.fire_dash_timer = 0
 }
 
-_on_all_enemies_dead :: proc() {
+_on_enemy_fully_dead :: proc() {
+	if all_enemies_dead(main_world) {
+		_on_all_enemies_fully_dead()
+	}
+}
+
+_on_all_enemies_fully_dead :: proc() {
 	if level.save_after_completion {
 		main_world.player.health = main_world.player.max_health
 		game_data.cur_level_idx += 1

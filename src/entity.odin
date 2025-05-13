@@ -112,6 +112,8 @@ Enemy2 :: struct {
 	data:                          EnemyVariantData,
 	// Sprite flash
 	flash_opacity:                 f32,
+	// Death
+	death_timer:                   f32,
 }
 
 EnemyState :: enum {
@@ -120,6 +122,7 @@ EnemyState :: enum {
 	Combat,
 	Fleeing,
 	Searching,
+	Death,
 }
 
 EnemyVariantData :: union #no_nil {
