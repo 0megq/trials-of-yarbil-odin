@@ -28,6 +28,9 @@ World :: struct {
 
 // pause_game: f32 = 0
 
+screen_shake_time: f32 = 0
+screen_shake_intensity: f32 = 1
+
 world_update :: proc() {
 	// Perform Queued World Actions (death and deletion). Remove things from the previous frame
 	if main_world.player.queue_free {
@@ -62,6 +65,9 @@ world_update :: proc() {
 	}
 
 	update_world_camera_and_mouse_pos()
+
+	// Tick down screen shake
+	screen_shake_time -= delta
 
 	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
 	   (speedrun_timer != 0 && !all_enemies_dead(main_world)) {
@@ -1184,6 +1190,10 @@ update_world_camera_and_mouse_pos :: proc() {
 	if editor_state.mode == .None {
 		world_camera.zoom = window_over_game
 		world_camera.target = main_world.player.pos
+		// Screenshake effect
+		if screen_shake_time > 0 {
+			world_camera.target += vector_from_angle(rand.float32() * 360) * screen_shake_intensity
+		}
 		// Camera smoothing
 		// world_camera.target = exp_decay(
 		// 	world_camera.target,
@@ -1335,8 +1345,12 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					just_killed := damage_enemy(world, i, attack.damage)
 					enemy.vel += attack.direction * attack.knockback
+					screen_shake_time = .05
+					screen_shake_intensity = 1
 					if just_killed {
 						enemy.vel += attack.direction * attack.knockback
+						screen_shake_time = .1
+						screen_shake_intensity = 2
 					}
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
@@ -2754,3 +2768,14 @@ damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount:
 delete_arrow :: proc(idx: int) {
 	unordered_remove(&main_world.arrows, idx)
 }
+
+// ScreenShakeIntensity :: enum {
+// 	Small,
+// 	Medium,
+// 	High,
+// 	VeryHigh,
+// }
+
+// start_screen_shake :: proc(length: f32, intensity: ScreenShakeIntensity) {
+// 	if screen_shake.intensity <= intensity 
+// }
