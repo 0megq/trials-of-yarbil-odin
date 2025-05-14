@@ -2518,9 +2518,10 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Idle, main_world)
 		}
 	case .Death:
-		if length(enemy.vel) < 1 {
-			enemy.death_timer += delta
-		}
+		// Wait still stopped then animate
+		// if length(enemy.vel) < 1 {
+		enemy.death_timer += delta
+		// }
 		return enemy.death_timer >= ENEMY_DEATH_ANIMATION_TIME
 	}
 	return false
