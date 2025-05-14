@@ -84,22 +84,6 @@ Controls :: struct {
 	slow_down:              Control,
 }
 
-WeaponAnimation :: struct {
-	// Constants
-	cpos_top_rotation:    f32,
-	csprite_top_rotation: f32,
-	cpos_bot_rotation:    f32,
-	csprite_bot_rotation: f32,
-
-	// For animation purposes
-	pos_rotation_vel:     f32, // Simulates the rotation of the arc of the swing
-	sprite_rotation_vel:  f32, // Simulates the rotation of the sprite
-
-	// Weapon rotations
-	pos_cur_rotation:     f32,
-	sprite_cur_rotation:  f32,
-}
-
 controls: Controls = {
 	fire                   = rl.MouseButton.LEFT,
 	alt_fire               = rl.MouseButton.MIDDLE,
@@ -131,8 +115,8 @@ STICK_HITBOX_POINTS := []Vec2 {
 
 ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}
 
-SWORD_ANIMATION_DEFAULT :: WeaponAnimation{-70, -160, 70, 160, 0, 0, -70, -160}
-STICK_ANIMATION_DEFAULT :: WeaponAnimation{-70, -115, 70, 205, 0, 0, -70, -115}
+sword_pos_max_rotation: f32 : 70
+sword_sprite_max_rotation: f32 : 160
 
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
 ENEMY_BASIC_SPRITE :: Sprite{.EnemyBasic, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}

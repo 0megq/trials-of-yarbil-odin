@@ -588,39 +588,6 @@ world_update :: proc() {
 		main_world.player.item_hold_time = 0
 	}
 
-	// Weapon animation
-	if main_world.player.cur_weapon_anim.pos_rotation_vel == 0 {
-		// Do nothing. when vel is 0 that means we are not animating
-	} else {
-		// Animate
-		main_world.player.cur_weapon_anim.pos_cur_rotation +=
-			main_world.player.cur_weapon_anim.pos_rotation_vel * delta
-		main_world.player.cur_weapon_anim.sprite_cur_rotation +=
-			main_world.player.cur_weapon_anim.sprite_rotation_vel * delta
-	}
-	// Stop Weapon animation
-	if main_world.player.cur_weapon_anim.pos_rotation_vel < 0 &&
-	   (main_world.player.cur_weapon_anim.pos_cur_rotation <=
-				   main_world.player.cur_weapon_anim.cpos_top_rotation ||
-			   !main_world.player.attacking) {
-		// Animating to top finished
-		main_world.player.cur_weapon_anim.pos_cur_rotation =
-			main_world.player.cur_weapon_anim.cpos_top_rotation
-		main_world.player.cur_weapon_anim.sprite_cur_rotation =
-			main_world.player.cur_weapon_anim.csprite_top_rotation
-		main_world.player.cur_weapon_anim.pos_rotation_vel = 0
-	} else if main_world.player.cur_weapon_anim.pos_rotation_vel > 0 &&
-	   (main_world.player.cur_weapon_anim.pos_cur_rotation >=
-				   main_world.player.cur_weapon_anim.cpos_bot_rotation ||
-			   !main_world.player.attacking) {
-		// Animating to bottom finished
-		main_world.player.cur_weapon_anim.pos_cur_rotation =
-			main_world.player.cur_weapon_anim.cpos_bot_rotation
-		main_world.player.cur_weapon_anim.sprite_cur_rotation =
-			main_world.player.cur_weapon_anim.csprite_bot_rotation
-		main_world.player.cur_weapon_anim.pos_rotation_vel = 0
-	}
-
 	if main_world.player.attacking {
 		if main_world.player.attack_dur_timer <= 0 {
 			stop_player_attack(&main_world.player)
@@ -987,12 +954,32 @@ draw_world :: proc(world: World) {
 			}
 
 			// Draw Weapon
+
+			// Calculate pos and sprite rotation
+			pos_rotation: f32
+			sprite_rotation: f32
+			if player.attacking {
+				alpha: f32 = math.remap(player.attack_dur_timer, ATTACK_DURATION, 0, 0, 1)
+				pos_rotation =
+					math.remap(alpha, 0, 1, -1, 1) *
+					sword_pos_max_rotation *
+					f32(player.weapon_side)
+				sprite_rotation =
+					math.remap(alpha, 0, 1, -1, 1) *
+					sword_sprite_max_rotation *
+					f32(player.weapon_side)
+			} else {
+				pos_rotation = sword_pos_max_rotation * f32(player.weapon_side)
+				sprite_rotation = sword_sprite_max_rotation * f32(player.weapon_side)
+			}
+
 			if !player.holding_item && player.weapons[player.selected_weapon_idx].id != .Empty {
 				draw_weapon(
 					player.weapons[player.selected_weapon_idx].id,
 					player.pos,
 					false,
-					player.cur_weapon_anim,
+					pos_rotation,
+					sprite_rotation,
 				)
 			}
 
@@ -1987,27 +1974,8 @@ fire_selected_weapon :: proc(player: ^Player) -> int {
 			// Sound
 			play_sound(.SwordSlash)
 
-			// Start Animation
-			if player.cur_weapon_anim.pos_cur_rotation ==
-			   player.cur_weapon_anim.cpos_top_rotation { 	// Animate down
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_bot_rotation -
-						player.cur_weapon_anim.cpos_top_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_bot_rotation -
-						player.cur_weapon_anim.csprite_top_rotation) /
-					ATTACK_DURATION
-			} else { 	// Animate up
-				player.cur_weapon_anim.pos_rotation_vel =
-					(player.cur_weapon_anim.cpos_top_rotation -
-						player.cur_weapon_anim.cpos_bot_rotation) /
-					ATTACK_DURATION
-				player.cur_weapon_anim.sprite_rotation_vel =
-					(player.cur_weapon_anim.csprite_top_rotation -
-						player.cur_weapon_anim.csprite_bot_rotation) /
-					ATTACK_DURATION
-			}
+			// Switch side
+			player.weapon_side = -player.weapon_side
 		}
 	// case .Stick:
 	// 	if player.can_attack {
@@ -2059,7 +2027,6 @@ select_weapon :: proc(player: ^Player, idx: int) {
 	#partial switch player.weapons[idx].id {
 	case .Sword:
 		player.attack_poly.points = SWORD_HITBOX_POINTS
-		player.cur_weapon_anim = SWORD_ANIMATION_DEFAULT
 	// case .Stick:
 	// 	player.attack_poly.points = STICK_HITBOX_POINTS
 	// 	player.cur_weapon_anim = STICK_ANIMATION_DEFAULT
@@ -2161,7 +2128,8 @@ draw_weapon :: proc(
 	weapon: ItemId,
 	player_pos: Vec2,
 	charging: bool,
-	cur_weapon_anim: WeaponAnimation,
+	pos_rotation: f32,
+	sprite_rotation: f32,
 ) {
 	to_mouse := normalize(mouse_world_pos - player_pos)
 	tex_id := item_to_texture[weapon]
@@ -2176,9 +2144,9 @@ draw_weapon :: proc(
 
 	sprite_pos := player_pos
 	// Set rotation and position based on if sword is on top or not
-	sprite.rotation = cur_weapon_anim.sprite_cur_rotation
+	sprite.rotation = sprite_rotation
 	// The value 4 and {2, 0} are both constants here
-	sprite_pos += {2, 0} + 4 * vector_from_angle(cur_weapon_anim.pos_cur_rotation)
+	sprite_pos += {2, 0} + 4 * vector_from_angle(pos_rotation)
 
 	// Rotate sprite and rotate its position to face mouse
 	sprite.rotation += angle(to_mouse)

@@ -162,7 +162,6 @@ Player :: struct {
 	item_switched:         bool, // valid only while playing game
 	attacking:             bool, // valid only while playing game
 	cur_attack:            Attack, // valid only while playing game
-	cur_weapon_anim:       WeaponAnimation, // valid only while playing game
 	attack_dur_timer:      f32, // valid only while playing game
 	can_attack:            bool, // valid only while playing game
 	attack_interval_timer: f32, // valid only while playing game
@@ -171,6 +170,7 @@ Player :: struct {
 	can_fire_dash:         bool, // valid only while playing game
 	fire_dash_timer:       f32, // valid only while playing game
 	fire_dash_ready_time:  f32,
+	weapon_side:           int, // top is 1, bottom is -1
 }
 
 ZEntity :: struct {
@@ -344,6 +344,7 @@ setup_item :: proc(item: ^Item) {
 
 setup_player :: proc(player: ^Player) {
 	player.can_fire_dash = true
+	player.weapon_side = 1
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16
 	player.can_attack = true
