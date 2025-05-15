@@ -120,7 +120,7 @@ sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160
 
 PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
-ENEMY_BASIC_SPRITE :: Sprite{.EnemyBasic, {0, 0, 16, 16}, {1, 1}, {7.5, 7.5}, 0, rl.WHITE}
+ENEMY_BASIC_SPRITE :: Sprite{.EnemyBasic, {0, 0, 32, 32}, {1, 1}, {16.5, 16.5}, 0, rl.WHITE}
 BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
 
 player_at_portal: bool
