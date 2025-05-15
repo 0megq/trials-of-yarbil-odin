@@ -51,7 +51,7 @@ world_update :: proc() {
 		main_world.player.pos,
 	)
 	// Do next level stuff
-	if all_enemies_dead(main_world) &&
+	if all_enemies_dying(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
 		if game_data.cur_level_idx == 12 {
@@ -70,7 +70,7 @@ world_update :: proc() {
 	screen_shake_time -= delta
 
 	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
-	   (speedrun_timer != 0 && !all_enemies_dead(main_world)) {
+	   (speedrun_timer != 0 && !all_enemies_dying(main_world)) {
 		speedrun_timer += delta
 	}
 
@@ -675,11 +675,11 @@ draw_world :: proc(world: World) {
 		}
 
 		// Draw portal
-		portal_color := rl.BLUE if all_enemies_dead(world) else Color{50, 50, 50, 255}
+		portal_color := rl.BLUE if all_enemies_dying(world) else Color{50, 50, 50, 255}
 		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
 		// Draw arrow to portal if level finished and player is at least 64 units away
-		if all_enemies_dead(world) && !player_at_portal {
+		if all_enemies_dying(world) && !player_at_portal {
 			angle_to_portal := angle(level.portal_pos - world.player.pos)
 			arrow_polygon := Polygon {
 				world.player.pos,
@@ -693,7 +693,7 @@ draw_world :: proc(world: World) {
 		if player_at_portal {
 			prompt: cstring
 			prompt = "Press E"
-			if !all_enemies_dead(world) {
+			if !all_enemies_dying(world) {
 				prompt = "Kill All Enemies"
 			}
 			size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
@@ -1094,7 +1094,7 @@ draw_world_ui :: proc(world: World) {
 		// }
 
 
-		if all_enemies_dead(world) {
+		if all_enemies_dying(world) {
 			if level.save_after_completion && completion_show_time < max_show_time {
 				completion_show_time += delta
 				is_on := int(math.floor(completion_show_time / flash_interval)) % 2 == 0
@@ -1784,10 +1784,6 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 	// }
 	}
 	return
-}
-
-all_enemies_dead :: proc(world: World) -> bool {
-	return len(world.enemies) + len(world.disabled_enemies) == 0
 }
 
 bomb_explosion :: proc(world: ^World, pos: Vec2, radius: f32) {
@@ -2563,7 +2559,7 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 		enemy.flash_opacity = 0
 		enemy.current_flinch_time = 0
 		change_enemy_state(&world.enemies[enemy_idx], .Death, world^)
-		_on_enemy_death_start()
+		_on_enemy_dying()
 		return true
 	} else if should_flinch {
 		enemy.charging = false
@@ -2574,18 +2570,16 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 	return false
 }
 
-_on_enemy_death_start :: proc() {
+_on_enemy_dying :: proc() {
 	// Reset player dash
 	main_world.player.fire_dash_timer = 0
-}
-
-_on_enemy_fully_dead :: proc() {
-	if all_enemies_dead(main_world) {
-		_on_all_enemies_fully_dead()
+	if all_enemies_dying(main_world) {
+		_on_all_enemies_dying()
 	}
 }
 
-_on_all_enemies_fully_dead :: proc() {
+_on_all_enemies_dying :: proc() {
+	// Have some nice feedback here, audio or visual works
 	if level.save_after_completion {
 		main_world.player.health = main_world.player.max_health
 		game_data.cur_level_idx += 1
@@ -2597,6 +2591,33 @@ _on_all_enemies_fully_dead :: proc() {
 	}
 }
 
+_on_enemy_fully_dead :: proc() {
+	if all_enemies_dead(main_world) {
+		_on_all_enemies_fully_dead()
+	}
+}
+
+_on_all_enemies_fully_dead :: proc() {
+
+}
+
+all_enemies_dead :: proc(world: World) -> bool {
+	return len(world.enemies) + len(world.disabled_enemies) == 0
+}
+
+all_enemies_dying :: proc(world: World) -> bool {
+	for enemy in world.enemies {
+		if enemy.state != .Death {
+			return false
+		}
+	}
+	for enemy in world.disabled_enemies {
+		if enemy.state != .Death {
+			return false
+		}
+	}
+	return true
+}
 
 lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {
 	enemy.look_angle = exp_decay_angle(enemy.look_angle, target_angle, 4, delta)
