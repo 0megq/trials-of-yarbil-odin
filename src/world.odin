@@ -1337,12 +1337,10 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					just_killed := damage_enemy(world, i, attack.damage)
 					enemy.vel += attack.direction * attack.knockback
-					screen_shake_time = .05
-					screen_shake_intensity = 1
 					if just_killed {
 						enemy.vel += attack.direction * attack.knockback
-						screen_shake_time = .1
-						screen_shake_intensity = 2
+						screen_shake_time = .05
+						screen_shake_intensity = 1.5
 					}
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
