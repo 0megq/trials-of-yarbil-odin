@@ -614,6 +614,11 @@ world_update :: proc() {
 		main_world.player.attack_interval_timer -= delta
 	}
 
+	// animate attack
+	if main_world.player.attack_anim_timer > 0 {
+		main_world.player.attack_anim_timer -= delta
+	}
+
 	// Item pickup
 	if is_control_pressed(controls.pickup) {
 		closest_item_idx := -1
@@ -955,17 +960,17 @@ draw_world :: proc(world: World) {
 
 			// Draw Weapon
 
-			// Calculate pos and sprite rotation
+			// Animate pos and sprite rotation
 			pos_rotation: f32
 			sprite_rotation: f32
-			if player.attacking {
-				alpha: f32 = math.remap(player.attack_dur_timer, ATTACK_DURATION, 0, 0, 1)
+			if player.attack_anim_timer > 0 {
+				alpha: f32 = math.remap(player.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
 				pos_rotation =
-					math.remap(alpha, 0, 1, -1, 1) *
+					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
 					sword_pos_max_rotation *
 					f32(player.weapon_side)
 				sprite_rotation =
-					math.remap(alpha, 0, 1, -1, 1) *
+					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
 					sword_sprite_max_rotation *
 					f32(player.weapon_side)
 			} else {
@@ -1958,6 +1963,7 @@ fire_selected_weapon :: proc(player: ^Player) -> int {
 			player.attack_poly.rotation = angle(mouse_world_pos - player.pos)
 			player.attack_dur_timer = ATTACK_DURATION
 			player.attack_interval_timer = ATTACK_INTERVAL
+			player.attack_anim_timer = ATTACK_ANIM_TIME
 			player.attacking = true
 			player.cur_attack = Attack {
 				pos             = player.pos,
@@ -2145,8 +2151,10 @@ draw_weapon :: proc(
 	sprite_pos := player_pos
 	// Set rotation and position based on if sword is on top or not
 	sprite.rotation = sprite_rotation
-	// The value 4 and {2, 0} are both constants here
-	sprite_pos += {2, 0} + 4 * vector_from_angle(pos_rotation)
+
+	radius :: 4
+	offset: Vec2 : {2, 0}
+	sprite_pos += offset + radius * vector_from_angle(pos_rotation)
 
 	// Rotate sprite and rotate its position to face mouse
 	sprite.rotation += angle(to_mouse)

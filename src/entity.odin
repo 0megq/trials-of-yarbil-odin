@@ -171,6 +171,7 @@ Player :: struct {
 	fire_dash_timer:       f32, // valid only while playing game
 	fire_dash_ready_time:  f32,
 	weapon_side:           int, // top is 1, bottom is -1
+	attack_anim_timer:     f32,
 }
 
 ZEntity :: struct {
