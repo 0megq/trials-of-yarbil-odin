@@ -314,6 +314,9 @@ load_level :: proc(world: ^World) {
 		_load_tutorial()
 	}
 
+	if all_enemies_dying(world^) {
+		_on_all_enemies_dying()
+	}
 	if all_enemies_dead(world^) {
 		_on_all_enemies_fully_dead()
 	}
