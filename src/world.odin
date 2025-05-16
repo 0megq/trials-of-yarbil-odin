@@ -675,7 +675,8 @@ draw_world :: proc(world: World) {
 		}
 
 		// Draw portal
-		portal_color := rl.BLUE if all_enemies_dying(world) else Color{50, 50, 50, 255}
+		light_blue :: Color{42, 110, 224, 255}
+		portal_color := light_blue if all_enemies_dying(world) else Color{33, 14, 95, 255}
 		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
 		// Draw arrow to portal if level finished and player is at least 64 units away
@@ -686,7 +687,7 @@ draw_world :: proc(world: World) {
 				{{14, -3}, {24, 0}, {14, 3}},
 				angle_to_portal,
 			}
-			draw_polygon(arrow_polygon, rl.BLUE)
+			draw_polygon(arrow_polygon, light_blue)
 		}
 
 		// Draw portal prompts
@@ -743,11 +744,11 @@ draw_world :: proc(world: World) {
 
 		// Draw walls and half walls
 		for wall in world.walls {
-			draw_shape(wall.shape, wall.pos, rl.GRAY)
+			draw_shape(wall.shape, wall.pos, {88, 88, 102, 255})
 		}
 
 		for wall in world.half_walls {
-			draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
+			draw_shape(wall.shape, wall.pos, {153, 157, 167, 255})
 		}
 
 		// Draw in world level prompts
