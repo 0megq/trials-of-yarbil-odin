@@ -44,6 +44,8 @@ STICK_DAMAGE :: 10
 STICK_KNOCKBACK :: 70
 STICK_HITBOX_OFFSET :: 2
 
+DISCORD_LINK :: "https://discord.com/invite/RTe474TtHe"
+
 EditorMode :: enum {
 	None,
 	Level,
@@ -392,9 +394,7 @@ update :: proc() {
 		} else if main_menu.quit_button.status == .Released {
 			game_should_close = true
 		} else if main_menu.discord_button.status == .Released {
-			rl.OpenURL(
-				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
-			)
+			rl.OpenURL(DISCORD_LINK)
 		}
 	case .Pause:
 		if !pause_menu.controls_panel_showing {
@@ -409,9 +409,7 @@ update :: proc() {
 			} else if pause_menu.main_menu_button.status == .Released {
 				queue_menu_change(.Main)
 			} else if pause_menu.discord_button.status == .Released {
-				rl.OpenURL(
-					"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
-				)
+				rl.OpenURL(DISCORD_LINK)
 			}
 			if rl.IsKeyPressed(.ESCAPE) {
 				queue_menu_change(.World)
@@ -442,9 +440,7 @@ update :: proc() {
 		} else if win_menu.quit_button.status == .Released {
 			game_should_close = true
 		} else if win_menu.discord_button.status == .Released {
-			rl.OpenURL(
-				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
-			)
+			rl.OpenURL(DISCORD_LINK)
 		}
 	}
 
