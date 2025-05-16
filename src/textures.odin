@@ -21,6 +21,7 @@ TextureId :: enum {
 	Tilemap = 300, // 300-399 is environment
 	WinCircle,
 	TitleScreen = 400, // 400-499 is UI
+	TitleScreen2,
 	HitVfx = 500, // 500-599 is Vfx and others
 }
 
@@ -56,6 +57,7 @@ load_textures :: proc() {
 		.Tilemap          = rl.LoadTexture("res/images/tileset.png"),
 		.WinCircle        = rl.LoadTexture("res/images/win_circle.png"),
 		.TitleScreen      = rl.LoadTexture("res/images/title_screen.png"),
+		.TitleScreen2     = rl.LoadTexture("res/images/title_screen2.png"),
 		.HitVfx           = rl.LoadTexture("res/images/hitfx.png"),
 	}
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)

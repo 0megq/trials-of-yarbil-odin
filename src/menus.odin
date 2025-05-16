@@ -4,8 +4,8 @@ package game
 setup_main_menu :: proc() {
 	// Place and position buttons
 	but_count: f32 = 2
-	but_height: f32 = 60
-	but_width: f32 = 200
+	but_height: f32 = 0.09 * f32(UI_SIZE.y)
+	but_width: f32 = 0.18 * f32(UI_SIZE.x)
 	but_margin: f32 = 20
 	all_button_size: f32 = but_count * but_height + (but_count - 1) * but_margin
 	cur_y := f32(UI_SIZE.y) / 2 - all_button_size / 2
@@ -16,15 +16,15 @@ setup_main_menu :: proc() {
 	cur_y += but_height + but_margin
 	main_menu.quit_button.rect = get_centered_rect({cur_x, cur_y}, {but_width, but_height})
 
-	main_menu.feedback_button.rect = get_centered_rect(
+	main_menu.discord_button.rect = get_centered_rect(
 		{cur_x, 0.9 * f32(UI_SIZE.y)},
-		{but_width, but_height},
+		{but_width * 0.5, but_height},
 	)
 
 	// Text Setup
 	main_menu.play_button.text = "Play"
 	main_menu.quit_button.text = "Quit"
-	main_menu.feedback_button.text = "Give Feedback"
+	main_menu.discord_button.text = "Discord"
 
 	// Colors
 	style := ButtonStyle {
@@ -34,14 +34,14 @@ setup_main_menu :: proc() {
 	}
 	main_menu.play_button.style = style
 	main_menu.quit_button.style = style
-	main_menu.feedback_button.style = style
+	main_menu.discord_button.style = style
 }
 
 setup_pause_menu :: proc() {
 	// Place and position buttons
 	but_count: f32 = 2
-	but_height: f32 = 0.1 * f32(UI_SIZE.y)
-	but_width: f32 = 0.2 * f32(UI_SIZE.x)
+	but_height: f32 = 0.09 * f32(UI_SIZE.y)
+	but_width: f32 = 0.18 * f32(UI_SIZE.x)
 	but_margin: f32 = 0.3 * but_height
 	all_button_size: f32 = but_count * but_height + (but_count - 1) * but_margin
 	cur_y := f32(UI_SIZE.y) / 2 - all_button_size / 2
@@ -55,9 +55,9 @@ setup_pause_menu :: proc() {
 	cur_y += but_height + but_margin
 	pause_menu.main_menu_button.rect = get_centered_rect({cur_x, cur_y}, {but_width, but_height})
 
-	pause_menu.feedback_button.rect = get_centered_rect(
+	pause_menu.discord_button.rect = get_centered_rect(
 		{cur_x, 0.9 * f32(UI_SIZE.y)},
-		{but_width, but_height},
+		{but_width * 0.5, but_height},
 	)
 
 	panel_top_right_corner: Vec2 =
@@ -75,7 +75,7 @@ setup_pause_menu :: proc() {
 	pause_menu.resume_button.text = "Resume"
 	pause_menu.controls_button.text = "Controls"
 	pause_menu.main_menu_button.text = "Main Menu"
-	pause_menu.feedback_button.text = "Give Feedback"
+	pause_menu.discord_button.text = "Discord"
 
 	pause_menu.controls_panel_close_button.text = "X"
 
@@ -88,14 +88,14 @@ setup_pause_menu :: proc() {
 	pause_menu.resume_button.style = style
 	pause_menu.controls_button.style = style
 	pause_menu.main_menu_button.style = style
-	pause_menu.feedback_button.style = style
+	pause_menu.discord_button.style = style
 	pause_menu.controls_panel_close_button.style = style
 }
 
 setup_win_menu :: proc() {
 	but_count: f32 = 2
-	but_height: f32 = 0.1 * f32(UI_SIZE.y)
-	but_width: f32 = 0.2 * f32(UI_SIZE.x)
+	but_height: f32 = 0.09 * f32(UI_SIZE.y)
+	but_width: f32 = 0.18 * f32(UI_SIZE.x)
 	but_margin: f32 = 0.3 * but_height
 	all_button_size: f32 = but_count * but_height + (but_count - 1) * but_margin
 	cur_y := f32(UI_SIZE.y) / 2 - all_button_size / 2
@@ -109,15 +109,15 @@ setup_win_menu :: proc() {
 	cur_y += but_height + but_margin
 	win_menu.quit_button.rect = get_centered_rect({cur_x, cur_y}, {but_width, but_height})
 
-	win_menu.feedback_button.rect = get_centered_rect(
+	win_menu.discord_button.rect = get_centered_rect(
 		{cur_x, 0.9 * f32(UI_SIZE.y)},
-		{but_width, but_height},
+		{but_width * 0.5, but_height},
 	)
 
 	win_menu.play_again_button.text = "Play Again"
 	win_menu.main_menu_button.text = "Main Menu"
 	win_menu.quit_button.text = "Quit"
-	win_menu.feedback_button.text = "Give Feedback"
+	win_menu.discord_button.text = "Discord"
 
 	// Colors
 	style := ButtonStyle {
@@ -128,5 +128,5 @@ setup_win_menu :: proc() {
 	win_menu.play_again_button.style = style
 	win_menu.main_menu_button.style = style
 	win_menu.quit_button.style = style
-	win_menu.feedback_button.style = style
+	win_menu.discord_button.style = style
 }

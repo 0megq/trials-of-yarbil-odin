@@ -139,15 +139,15 @@ game_data: GameData
 
 main_world: World
 main_menu: struct {
-	play_button:     Button,
-	quit_button:     Button,
-	feedback_button: Button,
+	play_button:    Button,
+	quit_button:    Button,
+	discord_button: Button,
 }
 pause_menu: struct {
 	resume_button:               Button,
 	main_menu_button:            Button,
 	controls_button:             Button,
-	feedback_button:             Button,
+	discord_button:              Button,
 	controls_panel_close_button: Button,
 	controls_panel_showing:      bool,
 }
@@ -155,7 +155,7 @@ win_menu: struct {
 	play_again_button: Button,
 	main_menu_button:  Button,
 	quit_button:       Button,
-	feedback_button:   Button,
+	discord_button:    Button,
 }
 menu_change_queued: bool = false
 new_menu: Menu = .Main
@@ -386,12 +386,12 @@ update :: proc() {
 	case .Main:
 		update_button(&main_menu.play_button, mouse_ui_pos)
 		update_button(&main_menu.quit_button, mouse_ui_pos)
-		update_button(&main_menu.feedback_button, mouse_ui_pos)
+		update_button(&main_menu.discord_button, mouse_ui_pos)
 		if main_menu.play_button.status == .Released {
 			queue_menu_change(.World)
 		} else if main_menu.quit_button.status == .Released {
 			game_should_close = true
-		} else if main_menu.feedback_button.status == .Released {
+		} else if main_menu.discord_button.status == .Released {
 			rl.OpenURL(
 				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
 			)
@@ -401,14 +401,14 @@ update :: proc() {
 			update_button(&pause_menu.resume_button, mouse_ui_pos)
 			update_button(&pause_menu.controls_button, mouse_ui_pos)
 			update_button(&pause_menu.main_menu_button, mouse_ui_pos)
-			update_button(&pause_menu.feedback_button, mouse_ui_pos)
+			update_button(&pause_menu.discord_button, mouse_ui_pos)
 			if pause_menu.resume_button.status == .Released {
 				queue_menu_change(.World)
 			} else if pause_menu.controls_button.status == .Released {
 				pause_menu.controls_panel_showing = true
 			} else if pause_menu.main_menu_button.status == .Released {
 				queue_menu_change(.Main)
-			} else if pause_menu.feedback_button.status == .Released {
+			} else if pause_menu.discord_button.status == .Released {
 				rl.OpenURL(
 					"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
 				)
@@ -427,7 +427,7 @@ update :: proc() {
 		update_button(&win_menu.play_again_button, mouse_ui_pos)
 		update_button(&win_menu.main_menu_button, mouse_ui_pos)
 		update_button(&win_menu.quit_button, mouse_ui_pos)
-		update_button(&win_menu.feedback_button, mouse_ui_pos)
+		update_button(&win_menu.discord_button, mouse_ui_pos)
 		if win_menu.play_again_button.status == .Released {
 			// Load base data (99) and save it into our current data
 			reload_game_data(99)
@@ -441,7 +441,7 @@ update :: proc() {
 			queue_menu_change(.Main)
 		} else if win_menu.quit_button.status == .Released {
 			game_should_close = true
-		} else if win_menu.feedback_button.status == .Released {
+		} else if win_menu.discord_button.status == .Released {
 			rl.OpenURL(
 				"https://docs.google.com/forms/d/e/1FAIpQLSeWk2kYDe3PCVlBTApyw5VWZ6MEjj05QZw44XMP_cwDo6bmxg/viewform?usp=header",
 			)
@@ -478,22 +478,61 @@ draw_frame :: proc() {
 	case .World:
 		draw_world_ui(main_world)
 	case .Main:
-		rl.DrawTexture(
-			loaded_textures[.TitleScreen],
-			UI_SIZE.x / 2 - loaded_textures[.TitleScreen].width / 2,
-			-80,
-			rl.WHITE,
-		)
+		{
+			// Background color
+			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {10, 67, 71, 255})
+
+			// Warrior and enemies
+			img_scale_factor :: 4
+			img := loaded_textures[.TitleScreen]
+			center: Vec2 = {f32(UI_SIZE.x) * 0.2, f32(UI_SIZE.y) * 0.5}
+			rl.DrawTextureEx(
+				img,
+				{
+					center.x - img_scale_factor * f32(img.width) / 2,
+					center.y - img_scale_factor * f32(img.height) / 2,
+				},
+				0,
+				img_scale_factor,
+				rl.WHITE,
+			)
+
+			img = loaded_textures[.TitleScreen2]
+			center = {f32(UI_SIZE.x) * 0.8, f32(UI_SIZE.y) * 0.6}
+			rl.DrawTextureEx(
+				img,
+				{
+					center.x - img_scale_factor * f32(img.width) / 2,
+					center.y - img_scale_factor * f32(img.height) / 2,
+				},
+				0,
+				img_scale_factor,
+				rl.WHITE,
+			)
+		}
+		// Title text
+		{
+			text: cstring = "Trials of Yarbil"
+			font_size: f32 = 30
+			spacing: f32 = 2
+			center := Vec2{f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) * 0.1}
+			pos := get_centered_text_pos(center, text, font_size, spacing)
+			rl.DrawRectangleRec(
+				get_centered_rect(center, {f32(UI_SIZE.x), 50}),
+				{200, 200, 255, 255},
+			)
+			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
+		}
 		draw_button(main_menu.play_button)
 		draw_button(main_menu.quit_button)
-		draw_button(main_menu.feedback_button)
+		draw_button(main_menu.discord_button)
 	case .Pause:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 		draw_button(pause_menu.resume_button)
 		draw_button(pause_menu.controls_button)
 		draw_button(pause_menu.main_menu_button)
-		draw_button(pause_menu.feedback_button)
+		draw_button(pause_menu.discord_button)
 
 		// Pause text
 		{
@@ -617,7 +656,7 @@ draw_frame :: proc() {
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 		draw_button(win_menu.play_again_button)
 		draw_button(win_menu.main_menu_button)
-		draw_button(win_menu.feedback_button)
+		draw_button(win_menu.discord_button)
 		draw_button(win_menu.quit_button)
 		// Draw win text and background
 		{
