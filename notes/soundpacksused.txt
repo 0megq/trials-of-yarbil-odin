@@ -1,0 +1,9 @@
+
+- sword_slash
+    - Medieval Fantasy SFX 2: Sword Draw A
+- sword_hit
+    - Casual Mobile SFX: Sword A
+    - Destruction SFX Pack: Rock Dirt Impact Dull A
+- sword_kill
+    - Casual Mobile SFX: Sword A
+    - Destruction SFX Pack: Rock Dirt Impact Dull B

@@ -1342,10 +1342,12 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 						enemy.vel += attack.direction * attack.knockback
 						screen_shake_time = .05
 						screen_shake_intensity = 1.5
+						play_sound(.SwordKill)
+					} else {
+						play_sound(.SwordHit)
 					}
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
-					play_sound(.SwordHit)
 					// pause_game = 0.05
 				}
 			}

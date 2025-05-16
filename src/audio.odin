@@ -6,6 +6,7 @@ import rl "vendor:raylib"
 SoundId :: enum {
 	SwordSlash,
 	SwordHit,
+	SwordKill,
 }
 
 loaded_sounds: [SoundId]rl.Sound
@@ -16,6 +17,7 @@ sound_pool_cur: [SoundId]int
 pitch_variation: [SoundId]f32 = {
 	.SwordSlash = 0.1,
 	.SwordHit   = 0,
+	.SwordKill  = 0,
 }
 
 init_audio_and_load_sounds :: proc() {
@@ -27,6 +29,7 @@ load_sounds :: proc() {
 	loaded_sounds = {
 		.SwordSlash = rl.LoadSound("res/sound/sword_slash.mp3"),
 		.SwordHit   = rl.LoadSound("res/sound/sword_hit.mp3"),
+		.SwordKill  = rl.LoadSound("res/sound/sword_kill.mp3"),
 	}
 	for &pool, id in sound_pool {
 		for &alias in pool {
