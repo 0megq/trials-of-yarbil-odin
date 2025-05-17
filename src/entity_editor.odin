@@ -6,6 +6,65 @@ import rl "vendor:raylib"
 
 
 update_entity_editor :: proc(e: ^EditorState) {
+	// Ctrl-A
+	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.A) {
+		e.all_entities_selected = !e.all_entities_selected
+		e.selected_entity = .Nil
+	}
+
+	if e.all_entities_selected {
+		if rl.IsKeyPressed(.UP) {
+			level.player_pos.y -= TILE_SIZE
+			for &enemy in level.enemies {
+				enemy.pos.y -= TILE_SIZE
+			}
+			for &barrel in level.exploding_barrels {
+				barrel.pos.y -= TILE_SIZE
+			}
+			for &item in level.items {
+				item.pos.y -= TILE_SIZE
+			}
+		}
+		if rl.IsKeyPressed(.DOWN) {
+			level.player_pos.y += TILE_SIZE
+			for &enemy in level.enemies {
+				enemy.pos.y += TILE_SIZE
+			}
+			for &barrel in level.exploding_barrels {
+				barrel.pos.y += TILE_SIZE
+			}
+			for &item in level.items {
+				item.pos.y += TILE_SIZE
+			}
+		}
+		if rl.IsKeyPressed(.LEFT) {
+			level.player_pos.x -= TILE_SIZE
+			for &enemy in level.enemies {
+				enemy.pos.x -= TILE_SIZE
+			}
+			for &barrel in level.exploding_barrels {
+				barrel.pos.x -= TILE_SIZE
+			}
+			for &item in level.items {
+				item.pos.x -= TILE_SIZE
+			}
+		}
+		if rl.IsKeyPressed(.RIGHT) {
+			level.player_pos.x += TILE_SIZE
+			for &enemy in level.enemies {
+				enemy.pos.x += TILE_SIZE
+			}
+			for &barrel in level.exploding_barrels {
+				barrel.pos.x += TILE_SIZE
+			}
+			for &item in level.items {
+				item.pos.x += TILE_SIZE
+			}
+		}
+		return // Skip reset of update function
+	}
+
+
 	// select entity
 	outer: if rl.IsMouseButtonPressed(.LEFT) {
 		if check_collision_shape_point(PLAYER_SHAPE, level.player_pos, mouse_world_pos) {
@@ -134,6 +193,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 		}
 	}
 
+	// copy entity id
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.I) {
 		// Copy the regex expression for the first two ints in the id
 		rl.SetClipboardText(
@@ -159,7 +219,10 @@ draw_entity_editor_world :: proc(e: EditorState) {
 draw_entity_editor_ui :: proc(e: EditorState) {
 	// draw selected entity data
 	// draw entity pos
+	if e.all_entities_selected {
+		rl.DrawText("All entities selected", 30, 60, 20, rl.YELLOW)
+	}
 	if e.selected_phys_entity != nil {
-		rl.DrawText(fmt.ctprintf("%v", e.selected_phys_entity.pos), 30, 60, 20, rl.BLACK)
+		rl.DrawText(fmt.ctprintf("%v", e.selected_phys_entity.pos), 30, 60, 20, rl.YELLOW)
 	}
 }

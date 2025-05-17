@@ -10,6 +10,7 @@ import rl "vendor:raylib"
 TILE_SIZE :: 8
 TILEMAP_SIZE :: 200
 
+// Tilemaps are indexed with x, then y. Column major
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]bool
 

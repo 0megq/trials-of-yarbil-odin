@@ -29,6 +29,94 @@ move and/or create points with mouse
 
 
 update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
+	if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.A) {
+		e.all_geometry_selected = !e.all_geometry_selected
+		e.selected_wall = nil
+		e.selected_wall_index = -1
+		e.portal_selected = false
+	}
+
+	if e.all_geometry_selected {
+		if rl.IsKeyPressed(.UP) {
+			for &wall in level.walls {
+				wall.pos.y -= TILE_SIZE
+			}
+			for &wall in level.half_walls {
+				wall.pos.y -= TILE_SIZE
+			}
+			level.portal_pos.y -= TILE_SIZE
+			for col, x in level_tilemap {
+				for _, y in col {
+					// Last row
+					if y == len(level_tilemap) - 1 {
+						level_tilemap[x][y] = EmptyData{}
+						continue
+					}
+					level_tilemap[x][y] = level_tilemap[x][y + 1]
+				}
+			}
+		}
+		if rl.IsKeyPressed(.DOWN) {
+			for &wall in level.walls {
+				wall.pos.y += TILE_SIZE
+			}
+			for &wall in level.half_walls {
+				wall.pos.y += TILE_SIZE
+			}
+			level.portal_pos.y += TILE_SIZE
+			for col, x in level_tilemap {
+				#reverse for _, y in col {
+					// Last row
+					if y == 0 {
+						level_tilemap[x][y] = EmptyData{}
+						continue
+					}
+					level_tilemap[x][y] = level_tilemap[x][y - 1]
+				}
+			}
+		}
+		if rl.IsKeyPressed(.LEFT) {
+			for &wall in level.walls {
+				wall.pos.y -= TILE_SIZE
+			}
+			for &wall in level.half_walls {
+				wall.pos.y -= TILE_SIZE
+			}
+			level.portal_pos.y -= TILE_SIZE
+			for col, x in level_tilemap {
+				// Last column
+				if x == len(level_tilemap) - 1 {
+					level_tilemap[x] = EmptyData{}
+					continue
+				}
+				for _, y in col {
+
+					level_tilemap[x][y] = level_tilemap[x + 1][y]
+				}
+			}
+		}
+		if rl.IsKeyPressed(.RIGHT) {
+			for &wall in level.walls {
+				wall.pos.y += TILE_SIZE
+			}
+			for &wall in level.half_walls {
+				wall.pos.y += TILE_SIZE
+			}
+			level.portal_pos.y += TILE_SIZE
+			#reverse for col, x in level_tilemap {
+				// Last column
+				if x == 0 {
+					level_tilemap[x] = EmptyData{}
+					continue
+				}
+				for _, y in col {
+					level_tilemap[x][y] = level_tilemap[x - 1][y]
+				}
+			}
+		}
+		return // Skip everything else
+	}
+
 	update_button(&e.new_shape_but, mouse_ui_pos)
 
 	// New shape
@@ -381,6 +469,10 @@ draw_geometry_editor_ui :: proc(e: EditorState) {
 				rl.WHITE,
 			)
 		}
+	}
+
+	if e.all_geometry_selected {
+		rl.DrawText("All geometry selected", 30, 60, 20, rl.YELLOW)
 	}
 }
 
