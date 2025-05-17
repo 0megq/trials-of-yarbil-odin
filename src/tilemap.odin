@@ -273,7 +273,7 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 				tex_id     = .Tilemap,
 				tex_region = {0, 0, TILE_SIZE, TILE_SIZE},
 				tex_origin = {},
-				scale      = 1,
+				scale      = 1.1,
 				tint       = rl.WHITE,
 			}
 
