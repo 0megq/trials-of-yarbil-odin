@@ -288,7 +288,8 @@ main :: proc() {
 // This is our update loop handles and draws EVERYTHING every frame
 update :: proc() {
 	// delta time and store mouse input
-	delta = rl.GetFrameTime()
+	max_delta :: 1 / 30.0
+	delta = min(rl.GetFrameTime(), max_delta)
 	mouse_window_pos = rl.GetMousePosition()
 	mouse_window_delta = rl.GetMouseDelta()
 
