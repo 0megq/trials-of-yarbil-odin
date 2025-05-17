@@ -8,6 +8,7 @@ import "core:mem"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
 
+VERSION_NUMBER :: "Playtest v8"
 GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
 UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
@@ -522,6 +523,7 @@ draw_frame :: proc() {
 		draw_button(main_menu.play_button)
 		draw_button(main_menu.quit_button)
 		draw_button(main_menu.discord_button)
+		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
 	case .Pause:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
@@ -647,6 +649,7 @@ draw_frame :: proc() {
 				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
 			}
 		}
+		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
 	case .Win:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
@@ -667,6 +670,7 @@ draw_frame :: proc() {
 			)
 			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
 		}
+		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
 	}
 	rl.EndMode2D()
 
