@@ -800,8 +800,10 @@ draw_world :: proc(world: World) {
 			sprite := ENEMY_BASIC_SPRITE
 
 			// Looking
+			flipped := false
 			sprite.rotation = enemy.look_angle
 			if sprite.rotation < -90 || sprite.rotation > 90 {
+				flipped = true
 				sprite.scale = {-1, 1}
 				sprite.rotation += 180
 			}
@@ -885,25 +887,66 @@ draw_world :: proc(world: World) {
 			if enemy.just_attacked {
 				attack_area_color = rl.Color{255, 0, 0, 120}
 			}
-			if enemy.state != .Death && (enemy.charging || enemy.just_attacked) {
-				bar_length: f32 = 3
-				bar_height: f32 = 10
-				bar_base_rec := get_centered_rect(
-					{enemy.pos.x, enemy.pos.y},
-					{bar_length, bar_height},
-				)
-				rl.DrawRectangleRec(bar_base_rec, rl.BLACK)
-				bar_filled_rec := bar_base_rec
-				bar_filled_rec.height *= enemy.current_charge_time / enemy.start_charge_time
-				rl.DrawRectangleRec(bar_filled_rec, rl.DARKGREEN)
-
+			// Draw weapons
+			if enemy.state != .Death  /*&& (enemy.charging || enemy.just_attacked)*/{
 				switch data in enemy.data {
 				case MeleeEnemyData:
+					// position, rotate, and animate sprite based on look direction and attack state
 					draw_shape(data.attack_poly, enemy.pos, attack_area_color)
 				case RangedEnemyData:
+					tex_id := TextureId.Bow
+					tex := loaded_textures[tex_id]
+					// Animate
+					anim_length := enemy.start_charge_time
+					anim_cur := math.clamp(enemy.current_charge_time, 0, anim_length)
+					if !enemy.charging {
+						anim_cur = anim_length
+					}
 
+					frame_count := get_frames(tex_id)
+					frame_index := int(
+						math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))),
+					)
+					if frame_index >= frame_count {
+						frame_index -= 1
+					}
+
+					frame_size := tex.width / i32(frame_count)
+
+					bow_sprite: Sprite = {
+						tex_id     = tex_id,
+						tex_region = {
+							f32(frame_index) * f32(frame_size),
+							0,
+							f32(frame_size),
+							f32(tex.height),
+						},
+						scale      = 1,
+						tex_origin = {8, 7},
+						rotation   = 0,
+						tint       = rl.WHITE,
+					}
+					sprite_pos := enemy.pos
+
+					if flipped {
+						bow_sprite.scale.x = -1
+						bow_sprite.rotation += 180
+					}
+
+					// rotation offset
+					// bow_sprite.rotation = 0
+
+					// position offset
+					offset: Vec2 : {5, 0}
+					sprite_pos += offset
+
+					// Rotate sprite and rotate its position to face mouse
+					bow_sprite.rotation += enemy.look_angle
+					sprite_pos = rotate_about_origin(sprite_pos, enemy.pos, enemy.look_angle)
+					draw_sprite(bow_sprite, sprite_pos)
 				}
 			}
+
 
 			// Draw vision area
 			// when ODIN_DEBUG {

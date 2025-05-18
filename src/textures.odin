@@ -8,6 +8,7 @@ TextureId :: enum {
 	// Apple,
 	// Rock,
 	Sword = 100, // 100-199 is weapons
+	Bow,
 	// Stick,
 	Player = 200, // 200-299 is entities
 	EnemyBasic,
@@ -38,12 +39,17 @@ item_to_texture: #sparse[ItemId]TextureId = {
 }
 
 load_textures :: proc() {
+	// img_dir :: "res/images/"
+	// for id in TextureId {
+	// 	loaded_textures[id] = rl.LoadTexture(fmt.ctprint(img_dir, id, ".png", sep = ""))
+	// }
 	loaded_textures = {
 		.Empty            = {},
 		.Bomb             = rl.LoadTexture("res/images/bomb.png"),
 		// .Apple           = rl.LoadTexture("res/images/apple.png"),
 		// .Rock            = rl.LoadTexture("res/images/rock.png"),
 		.Sword            = rl.LoadTexture("res/images/sword.png"),
+		.Bow              = rl.LoadTexture("res/images/bow.png"),
 		// .Stick           = rl.LoadTexture("res/images/stick.png"),
 		.Player           = rl.LoadTexture("res/images/samurai.png"),
 		.EnemyBasic       = rl.LoadTexture("res/images/enemy_basic.png"),
@@ -75,6 +81,8 @@ get_frames :: proc(tex: TextureId) -> int {
 		return 4
 	case .EnemyBasicDeath:
 		return 7
+	case .Bow:
+		return 4
 	}
 	return 1
 }
