@@ -114,6 +114,8 @@ Enemy2 :: struct {
 	flash_opacity:                 f32,
 	// Death
 	death_timer:                   f32,
+	weapon_side:                   int, // top is 1, bottom is -1
+	attack_anim_timer:             f32,
 }
 
 EnemyState :: enum {
@@ -331,6 +333,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 setup_enemy :: proc(enemy: ^Enemy) {
 	enemy.post_pos = enemy.pos
 	enemy.shape = get_centered_rect({}, {16, 16})
+	enemy.weapon_side = 1
 	change_enemy_state(enemy, .Idle, main_world)
 }
 

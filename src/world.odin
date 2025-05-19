@@ -891,8 +891,55 @@ draw_world :: proc(world: World) {
 			if enemy.state != .Death  /*&& (enemy.charging || enemy.just_attacked)*/{
 				switch data in enemy.data {
 				case MeleeEnemyData:
-					// position, rotate, and animate sprite based on look direction and attack state
-					draw_shape(data.attack_poly, enemy.pos, attack_area_color)
+					// position, rotate, and animate sprite based on look direction and attack animation
+					sprite_rotation: f32
+					pos_rotation: f32
+					if enemy.attack_anim_timer > 0 {
+						alpha: f32 = math.remap(enemy.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
+						pos_rotation =
+							math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
+							sword_pos_max_rotation *
+							f32(enemy.weapon_side)
+						sprite_rotation =
+							math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
+							sword_sprite_max_rotation *
+							f32(enemy.weapon_side)
+					} else {
+						pos_rotation = sword_pos_max_rotation * f32(enemy.weapon_side)
+						sprite_rotation = sword_sprite_max_rotation * f32(enemy.weapon_side)
+					}
+
+
+					tex_id := TextureId.Sword
+					tex := loaded_textures[tex_id]
+
+					sword_sprite: Sprite = {
+						tex_id     = tex_id,
+						tex_region = {0, 0, f32(tex.width), f32(tex.height)},
+						scale      = 1,
+						tex_origin = {0, 1},
+						rotation   = 0,
+						tint       = rl.WHITE,
+					}
+					sprite_pos := enemy.pos
+
+					// if flipped {
+					// 	sword_sprite.scale.x = -1
+					// 	sword_sprite.rotation += 180
+					// }
+
+					// position and rotation offset
+					sword_sprite.rotation = sprite_rotation
+
+					radius :: 5
+					offset: Vec2 : {2, 0}
+					sprite_pos += offset + radius * vector_from_angle(pos_rotation)
+
+					// Rotate sprite and rotate its position to face mouse
+					sword_sprite.rotation += enemy.look_angle
+					sprite_pos = rotate_about_origin(sprite_pos, enemy.pos, enemy.look_angle)
+					draw_sprite(sword_sprite, sprite_pos)
+				// draw_shape(data.attack_poly, enemy.pos, attack_area_color)
 				case RangedEnemyData:
 					tex_id := TextureId.Bow
 					tex := loaded_textures[tex_id]
@@ -2358,6 +2405,9 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	case .Combat:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
+		if enemy.attack_anim_timer > 0 {
+			enemy.attack_anim_timer -= delta
+		}
 		// Attacking
 		enemy.just_attacked = false
 		if enemy.charging {
@@ -2385,6 +2435,9 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 							direction       = vector_from_angle(data.attack_poly.rotation),
 						},
 					)
+					// Animate sword
+					enemy.attack_anim_timer = ATTACK_ANIM_TIME
+					enemy.weapon_side = -enemy.weapon_side
 				case RangedEnemyData:
 					// launch arrow
 					to_player := normalize(main_world.player.pos - enemy.pos)
