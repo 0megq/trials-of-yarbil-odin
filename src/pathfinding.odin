@@ -132,8 +132,6 @@ astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int 
 			f:         f32,
 			g:         f32,
 		}, len(graph.nodes), context.temp_allocator)
-	defer delete(closed_nodes)
-	defer delete(open_nodes)
 
 	end_node := graph.nodes[end_index]
 
@@ -212,7 +210,6 @@ astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int 
 	if _, ok := closed_nodes[end_index]; ok {
 		// Trace path backwards
 		path := make([dynamic]int, context.temp_allocator)
-		defer delete(path)
 		current_index := end_index
 		for current_index != start_index {
 			append(&path, current_index)

@@ -358,7 +358,7 @@ unload_level :: proc() {
 	if level.has_tutorial {
 		_unload_tutorial()
 	}
-	// delete world data
+	// delete world data. I can probably replace these with clear()
 	delete(main_world.enemies)
 	main_world.enemies = nil
 	delete(main_world.disabled_enemies)
@@ -470,7 +470,7 @@ _save_tutorial :: proc() {
 
 _unload_tutorial :: proc() {
 	for prompt in tutorial.prompts {
-		delete(prompt.text, context.allocator)
+		delete(prompt.text)
 	}
 	delete(tutorial.prompts)
 	for action in tutorial.actions {
