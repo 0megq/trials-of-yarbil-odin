@@ -191,18 +191,20 @@ main :: proc() {
 	context.random_generator = crypto.random_generator()
 
 	// Setup Tracking Allocator
-	track: mem.Tracking_Allocator
-	mem.tracking_allocator_init(&track, context.allocator)
-	context.allocator = mem.tracking_allocator(&track)
+	when ODIN_DEBUG {
+		track: mem.Tracking_Allocator
+		mem.tracking_allocator_init(&track, context.allocator)
+		context.allocator = mem.tracking_allocator(&track)
 
-	defer {
-		for _, entry in track.allocation_map {
-			fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
+		defer {
+			for _, entry in track.allocation_map {
+				fmt.eprintf("%v leaked %v bytes\n", entry.location, entry.size)
+			}
+			for entry in track.bad_free_array {
+				fmt.eprintf("%v bad free\n", entry.location)
+			}
+			mem.tracking_allocator_destroy(&track)
 		}
-		for entry in track.bad_free_array {
-			fmt.eprintf("%v bad free\n", entry.location)
-		}
-		mem.tracking_allocator_destroy(&track)
 	}
 
 	// Setup Window
@@ -270,6 +272,14 @@ main :: proc() {
 	// Free level memory
 	unload_level()
 
+	// Free extra stuff
+	{ 	// Need to make a separate function for freeing all world/level data
+		delete(main_world.fires)
+		delete(main_world.bombs)
+		delete(main_world.alerts)
+		delete(main_world.arrows)
+	}
+
 	// Free game data memory
 	unload_game_data()
 
@@ -277,9 +287,7 @@ main :: proc() {
 	unload_textures()
 
 	// Free all memory
-	mem.tracking_allocator_clear(&track)
 	free_all(context.temp_allocator)
-	free_all(context.allocator)
 
 	// Done
 	rl.CloseWindow()

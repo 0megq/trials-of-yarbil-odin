@@ -1,6 +1,7 @@
 package game
 
 import "core:math"
+import "core:slice"
 
 NavGraphNode :: struct {
 	pos:         Vec2,
@@ -52,6 +53,7 @@ calculate_graph_from_tiles :: proc(graph: ^NavGraph, tm: Tilemap, wall_tm: WallT
 	}
 }
 
+// Allocates result using context.allocator
 find_path_tiles :: proc(
 	start: Vec2,
 	end: Vec2,
@@ -230,6 +232,7 @@ astar_tiles :: proc(start_index: int, end_index: int, graph: NavGraph) -> []int 
 	}
 }
 
+// Allocates result using context.allocator
 path_smooth_tiles :: proc(
 	path: []int,
 	start: Vec2,
@@ -239,6 +242,7 @@ path_smooth_tiles :: proc(
 	wall_tm: WallTilemap,
 ) -> []Vec2 {
 	result := make([dynamic]Vec2, context.allocator)
+	defer delete(result)
 	append(&result, start)
 	// Create a line of sight check
 	last_pos_added := start
@@ -258,5 +262,5 @@ path_smooth_tiles :: proc(
 	}
 	append(&result, end)
 
-	return result[:]
+	return slice.clone(result[:])
 }

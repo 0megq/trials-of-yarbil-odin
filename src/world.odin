@@ -154,6 +154,7 @@ world_update :: proc() {
 				data      = ExplosionAttackData{true},
 			}
 			perform_attack(&main_world, &attack)
+			delete(attack.exclude_targets)
 		}
 		if move_successful {
 			stop_player_attack(&main_world.player)
@@ -363,6 +364,7 @@ world_update :: proc() {
 			{
 				fully_dead := update_enemy_state(&enemy, delta)
 				if fully_dead {
+					delete(enemy.current_path)
 					unordered_remove(&main_world.enemies, idx)
 					_on_enemy_fully_dead()
 
@@ -513,6 +515,7 @@ world_update :: proc() {
 		if should_explode {
 			explosion_radius: f32 = 16
 			append(&main_world.fires, Fire{Circle{bomb.pos, explosion_radius}, 0.5})
+			// Potential memory leak with exclude_targets
 			perform_attack(
 				&main_world,
 				&{
@@ -2723,9 +2726,7 @@ lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {
 }
 
 start_enemy_pathing :: proc(enemy: ^Enemy, world: World, dest: Vec2) {
-	if enemy.current_path != nil {
-		delete(enemy.current_path)
-	}
+	delete(enemy.current_path)
 	enemy.current_path = find_path_tiles(
 		enemy.pos,
 		dest,
@@ -2846,17 +2847,18 @@ damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount:
 
 		append(&world.fires, fire)
 		// Damage
-		perform_attack(
-			world,
-			&{
-				targets = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
-				damage = 40,
-				knockback = 400,
-				pos = fire.pos,
-				shape = Circle{{}, fire.radius},
-				data = ExplosionAttackData{false},
-			},
-		)
+		attack := Attack {
+			targets   = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
+			damage    = 40,
+			knockback = 400,
+			pos       = fire.pos,
+			shape     = Circle{{}, fire.radius},
+			data      = ExplosionAttackData{false},
+		}
+
+		perform_attack(world, &attack)
+
+		delete(attack.exclude_targets)
 	}
 }
 

@@ -359,8 +359,14 @@ unload_level :: proc() {
 		_unload_tutorial()
 	}
 	// delete world data. I can probably replace these with clear()
+	for enemy in main_world.enemies do if enemy.current_path != nil {
+		delete(enemy.current_path)
+	}
 	delete(main_world.enemies)
 	main_world.enemies = nil
+	// for enemy in main_world.disabled_enemies do if enemy.current_path != nil {
+	// 	delete(enemy.current_path)
+	// }
 	delete(main_world.disabled_enemies)
 	main_world.disabled_enemies = nil
 	delete(main_world.items)
@@ -373,7 +379,14 @@ unload_level :: proc() {
 	main_world.walls = nil
 	delete(main_world.half_walls)
 	main_world.half_walls = nil
+	delete(main_world.nav_graph.nodes)
+	main_world.nav_graph.nodes = nil
 	// delete level data
+	// for enemy in level.enemies do if enemy.current_path != nil {
+	// 	delete(enemy.current_path)
+	// }
+	delete(level.enemies)
+	level.enemies = nil
 	delete(level.enemy_data)
 	level.enemy_data = nil
 	delete(level.items)
