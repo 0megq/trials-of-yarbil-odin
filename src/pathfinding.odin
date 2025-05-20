@@ -119,7 +119,6 @@ find_path_tiles :: proc(
 	// path[len(node_path) + 1] = end
 	// return path
 
-	defer delete(node_path)
 	return path_smooth_tiles(node_path, start, end, graph, tm, wall_tm)
 }
 
