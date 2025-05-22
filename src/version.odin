@@ -1,13 +1,76 @@
 package game
 
 import "core:encoding/json"
+import "core:encoding/uuid"
 import "core:fmt"
 import "core:os"
 import "core:testing"
 
 // This file is where previous versions of structs go as well as procedures for converting
 // said previous versions to the current version and back
+EnemyData1 :: struct {
+	id:             uuid.Identifier,
+	pos:            Vec2,
+	start_disabled: bool,
+	look_angle:     f32,
+	health:         f32,
+	max_health:     f32,
+	variant:        u8, // maybe make this an enum
+}
 
+Enemy2 :: struct {
+	using moving_entity:           MovingEntity,
+	post_pos:                      Vec2,
+	target:                        Vec2, // target position to use when moving enemy
+	// Pereception Stats
+	hearing_range:                 f32,
+	vision_range:                  f32,
+	look_angle:                    f32, // direction they are looking (in degrees facing right going ccw)
+	vision_fov:                    f32, // wideness (in degrees)
+	vision_points:                 [50]Vec2,
+	// Perception Results
+	can_see_player:                bool,
+	last_seen_player_pos:          Vec2,
+	last_seen_player_vel:          Vec2,
+	player_in_flee_range:          bool,
+	alert_just_detected:           bool,
+	last_alert_intensity_detected: f32,
+	last_alert:                    Alert,
+	// Combat
+	attack_charge_range:           f32, // Range for the enemy to start charging
+	start_charge_time:             f32,
+	current_charge_time:           f32,
+	charging:                      bool,
+	just_attacked:                 bool,
+	// Flinching
+	start_flinch_time:             f32,
+	current_flinch_time:           f32,
+	flinching:                     bool,
+	// Idle
+	idle_look_timer:               f32,
+	idle_look_angle:               f32,
+	// Searching
+	search_state:                  int,
+	// Health
+	health:                        f32,
+	max_health:                    f32,
+	// Pathfinding
+	current_path:                  []Vec2,
+	current_path_point:            int,
+	pathfinding_timer:             f32,
+	// State management
+	state:                         EnemyState,
+	alert_timer:                   f32,
+	search_timer:                  f32,
+	// Type specific
+	data:                          EnemyVariantData,
+	// Sprite flash
+	flash_opacity:                 f32,
+	// Death
+	death_timer:                   f32,
+	weapon_side:                   int, // top is 1, bottom is -1
+	attack_anim_timer:             f32,
+}
 
 Enemy1 :: struct {
 	using moving_entity:      MovingEntity,
@@ -33,6 +96,30 @@ Enemy1 :: struct {
 	distracted:               bool,
 	distraction_pos:          Vec2,
 	distraction_time_emitted: f32,
+}
+
+Level3 :: struct {
+	// start player pos
+	player_pos:            Vec2,
+	// portal pos
+	portal_pos:            Vec2,
+	// enemies
+	enemies:               [dynamic]Enemy2, // This field is used when level editing
+	enemy_data:            [dynamic]EnemyData1, // Used for serialization
+	// items
+	items:                 [dynamic]Item,
+	// barrels
+	exploding_barrels:     [dynamic]ExplodingBarrel,
+	// walls
+	walls:                 [dynamic]PhysicsEntity,
+	// half walls
+	half_walls:            [dynamic]HalfWall,
+	// camera bounding box
+	bounds:                Rectangle,
+	// tutorial
+	has_tutorial:          bool,
+	// if game should be saved after completing the level
+	save_after_completion: bool,
 }
 
 Level1 :: struct {
@@ -80,6 +167,14 @@ Level2 :: struct {
 // converting is only for serialization purposes anyway, so we don't need to consider other cases, just "how do we want this data to be saved?"
 // Note: if possible the convert proc's will not allocate new data, this could be bad, but as of now it works fine with our game.
 
+convert_level3_to_current :: proc(input: Level3) -> Level {
+	return convert_level4_to_current(convert_level3_level4(input, true))
+}
+
+convert_level4_to_current :: proc(input: Level4) -> Level {
+	return input
+}
+
 convert_level2_level3 :: proc(
 	input: Level2,
 	clear_memory: bool,
@@ -104,6 +199,48 @@ convert_level2_level3 :: proc(
 	result.bounds = input.bounds
 	result.has_tutorial = input.has_tutorial
 	return
+}
+
+convert_level3_level4 :: proc(
+	input: Level3,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Level4,
+) {
+	result.version = 4
+	result.player_pos = input.player_pos
+	result.portal_pos = input.portal_pos
+	result.enemies = nil
+	result.enemy_data = make([dynamic]EnemyData2, allocator)
+	for data in input.enemy_data {
+		append(&result.enemy_data, get_data2_from_data1(data))
+		fmt.println(data.variant)
+		fmt.println(result.enemy_data[len(result.enemy_data) - 1].variant)
+	}
+	if clear_memory {
+		delete(input.enemy_data)
+		delete(input.enemies)
+	}
+	result.items = input.items
+	result.exploding_barrels = input.exploding_barrels
+	result.walls = input.walls
+	result.half_walls = input.half_walls
+	result.bounds = input.bounds
+	result.has_tutorial = input.has_tutorial
+	return
+}
+
+get_data2_from_data1 :: proc(e: EnemyData1) -> EnemyData2 {
+	variant: EnemyVariant
+	switch e.variant {
+	case 0:
+		variant = .Melee
+	case 1:
+		variant = .Ranged
+	}
+
+	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
 }
 
 get_data1_from_enemy2 :: proc(e: Enemy2) -> EnemyData1 {

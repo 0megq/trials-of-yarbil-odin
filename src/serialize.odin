@@ -173,27 +173,29 @@ get_tutorial_flag_from_name :: proc(name: string) -> ^bool {
 	return nil
 }
 
-EnemyData :: EnemyData1
-EnemyData1 :: struct {
+EnemyData :: EnemyData2
+EnemyData2 :: struct {
 	id:             uuid.Identifier,
 	pos:            Vec2,
 	start_disabled: bool,
 	look_angle:     f32,
 	health:         f32,
 	max_health:     f32,
-	variant:        u8, // maybe make this an enum
+	variant:        EnemyVariant, // maybe make this an enum
 }
 
 // Used for serialization and level editor
-Level :: Level3
-Level3 :: struct {
+LEVEL_VERSION :: 4
+Level :: Level4
+Level4 :: struct {
+	version:               int,
 	// start player pos
 	player_pos:            Vec2,
 	// portal pos
 	portal_pos:            Vec2,
 	// enemies
-	enemies:               [dynamic]Enemy2, // This field is used when level editing
-	enemy_data:            [dynamic]EnemyData1, // Used for serialization
+	enemies:               [dynamic]Enemy3, // This field is used when level editing
+	enemy_data:            [dynamic]EnemyData2, // Used for serialization
 	// items
 	items:                 [dynamic]Item,
 	// barrels
@@ -224,8 +226,38 @@ load_level :: proc(world: ^World) {
 	data := Level{}
 
 	level_file := fmt.tprintf("%s%02d.json", LEVEL_FILE_PREFIX, game_data.cur_level_idx)
-	if bytes, ok := os.read_entire_file(level_file, context.allocator); ok {
-		if json.unmarshal(bytes, &data) != nil {
+	if bytes, ok := os.read_entire_file(level_file, context.temp_allocator); ok {
+		err := json.unmarshal(bytes, &data)
+		still_err: json.Unmarshal_Error = nil
+
+		// 1. Check if  no version number then assume v3
+		if data.version == 0 {
+			// We assume it was version 3, because that was the last version before
+			data.version = 3
+		}
+		// 2. Check if version number matches the current level struct version that's in use
+		if data.version == LEVEL_VERSION {
+			still_err = err
+		} else {
+			// Free the data we already allocated, before we override it
+			free_level_memory(data)
+			// Each case, parses the data in proper version, breaks if err, and converts to curent otherwise
+			switch data.version {
+			case 3:
+				start_data: Level3
+				still_err = json.unmarshal(bytes, &start_data)
+				if still_err != nil do break
+				data = convert_level3_to_current(start_data)
+			case 4:
+				start_data: Level4
+				still_err = json.unmarshal(bytes, &start_data)
+				if still_err != nil do break
+				data = convert_level4_to_current(start_data)
+			}
+		}
+
+		// Completely failed to parse
+		if still_err != nil {
 			rl.TraceLog(.WARNING, "Error parsing level data")
 			// setup enemies, items, barrels
 			level.enemies = make([dynamic]Enemy)
@@ -237,7 +269,6 @@ load_level :: proc(world: ^World) {
 			level.half_walls = make([dynamic]HalfWall)
 		}
 
-		delete(bytes)
 	} else {
 		rl.TraceLog(.WARNING, "Error loading level data")
 		// setup enemies, items, barrels
@@ -385,20 +416,25 @@ unload_level :: proc() {
 	// for enemy in level.enemies do if enemy.current_path != nil {
 	// 	delete(enemy.current_path)
 	// }
-	delete(level.enemies)
+	free_level_memory(level)
 	level.enemies = nil
-	delete(level.enemy_data)
 	level.enemy_data = nil
-	delete(level.items)
 	level.items = nil
-	delete(level.exploding_barrels)
 	level.exploding_barrels = nil
-	delete(level.walls)
 	level.walls = nil
-	delete(level.half_walls)
 	level.half_walls = nil
 
 	rl.TraceLog(.INFO, "Level Unloaded")
+}
+
+// WARNING: unsafe to use level struct after calling this function, all allocations will point to deallocated memory
+free_level_memory :: proc(level: Level) {
+	delete(level.enemies)
+	delete(level.enemy_data)
+	delete(level.items)
+	delete(level.exploding_barrels)
+	delete(level.walls)
+	delete(level.half_walls)
 }
 
 reload_game_data :: proc(game_idx := 0) {
@@ -537,23 +573,11 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
 	e.idle_look_angle = data.look_angle
-	switch data.variant {
-	case 0:
-		setup_melee_enemy(&e)
-	case 1:
-		setup_ranged_enemy(&e)
-	}
+	e.variant = data.variant
+	setup_enemy(&e)
 	return
 }
 
 get_data_from_enemy :: proc(e: Enemy) -> EnemyData {
-	variant: u8
-	switch d in e.data {
-	case MeleeEnemyData:
-		variant = 0
-	case RangedEnemyData:
-		variant = 1
-	}
-
-	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
+	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, e.variant}
 }

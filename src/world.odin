@@ -303,10 +303,9 @@ world_update :: proc() {
 
 			/* ---------------------------- Player Flee Check --------------------------- */
 			{
-				#partial switch data in enemy.data {
-				case RangedEnemyData:
+				if enemy.variant == .Ranged {
 					enemy.player_in_flee_range = check_collision_shapes(
-						Circle{{}, data.flee_range},
+						Circle{{}, enemy.flee_range},
 						enemy.pos,
 						main_world.player.shape,
 						main_world.player.pos,
@@ -850,7 +849,7 @@ draw_world :: proc(world: World) {
 			flash_sprite.tex_id = .EnemyBasicFlash
 
 			// Switch to ranged version
-			if _, ok := enemy.data.(RangedEnemyData); ok {
+			if enemy.variant == .Ranged {
 				sprite.tex_id = .EnemyRanged
 				if enemy.state == .Death {
 					sprite.tex_id = .EnemyRangedDeath
@@ -892,8 +891,8 @@ draw_world :: proc(world: World) {
 			}
 			// Draw weapons
 			if enemy.state != .Death  /*&& (enemy.charging || enemy.just_attacked)*/{
-				switch data in enemy.data {
-				case MeleeEnemyData:
+				switch enemy.variant {
+				case .Melee:
 					// position, rotate, and animate sprite based on look direction and attack animation
 					sprite_rotation: f32
 					pos_rotation: f32
@@ -943,7 +942,7 @@ draw_world :: proc(world: World) {
 					sprite_pos = rotate_about_origin(sprite_pos, enemy.pos, enemy.look_angle)
 					draw_sprite(sword_sprite, sprite_pos)
 				// draw_shape(data.attack_poly, enemy.pos, attack_area_color)
-				case RangedEnemyData:
+				case .Ranged:
 					tex_id := TextureId.Bow
 					tex := loaded_textures[tex_id]
 					// Animate
@@ -2264,12 +2263,13 @@ get_time_left :: proc(alert: Alert) -> f32 {
 
 // MARK: Enemy
 enemy_move :: proc(e: ^Enemy, delta: f32) {
-	max_speed: f32 = 80.0
-	#partial switch data in e.data {
-	case RangedEnemyData:
+	max_speed: f32
+	switch e.variant {
+	case .Melee:
+		max_speed = 80.0
+	case .Ranged:
 		max_speed = 60.0
 	}
-
 	// if e.can_see_player {
 	// 	// keep base speed
 	// } else if e.distracted {
@@ -2418,8 +2418,8 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			if enemy.current_charge_time <= 0 {
 				enemy.just_attacked = true
 				enemy.charging = false
-				switch data in enemy.data {
-				case MeleeEnemyData:
+				switch enemy.variant {
+				case .Melee:
 					damage :: 5
 					knockback :: 100
 					perform_attack(
@@ -2430,18 +2430,18 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 							knockback       = knockback,
 							data            = SwordAttackData{},
 							pos             = enemy.pos,
-							shape           = data.attack_poly,
+							shape           = enemy.attack_poly,
 							exclude_targets = make(
 								[dynamic]uuid.Identifier, // We don't want to reuse this
 								context.temp_allocator,
 							),
-							direction       = vector_from_angle(data.attack_poly.rotation),
+							direction       = vector_from_angle(enemy.attack_poly.rotation),
 						},
 					)
 					// Animate sword
 					enemy.attack_anim_timer = ATTACK_ANIM_TIME
 					enemy.weapon_side = -enemy.weapon_side
-				case RangedEnemyData:
+				case .Ranged:
 					// launch arrow
 					to_player := normalize(main_world.player.pos - enemy.pos)
 					tex := loaded_textures[.Arrow]
@@ -2487,14 +2487,14 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			   main_world.player.shape,
 			   main_world.player.pos,
 		   ) {
-			switch &data in enemy.data {
-			case MeleeEnemyData:
-				data.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
+			switch enemy.variant {
+			case .Melee:
+				enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
 				enemy.charging = true
 				enemy.current_charge_time = enemy.start_charge_time
-			case RangedEnemyData:
+			case .Ranged:
 				if !check_collision_shapes(
-					Circle{{}, data.flee_range},
+					Circle{{}, enemy.flee_range},
 					enemy.pos,
 					main_world.player.shape,
 					main_world.player.pos,

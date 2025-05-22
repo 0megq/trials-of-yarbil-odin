@@ -63,11 +63,12 @@ ExplodingBarrel :: struct {
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
-Enemy :: Enemy2
-Enemy2 :: struct {
+Enemy :: Enemy3
+Enemy3 :: struct {
 	using moving_entity:           MovingEntity,
 	post_pos:                      Vec2,
 	target:                        Vec2, // target position to use when moving enemy
+	variant:                       EnemyVariant,
 	// Pereception Stats
 	hearing_range:                 f32,
 	vision_range:                  f32,
@@ -108,14 +109,14 @@ Enemy2 :: struct {
 	state:                         EnemyState,
 	alert_timer:                   f32,
 	search_timer:                  f32,
-	// Type specific
-	data:                          EnemyVariantData,
 	// Sprite flash
 	flash_opacity:                 f32,
 	// Death
 	death_timer:                   f32,
 	weapon_side:                   int, // top is 1, bottom is -1
 	attack_anim_timer:             f32,
+	flee_range:                    f32,
+	attack_poly:                   Polygon,
 }
 
 EnemyState :: enum {
@@ -125,6 +126,11 @@ EnemyState :: enum {
 	Fleeing,
 	Searching,
 	Death,
+}
+
+EnemyVariant :: enum {
+	Melee,
+	Ranged,
 }
 
 EnemyVariantData :: union #no_nil {
@@ -304,11 +310,8 @@ new_entity :: proc(pos: Vec2) -> Entity {
 }
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
-	setup_enemy(enemy)
-	if data, ok := enemy.data.(MeleeEnemyData); ok && data.attack_poly.points != nil {
-		delete(data.attack_poly.points)
-	}
-	enemy.data = MeleeEnemyData{Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}}
+	delete(enemy.attack_poly.points)
+	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
 	enemy.hearing_range = 160
 	enemy.vision_range = 80
 	enemy.vision_fov = 115
@@ -319,8 +322,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 }
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
-	setup_enemy(enemy)
-	enemy.data = RangedEnemyData{60}
+	enemy.flee_range = 60
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
 	enemy.vision_fov = 115
@@ -335,6 +337,12 @@ setup_enemy :: proc(enemy: ^Enemy) {
 	enemy.shape = get_centered_rect({}, {16, 16})
 	enemy.weapon_side = 1
 	change_enemy_state(enemy, .Idle, main_world)
+	switch enemy.variant {
+	case .Melee:
+		setup_melee_enemy(enemy)
+	case .Ranged:
+		setup_ranged_enemy(enemy)
+	}
 }
 
 setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {
