@@ -376,6 +376,45 @@ world_update :: proc() {
 		/* -------------------------- Movement and Collsion ------------------------- */
 		enemy_move(&enemy, delta)
 
+		// Enemy collisions
+		for &other in main_world.enemies {
+			if enemy.id == other.id do continue
+			_, normal, depth := resolve_collision_shapes(
+				Circle{{}, 7},
+				enemy.pos,
+				Circle{{}, 7},
+				other.pos,
+			)
+			if depth > 0 {
+				other_vel_along_normal := proj(other.vel, normal)
+				enemy_vel_along_normal := proj(enemy.vel, normal)
+				other.vel += (enemy_vel_along_normal - other_vel_along_normal) / 2
+				enemy.vel += (other_vel_along_normal - enemy_vel_along_normal) / 2
+				other.pos += normal * depth / 2
+				enemy.pos -= normal * depth / 2
+			}
+
+		}
+
+		for &barrel in main_world.exploding_barrels {
+			_, normal, depth := resolve_collision_shapes(
+				Circle{{}, 7},
+				enemy.pos,
+				barrel.shape,
+				barrel.pos,
+			)
+			if depth > 0 {
+				slowdown: f32 = 0.3
+				barrel_vel_along_normal := proj(barrel.vel, normal)
+				enemy_vel_along_normal := proj(enemy.vel, normal)
+				barrel.vel += (enemy_vel_along_normal - barrel_vel_along_normal) * (1 - slowdown)
+				enemy.vel += (barrel_vel_along_normal - enemy_vel_along_normal) * slowdown
+				barrel.pos += normal * depth / 2
+				enemy.pos -= normal * depth / 2
+			}
+
+		}
+
 		for wall in main_world.walls {
 			_, normal, depth := resolve_collision_shapes(
 				enemy.shape,
