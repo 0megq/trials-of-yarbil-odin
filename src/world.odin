@@ -3,6 +3,7 @@ package game
 import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
+import la "core:math/linalg"
 import "core:math/rand"
 import "core:slice"
 import rl "vendor:raylib"
@@ -2286,7 +2287,33 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 	steering: Vec2
 	if !e.flinching && e.target != e.pos {
 		desired_vel = normalize(e.target - e.pos) * max_speed
-		steering = desired_vel - e.vel
+		// Also consider other enemies here
+		target_force_dir := desired_vel - e.vel
+		separation_distance :: 20
+		vision_angle :: math.PI
+		target_weight :: 1
+		separation_weight :: 30
+		separation_force_dir: Vec2
+		for other in main_world.enemies {
+			if other.id == e.id do continue
+
+			to_other: Vec2 = other.pos - e.pos
+
+			if la.length2(to_other) > separation_distance * separation_distance do continue
+
+			angle_between := la.angle_between(e.vel, to_other)
+
+			if angle_between > vision_angle && angle_between < 2 * math.PI - vision_angle do continue
+
+			if la.length2(to_other) > 0.1 {
+				separation_force_dir -= to_other / la.length2(to_other)
+			} else {
+				separation_force_dir -= to_other / 0.1
+			}
+		}
+		separation_force_dir = normalize(separation_force_dir)
+
+		steering = target_force_dir * target_weight + separation_force_dir * separation_weight
 	}
 
 	acceleration_v := normalize(steering) * acceleration * delta
