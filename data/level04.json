@@ -1,4 +1,5 @@
 {
+	"version": 4,
 	"player_pos": [
 		900.00000000,
 		872.00000000
@@ -485,5 +486,6 @@
 		"width": 0.00000000,
 		"height": 0.00000000
 	},
-	"has_tutorial": true
+	"has_tutorial": true,
+	"save_after_completion": false
 }
