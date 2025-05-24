@@ -6,7 +6,7 @@ import "core:math"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
 
-VERSION_NUMBER :: "v0.8"
+VERSION_NUMBER :: "v0.9"
 GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
 UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
