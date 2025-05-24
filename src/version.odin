@@ -228,6 +228,7 @@ convert_level3_level4 :: proc(
 	result.half_walls = input.half_walls
 	result.bounds = input.bounds
 	result.has_tutorial = input.has_tutorial
+	result.save_after_completion = input.save_after_completion
 	return
 }
 
