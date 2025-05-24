@@ -211,7 +211,6 @@ draw_level :: proc(show_tile_grid := false) {
 			rl.LIGHTGRAY, // Slight darker tint
 		}
 
-
 		draw_sprite(sprite, item.pos)
 	}
 
@@ -221,20 +220,7 @@ draw_level :: proc(show_tile_grid := false) {
 	}
 
 	for enemy in level.enemies {
-		rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
-		rl.DrawCircleV(enemy.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
-
-		sprite := ENEMY_BASIC_SPRITE
-		if enemy.variant == .Ranged {
-			sprite.tex_id = .EnemyRanged
-		}
-		sprite.rotation = enemy.look_angle
-
-		if sprite.rotation < -90 || sprite.rotation > 90 {
-			sprite.scale = {-1, 1}
-			sprite.rotation += 180
-		}
-		draw_sprite(sprite, enemy.pos)
+		enemy.draw_proc(enemy, true)
 	}
 
 	for barrel in level.exploding_barrels {

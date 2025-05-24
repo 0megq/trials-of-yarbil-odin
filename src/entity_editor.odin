@@ -163,14 +163,16 @@ update_entity_editor :: proc(e: ^EditorState) {
 			// creating new melee enemy
 			enemy: Enemy
 			enemy.entity = new_entity(mouse_world_pos)
-			setup_melee_enemy(&enemy)
+			enemy.variant = .Melee
+			setup_enemy(&enemy)
 
 			append(&level.enemies, enemy)
 		} else if rl.IsKeyPressed(.TWO) {
 			// creating new melee enemy
 			enemy: Enemy
 			enemy.entity = new_entity(mouse_world_pos)
-			setup_ranged_enemy(&enemy)
+			enemy.variant = .Melee
+			setup_enemy(&enemy)
 
 			append(&level.enemies, enemy)
 		} else if rl.IsKeyPressed(.THREE) {
@@ -190,6 +192,13 @@ update_entity_editor :: proc(e: ^EditorState) {
 			setup_exploding_barrel(&barrel)
 
 			append(&level.exploding_barrels, barrel)
+		} else if rl.IsKeyPressed(.FIVE) {
+			turret: Enemy
+			turret.entity = new_entity(mouse_world_pos)
+			turret.variant = .Turret
+			setup_enemy(&turret)
+
+			append(&level.enemies, turret)
 		}
 	}
 

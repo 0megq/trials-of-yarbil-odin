@@ -304,14 +304,12 @@ world_update :: proc() {
 
 			/* ---------------------------- Player Flee Check --------------------------- */
 			{
-				if enemy.variant == .Ranged {
-					enemy.player_in_flee_range = check_collision_shapes(
-						Circle{{}, enemy.flee_range},
-						enemy.pos,
-						main_world.player.shape,
-						main_world.player.pos,
-					)
-				}
+				enemy.player_in_flee_range = check_collision_shapes(
+					Circle{{}, enemy.flee_range},
+					enemy.pos,
+					main_world.player.shape,
+					main_world.player.pos,
+				)
 			}
 
 			/* ------------------------------ Check Alerts ------------------------------ */
@@ -835,226 +833,7 @@ draw_world :: proc(world: World) {
 
 		// :draw enemy
 		for enemy in world.enemies {
-			// DEBUG: Draw collision shape
-			// draw_shape(enemy.shape, enemy.pos, rl.GREEN)
-
-			// Setup sprites
-			sprite := ENEMY_BASIC_SPRITE
-
-			// Looking
-			flipped := false
-			sprite.rotation = enemy.look_angle
-			if sprite.rotation < -90 || sprite.rotation > 90 {
-				flipped = true
-				sprite.scale = {-1, 1}
-				sprite.rotation += 180
-			}
-
-			// Animate when death
-			if enemy.state == .Death {
-				sprite.tex_id = .EnemyBasicDeath
-				frame_count := get_frames(.EnemyBasicDeath)
-				frame_index := int(
-					math.floor(
-						math.remap(
-							enemy.death_timer,
-							0,
-							ENEMY_DEATH_ANIMATION_TIME,
-							0,
-							f32(frame_count),
-						),
-					),
-				)
-				if frame_index >= frame_count {
-					frame_index -= 1
-				}
-				tex := loaded_textures[.EnemyBasicDeath]
-				frame_size := tex.width / i32(frame_count)
-				sprite.tex_region = {
-					f32(frame_index) * f32(frame_size),
-					0,
-					f32(frame_size),
-					f32(tex.height),
-				}
-			}
-
-			// Flash sprite
-			flash_sprite := sprite
-			flash_sprite.tint = {
-				255,
-				255,
-				255,
-				u8(math.clamp(math.remap(enemy.flash_opacity, 0, 1, 0, 255), 0, 255)),
-			}
-			flash_sprite.tex_id = .EnemyBasicFlash
-
-			// Switch to ranged version
-			if enemy.variant == .Ranged {
-				sprite.tex_id = .EnemyRanged
-				if enemy.state == .Death {
-					sprite.tex_id = .EnemyRangedDeath
-				}
-				flash_sprite.tex_id = .EnemyRangedFlash
-			}
-
-			// Draw sprites
-			draw_sprite(sprite, enemy.pos)
-			draw_sprite(flash_sprite, enemy.pos)
-
-			// Draw health bar
-			if enemy.state != .Death {
-				health_bar_length: f32 = 20
-				health_bar_height: f32 = 5
-				health_bar_base_rec := get_centered_rect(
-					{enemy.pos.x, enemy.pos.y - 20},
-					{health_bar_length, health_bar_height},
-				)
-				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-				health_bar_filled_rec := health_bar_base_rec
-				health_bar_filled_rec.width *= enemy.health / enemy.max_health
-				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-			}
-
-			// DEBUG: Draw ID
-			// rl.DrawTextEx(
-			// 	rl.GetFontDefault(),
-			// 	fmt.ctprintf(uuid.to_string(enemy.id, context.temp_allocator)),
-			// 	enemy.pos + {0, -10},
-			// 	8,
-			// 	2,
-			// 	rl.YELLOW,
-			// )
-
-			attack_area_color := rl.Color{255, 255, 255, 120}
-			if enemy.just_attacked {
-				attack_area_color = rl.Color{255, 0, 0, 120}
-			}
-			// Draw weapons
-			if enemy.state != .Death  /*&& (enemy.charging || enemy.just_attacked)*/{
-				switch enemy.variant {
-				case .Melee:
-					// position, rotate, and animate sprite based on look direction and attack animation
-					sprite_rotation: f32
-					pos_rotation: f32
-					if enemy.attack_anim_timer > 0 {
-						alpha: f32 = math.remap(enemy.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
-						pos_rotation =
-							math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-							sword_pos_max_rotation *
-							f32(enemy.weapon_side)
-						sprite_rotation =
-							math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-							sword_sprite_max_rotation *
-							f32(enemy.weapon_side)
-					} else {
-						pos_rotation = sword_pos_max_rotation * f32(enemy.weapon_side)
-						sprite_rotation = sword_sprite_max_rotation * f32(enemy.weapon_side)
-					}
-
-
-					tex_id := TextureId.Sword
-					tex := loaded_textures[tex_id]
-
-					sword_sprite: Sprite = {
-						tex_id     = tex_id,
-						tex_region = {0, 0, f32(tex.width), f32(tex.height)},
-						scale      = 1,
-						tex_origin = {0, 1},
-						rotation   = 0,
-						tint       = rl.WHITE,
-					}
-					sprite_pos := enemy.pos
-
-					// if flipped {
-					// 	sword_sprite.scale.x = -1
-					// 	sword_sprite.rotation += 180
-					// }
-
-					// position and rotation offset
-					sword_sprite.rotation = sprite_rotation
-
-					radius :: 5
-					offset: Vec2 : {2, 0}
-					sprite_pos += offset + radius * vector_from_angle(pos_rotation)
-
-					// Rotate sprite and rotate its position to face mouse
-					sword_sprite.rotation += enemy.look_angle
-					sprite_pos = rotate_about_origin(sprite_pos, enemy.pos, enemy.look_angle)
-					draw_sprite(sword_sprite, sprite_pos)
-				// draw_shape(data.attack_poly, enemy.pos, attack_area_color)
-				case .Ranged:
-					tex_id := TextureId.Bow
-					tex := loaded_textures[tex_id]
-					// Animate
-					anim_length := enemy.start_charge_time
-					anim_cur := math.clamp(enemy.current_charge_time, 0, anim_length)
-					if !enemy.charging {
-						anim_cur = anim_length
-					}
-
-					frame_count := get_frames(tex_id)
-					frame_index := int(
-						math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))),
-					)
-					if frame_index >= frame_count {
-						frame_index -= 1
-					}
-
-					frame_size := tex.width / i32(frame_count)
-
-					bow_sprite: Sprite = {
-						tex_id     = tex_id,
-						tex_region = {
-							f32(frame_index) * f32(frame_size),
-							0,
-							f32(frame_size),
-							f32(tex.height),
-						},
-						scale      = 1,
-						tex_origin = {8, 7},
-						rotation   = 0,
-						tint       = rl.WHITE,
-					}
-					sprite_pos := enemy.pos
-
-					if flipped {
-						bow_sprite.scale.x = -1
-						bow_sprite.rotation += 180
-					}
-
-					// rotation offset
-					// bow_sprite.rotation = 0
-
-					// position offset
-					offset: Vec2 : {5, 0}
-					sprite_pos += offset
-
-					// Rotate sprite and rotate its position to face mouse
-					bow_sprite.rotation += enemy.look_angle
-					sprite_pos = rotate_about_origin(sprite_pos, enemy.pos, enemy.look_angle)
-					draw_sprite(bow_sprite, sprite_pos)
-				}
-			}
-
-
-			// Draw vision area
-			// when ODIN_DEBUG {
-			// 	rl.DrawCircleLinesV(enemy.pos, enemy.vision_range, rl.YELLOW)
-			// 	for p, i in enemy.vision_points {
-			// 		rl.DrawLineV(
-			// 			p,
-			// 			enemy.vision_points[(i + 1) % len(enemy.vision_points)],
-			// 			rl.YELLOW,
-			// 		)
-			// 	}
-			// }
-
-			// DEBUG: Enemy path
-			// if enemy.current_path != nil {
-			// 	for point in enemy.current_path {
-			// 		rl.DrawCircleV(point, 2, rl.RED)
-			// 	}
-			// }
+			enemy.draw_proc(enemy)
 		}
 
 		// when ODIN_DEBUG {
@@ -2309,6 +2088,8 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 		max_speed = 80.0
 	case .Ranged:
 		max_speed = 60.0
+	case .Turret:
+		max_speed = 0
 	}
 	// if e.can_see_player {
 	// 	// keep base speed
@@ -2529,10 +2310,12 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 							vel_z = 8,
 							rot = angle(to_player),
 							sprite = arrow_sprite,
-							attack = Attack{targets = {.Player, .Wall, .ExplodingBarrel, .Enemy}},
+							attack = Attack{targets = {.Player, .Wall, .ExplodingBarrel}},
 							source = enemy.id,
 						},
 					)
+				case .Turret:
+				// implement attack
 				}
 			}
 		}
@@ -2568,6 +2351,8 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 					enemy.charging = true
 					enemy.current_charge_time = enemy.start_charge_time
 				}
+			case .Turret:
+			// Implement attack start
 			}
 		}
 
@@ -2931,14 +2716,3 @@ damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount:
 delete_arrow :: proc(idx: int) {
 	unordered_remove(&main_world.arrows, idx)
 }
-
-// ScreenShakeIntensity :: enum {
-// 	Small,
-// 	Medium,
-// 	High,
-// 	VeryHigh,
-// }
-
-// start_screen_shake :: proc(length: f32, intensity: ScreenShakeIntensity) {
-// 	if screen_shake.intensity <= intensity 
-// }

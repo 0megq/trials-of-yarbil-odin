@@ -17,6 +17,8 @@ TextureId :: enum {
 	EnemyRangedFlash,
 	EnemyBasicDeath,
 	EnemyRangedDeath,
+	TurretBase,
+	TurretHead,
 	Arrow,
 	ExplodingBarrel,
 	Tilemap = 300, // 300-399 is environment
@@ -58,6 +60,8 @@ load_textures :: proc() {
 		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
 		.EnemyBasicDeath  = rl.LoadTexture("res/images/enemy_basic_death.png"),
 		.EnemyRangedDeath = rl.LoadTexture("res/images/enemy_ranged_death.png"),
+		.TurretBase       = rl.LoadTexture("res/images/turret_base.png"),
+		.TurretHead       = rl.LoadTexture("res/images/turret_head.png"),
 		.Arrow            = rl.LoadTexture("res/images/arrow.png"),
 		.ExplodingBarrel  = rl.LoadTexture("res/images/exploding_barrel.png"),
 		.Tilemap          = rl.LoadTexture("res/images/tileset.png"),
