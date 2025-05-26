@@ -9,6 +9,13 @@ import "core:mem"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
 
+// These is here to stop the compiler from yelling at me about certain imports. Probably not good practice
+@(private = "file")
+fmt_i := fmt._arg_number
+@(private = "file")
+mem_i := mem._default_resize_bytes_align
+
+
 VERSION_NUMBER :: "v0.9"
 GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
