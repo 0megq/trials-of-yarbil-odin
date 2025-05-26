@@ -171,7 +171,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 			// creating new melee enemy
 			enemy: Enemy
 			enemy.entity = new_entity(mouse_world_pos)
-			enemy.variant = .Melee
+			enemy.variant = .Ranged
 			setup_enemy(&enemy)
 
 			append(&level.enemies, enemy)
