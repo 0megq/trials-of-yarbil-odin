@@ -1257,6 +1257,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					} else {
 						play_sound(.SwordHit)
 					}
+					// Super minor memory bug, if player attacks and then immediately exits the game
 					append(&attack.exclude_targets, enemy.id)
 					targets_hit += 1
 					// pause_game = 0.05
