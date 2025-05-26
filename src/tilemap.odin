@@ -272,9 +272,9 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 		for y in start.y ..= end.y {
 			sprite := Sprite {
 				tex_id     = .Tilemap,
-				tex_region = {0, 0, TILE_SIZE, TILE_SIZE},
+				tex_region = {0, 0, TILE_SIZE + 1, TILE_SIZE + 1},
 				tex_origin = {},
-				scale      = 1.1,
+				scale      = 1,
 				tint       = rl.WHITE,
 			}
 
@@ -297,8 +297,10 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 
 			}
 
-			sprite.tex_region.x *= TILE_SIZE
-			sprite.tex_region.y *= TILE_SIZE
+			sprite.tex_region.x *= (TILE_SIZE + 2) // Account for padding
+			sprite.tex_region.y *= (TILE_SIZE + 2)
+			sprite.tex_region.x += 1
+			sprite.tex_region.y += 1
 
 			draw_sprite(sprite, tilemap_to_world({x, y}))
 
