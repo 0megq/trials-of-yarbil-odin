@@ -272,10 +272,7 @@ AttackData :: union {
 	ExplosionAttackData,
 	SwordAttackData,
 	FireAttackData,
-	// ProjectileAttackData,
-	// SurfAttackData,
 	ArrowAttackData,
-	// RockAttackData,
 }
 
 SwordAttackData :: struct {
@@ -284,28 +281,14 @@ SwordAttackData :: struct {
 FireAttackData :: struct {
 }
 
-SurfAttackData :: struct {
-}
-
 ExplosionAttackData :: struct {
 	burn_instantly: bool,
 }
 
-ProjectileAttackData :: struct {
-	projectile_idx:        int,
-	speed_damage_ratio:    f32,
-	speed_durablity_ratio: int,
-}
-
 ArrowAttackData :: struct {
-	arrow_idx:          int,
-	speed_damage_ratio: f32,
+	arrow_idx: int,
 }
 
-RockAttackData :: struct {
-	rock_idx:           int,
-	speed_damage_ratio: f32,
-}
 
 new_entity :: proc(pos: Vec2) -> Entity {
 	return {uuid.generate_v4(), pos, false, false}
