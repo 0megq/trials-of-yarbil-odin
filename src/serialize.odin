@@ -389,9 +389,12 @@ unload_level :: proc() {
 	if level.has_tutorial {
 		_unload_tutorial()
 	}
-	// delete world data. I can probably replace these with clear()
-	for enemy in main_world.enemies do if enemy.current_path != nil {
+	// this probably shouldn't go here, but eh
+	delete(main_world.player.cur_attack.exclude_targets)
+	// delete world data
+	for enemy in main_world.enemies {
 		delete(enemy.current_path)
+		delete(enemy.attack.exclude_targets)
 	}
 	delete(main_world.enemies)
 	main_world.enemies = nil
@@ -458,7 +461,9 @@ load_game_data :: proc(game_idx := 0) {
 	}
 
 	// Reset all player values
-	main_world.player = {}
+	main_world.player = {
+		entity = new_entity({}),
+	}
 	set_player_data(&main_world.player, game_data.player_data)
 
 	rl.TraceLog(.INFO, "GameData Loaded")

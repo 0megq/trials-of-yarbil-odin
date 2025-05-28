@@ -5,6 +5,9 @@ import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
+@(private = "file")
+fmt_i := fmt._arg_number
+
 // EntityType :: union {
 // 	Entity,
 // 	PhysicsEntity,
@@ -88,16 +91,15 @@ Enemy3 :: struct {
 	attack_charge_range:           f32, // Range for the enemy to start charging
 	start_charge_time:             f32,
 	current_charge_time:           f32,
-	charging:                      bool,
-	just_attacked:                 bool,
+	attack_out:                    bool,
+	attack:                        Attack,
+	attack_state_timer:            f32,
 	// Flinching
 	start_flinch_time:             f32,
 	current_flinch_time:           f32,
 	// Idle
 	idle_look_timer:               f32,
 	idle_look_angle:               f32,
-	// Searching
-	search_state:                  int,
 	// Health
 	health:                        f32,
 	max_health:                    f32,
@@ -107,6 +109,7 @@ Enemy3 :: struct {
 	pathfinding_timer:             f32,
 	// State management
 	state:                         EnemyState,
+	sub_state:                     int,
 	alert_timer:                   f32,
 	search_timer:                  f32,
 	// Sprite flash
@@ -117,6 +120,7 @@ Enemy3 :: struct {
 	attack_anim_timer:             f32,
 	flee_range:                    f32,
 	attack_poly:                   Polygon,
+	max_speed:                     f32,
 	draw_proc:                     proc(e: Enemy3, in_editor := false),
 }
 
@@ -301,9 +305,10 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	delete(enemy.attack_poly.points)
 	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
 	enemy.hearing_range = 160
-	enemy.vision_range = 80
-	enemy.vision_fov = 115
-	enemy.attack_charge_range = 12
+	enemy.vision_range = 160
+	enemy.vision_fov = 360
+	enemy.max_speed = 60
+	enemy.attack_charge_range = 32
 	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
 	enemy.draw_proc = draw_enemy
@@ -315,6 +320,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
 	enemy.vision_fov = 115
+	enemy.max_speed = 60
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.27
@@ -326,6 +332,7 @@ setup_turret_enemy :: proc(enemy: ^Enemy) {
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
 	enemy.vision_fov = 360
+	enemy.max_speed = 0
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.27
@@ -373,8 +380,16 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
 	}
 
+	when ODIN_DEBUG {
+		rl.DrawCircleLinesV(e.pos, e.attack_charge_range, rl.GREEN)
+	}
+
 	// Setup sprites
 	sprite := ENEMY_BASIC_SPRITE
+
+	if e.state == .Attacking {
+		sprite.tint = rl.GRAY
+	}
 
 	// Looking
 	flipped := false
@@ -456,11 +471,11 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// )
 
 	attack_area_color := rl.Color{255, 255, 255, 120}
-	if e.just_attacked {
+	if e.attack_out {
 		attack_area_color = rl.Color{255, 0, 0, 120}
 	}
 	// Draw weapons
-	if e.state != .Dying  /*&& (e.charging || e.just_attacked)*/{
+	if e.state != .Dying {
 		#partial switch e.variant {
 		case .Melee:
 			// position, rotate, and animate sprite based on look direction and attack animation
@@ -511,14 +526,15 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 			sword_sprite.rotation += e.look_angle
 			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
 			draw_sprite(sword_sprite, sprite_pos)
-		// draw_shape(data.attack_poly, e.pos, attack_area_color)
+
+			when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
 		case .Ranged:
 			tex_id := TextureId.Bow
 			tex := loaded_textures[tex_id]
 			// Animate
 			anim_length := e.start_charge_time
 			anim_cur := math.clamp(e.current_charge_time, 0, anim_length)
-			if !e.charging {
+			if e.state != .Charging {
 				anim_cur = anim_length
 			}
 
@@ -566,18 +582,48 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		}
 	}
 
+	if e.attack_anim_timer > 0 {
+		frame_count := get_frames(.HitVfx)
+		frame_index := int(
+			math.floor(
+				math.remap(
+					ATTACK_DURATION - e.attack_anim_timer,
+					0,
+					ATTACK_DURATION,
+					0,
+					f32(frame_count),
+				),
+			),
+		)
+		if frame_index >= frame_count {
+			frame_index -= 1
+		}
+		tex := loaded_textures[.HitVfx]
+		frame_size := tex.width / i32(frame_count)
+		vfx_sprite := Sprite {
+			tex_id     = .HitVfx,
+			tex_region = {f32(frame_index) * f32(frame_size), 0, f32(frame_size), f32(tex.height)},
+			scale      = 1,
+			tex_origin = {0, f32(tex.height) / 2},
+			rotation   = e.attack_poly.rotation,
+			tint       = rl.WHITE,
+		}
+		draw_sprite(vfx_sprite, e.pos)
+	}
+
 	// Display state
 	when ODIN_DEBUG {
 		draw_text(
 			e.pos + {0, -8},
 			{0, 1},
-			fmt.ctprint(e.state),
+			fmt.ctprint(e.state, e.sub_state),
 			rl.GetFontDefault(),
 			6,
 			1,
 			rl.WHITE,
 		)
 	}
+
 
 	// Draw vision area
 	// when ODIN_DEBUG {
