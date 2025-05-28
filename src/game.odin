@@ -873,6 +873,25 @@ get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spaci
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
 }
 
+draw_text :: proc(
+	pos: Vec2,
+	pivot: Vec2,
+	text: cstring,
+	font: rl.Font,
+	font_size: f32 = 24,
+	spacing: f32 = 2,
+	color := rl.BLACK,
+) {
+	pos := pos
+	size := rl.MeasureTextEx(font, text, font_size, spacing)
+
+	pivot := pivot
+	pivot = -pivot - {1, 1}
+	pos += size * pivot / 2
+
+	rl.DrawTextEx(font, text, pos, font_size, spacing, color)
+}
+
 // returns the position of the given text aligned to the right
 get_right_text_pos :: proc(right: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
 	size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)

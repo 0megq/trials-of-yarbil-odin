@@ -1,6 +1,7 @@
 package game
 
 import "core:encoding/uuid"
+import "core:fmt"
 import "core:math"
 import rl "vendor:raylib"
 
@@ -92,7 +93,6 @@ Enemy3 :: struct {
 	// Flinching
 	start_flinch_time:             f32,
 	current_flinch_time:           f32,
-	flinching:                     bool,
 	// Idle
 	idle_look_timer:               f32,
 	idle_look_angle:               f32,
@@ -123,10 +123,13 @@ Enemy3 :: struct {
 EnemyState :: enum {
 	Idle,
 	Alerted,
-	Combat,
+	Chasing,
+	Charging,
+	Attacking,
 	Fleeing,
 	Searching,
-	Death,
+	Flinching,
+	Dying,
 }
 
 EnemyVariant :: enum {
@@ -383,7 +386,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 
 	// Animate when death
-	if e.state == .Death {
+	if e.state == .Dying {
 		sprite.tex_id = .EnemyBasicDeath
 		frame_count := get_frames(.EnemyBasicDeath)
 		frame_index := int(
@@ -417,7 +420,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// Switch to ranged version
 	if e.variant == .Ranged {
 		sprite.tex_id = .EnemyRanged
-		if e.state == .Death {
+		if e.state == .Dying {
 			sprite.tex_id = .EnemyRangedDeath
 		}
 		flash_sprite.tex_id = .EnemyRangedFlash
@@ -429,7 +432,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 
 
 	// Draw health bar
-	if e.state != .Death {
+	if e.state != .Dying {
 		health_bar_length: f32 = 20
 		health_bar_height: f32 = 5
 		health_bar_base_rec := get_centered_rect(
@@ -457,7 +460,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		attack_area_color = rl.Color{255, 0, 0, 120}
 	}
 	// Draw weapons
-	if e.state != .Death  /*&& (e.charging || e.just_attacked)*/{
+	if e.state != .Dying  /*&& (e.charging || e.just_attacked)*/{
 		#partial switch e.variant {
 		case .Melee:
 			// position, rotate, and animate sprite based on look direction and attack animation
@@ -563,6 +566,18 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		}
 	}
 
+	// Display state
+	when ODIN_DEBUG {
+		draw_text(
+			e.pos + {0, -8},
+			{0, 1},
+			fmt.ctprint(e.state),
+			rl.GetFontDefault(),
+			6,
+			1,
+			rl.WHITE,
+		)
+	}
 
 	// Draw vision area
 	// when ODIN_DEBUG {

@@ -260,114 +260,106 @@ world_update :: proc() {
 						enemy.flash_opacity)
 		}
 
-		/* -------------------------------- Flinching ------------------------------- */
 		enemy.target = enemy.pos
-		if enemy.flinching {
-			enemy.current_flinch_time -= delta
-			if enemy.current_flinch_time <= 0 {
-				enemy.flinching = false
+		/* --------------------------- Update Vision Cone --------------------------- */
+		{
+			for &p, i in enemy.vision_points {
+				dir := vector_from_angle(
+					f32(i) * enemy.vision_fov / f32(len(enemy.vision_points) - 1) +
+					enemy.look_angle -
+					enemy.vision_fov / 2,
+				)
+				if i == len(enemy.vision_points) - 1 {
+					p = enemy.pos
+					break
+				}
+				t := cast_ray_through_walls(main_world.walls[:], enemy.pos, dir)
+				if t < enemy.vision_range {
+					p = enemy.pos + t * dir
+				} else {
+					p = enemy.pos + enemy.vision_range * dir
+				}
 			}
-		} else {
-			/* --------------------------- Update Vision Cone --------------------------- */
-			{
-				for &p, i in enemy.vision_points {
-					dir := vector_from_angle(
-						f32(i) * enemy.vision_fov / f32(len(enemy.vision_points) - 1) +
-						enemy.look_angle -
-						enemy.vision_fov / 2,
+		}
+
+		/* -------------------------- Check For Player LOS -------------------------- */
+		{
+			enemy.can_see_player = check_collsion_circular_concave_circle(
+				enemy.vision_points[:],
+				enemy.pos,
+				{main_world.player.pos, 8},
+			)
+			if enemy.can_see_player {
+				enemy.last_seen_player_pos = main_world.player.pos
+				enemy.last_seen_player_vel = main_world.player.vel
+			}
+		}
+
+		/* ---------------------------- Player Flee Check --------------------------- */
+		{
+			enemy.player_in_flee_range = check_collision_shapes(
+				Circle{{}, enemy.flee_range},
+				enemy.pos,
+				main_world.player.shape,
+				main_world.player.pos,
+			)
+		}
+
+		/* ------------------------------ Check Alerts ------------------------------ */
+		if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
+		   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
+			enemy.alert_just_detected = false
+			detected_alert: Alert
+			detected_effective_intensity: f32 = 0
+			for alert in main_world.alerts {
+				effective_intensity := get_effective_intensity(alert)
+				// get effective range
+				effective_enemy_range :=
+					effective_intensity *
+					(enemy.vision_range if alert.is_visual else enemy.hearing_range)
+
+				// check los if alert is visual
+				can_detect := !alert.is_visual || check_collsion_circular_concave_circle(
+						enemy.vision_points[:],
+						enemy.pos,
+						{alert.pos, 2}, // 2 is an arbitrary radius. Should work here.
 					)
-					if i == len(enemy.vision_points) - 1 {
-						p = enemy.pos
-						break
-					}
-					t := cast_ray_through_walls(main_world.walls[:], enemy.pos, dir)
-					if t < enemy.vision_range {
-						p = enemy.pos + t * dir
-					} else {
-						p = enemy.pos + enemy.vision_range * dir
-					}
-				}
-			}
 
-			/* -------------------------- Check For Player LOS -------------------------- */
-			{
-				enemy.can_see_player = check_collsion_circular_concave_circle(
-					enemy.vision_points[:],
-					enemy.pos,
-					{main_world.player.pos, 8},
-				)
-				if enemy.can_see_player {
-					enemy.last_seen_player_pos = main_world.player.pos
-					enemy.last_seen_player_vel = main_world.player.vel
-				}
-			}
+				detected :=
+					can_detect &&
+					distance_squared(enemy.pos, alert.pos) <
+						square(min(effective_enemy_range, alert.range)) &&
+					alert.time_emitted > enemy.last_alert.time_emitted
 
-			/* ---------------------------- Player Flee Check --------------------------- */
-			{
-				enemy.player_in_flee_range = check_collision_shapes(
-					Circle{{}, enemy.flee_range},
-					enemy.pos,
-					main_world.player.shape,
-					main_world.player.pos,
-				)
-			}
-
-			/* ------------------------------ Check Alerts ------------------------------ */
-			if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
-			   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
-				enemy.alert_just_detected = false
-				detected_alert: Alert
-				detected_effective_intensity: f32 = 0
-				for alert in main_world.alerts {
-					effective_intensity := get_effective_intensity(alert)
-					// get effective range
-					effective_enemy_range :=
-						effective_intensity *
-						(enemy.vision_range if alert.is_visual else enemy.hearing_range)
-
-					// check los if alert is visual
-					can_detect := !alert.is_visual || check_collsion_circular_concave_circle(
-							enemy.vision_points[:],
-							enemy.pos,
-							{alert.pos, 2}, // 2 is an arbitrary radius. Should work here.
-						)
-
-					detected :=
-						can_detect &&
-						distance_squared(enemy.pos, alert.pos) <
-							square(min(effective_enemy_range, alert.range)) &&
-						alert.time_emitted > enemy.last_alert.time_emitted
-
-					if detected {
-						if effective_intensity > detected_effective_intensity ||
-						   (effective_intensity == detected_effective_intensity &&
-								   distance_squared(enemy.pos, alert.pos) <
-									   distance_squared(enemy.pos, detected_alert.pos)) {
-							detected_alert = alert
-							detected_effective_intensity = effective_intensity
-						}
+				if detected {
+					if effective_intensity > detected_effective_intensity ||
+					   (effective_intensity == detected_effective_intensity &&
+							   distance_squared(enemy.pos, alert.pos) <
+								   distance_squared(enemy.pos, detected_alert.pos)) {
+						detected_alert = alert
+						detected_effective_intensity = effective_intensity
 					}
 				}
-				// Check if alert is relevant
-				if detected_effective_intensity > 0 &&
-				   (detected_effective_intensity > get_effective_intensity(enemy.last_alert) ||
-						   enemy.state != .Alerted) {
-					enemy.alert_just_detected = true
-					enemy.last_alert_intensity_detected = detected_effective_intensity
-					enemy.last_alert = detected_alert
-				}
 			}
+			// Check if alert is relevant
+			if detected_effective_intensity > 0 &&
+			   (detected_effective_intensity > get_effective_intensity(enemy.last_alert) ||
+					   enemy.state != .Alerted) {
+				enemy.alert_just_detected = true
+				enemy.last_alert_intensity_detected = detected_effective_intensity
+				enemy.last_alert = detected_alert
+			}
+		}
 
-			/* ------------------------------ Update State ------------------------------ */
-			{
-				fully_dead := update_enemy_state(&enemy, delta)
-				if fully_dead {
-					delete(enemy.current_path)
-					unordered_remove(&main_world.enemies, idx)
-					_on_enemy_fully_dead()
+		/* ------------------------------ Update State ------------------------------ */
+		{
+			fully_dead := update_enemy_state(&enemy, delta)
+			if fully_dead {
+				delete(enemy.current_path)
+				unordered_remove(&main_world.enemies, idx)
+				_on_enemy_fully_dead()
 
-					continue enemy_loop
-				}
+				continue enemy_loop
 			}
 		}
 
@@ -513,7 +505,7 @@ world_update :: proc() {
 			}
 		}
 		for enemy in main_world.enemies {
-			if enemy.state == .Death {
+			if enemy.state == .Dying {
 				continue
 			}
 			_, normal, depth := resolve_collision_shapes(
@@ -1241,7 +1233,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					continue
 				}
 
-				if enemy.state == .Death {
+				if enemy.state == .Dying {
 					continue
 				}
 
@@ -1430,7 +1422,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				if enemy.id == arrows[data.arrow_idx].source {
 					continue
 				}
-				if enemy.state == .Death {
+				if enemy.state == .Dying {
 					continue
 				}
 				_, _, depth := resolve_collision_shapes(
@@ -1907,7 +1899,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 
 	desired_vel: Vec2
 	steering: Vec2
-	if !e.flinching && e.target != e.pos {
+	if e.state != .Flinching && e.state != .Dying && e.target != e.pos {
 		desired_vel = normalize(e.target - e.pos) * max_speed
 		// Also consider other enemies here
 		target_force_dir := desired_vel - e.vel
@@ -2022,7 +2014,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			if enemy.player_in_flee_range {
 				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat, main_world)
+				change_enemy_state(enemy, .Chasing, main_world)
 			}
 		} else if enemy.alert_just_detected {
 			change_enemy_state(enemy, .Alerted, main_world)
@@ -2046,7 +2038,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			if enemy.player_in_flee_range {
 				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat, main_world)
+				change_enemy_state(enemy, .Chasing, main_world)
 			}
 		} else if enemy.alert_just_detected { 	// if new alert is detected
 			change_enemy_state(enemy, .Alerted, main_world)
@@ -2054,7 +2046,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			// once alert wears off, go back to idle
 			change_enemy_state(enemy, .Idle, main_world)
 		}
-	case .Combat:
+	case .Chasing:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
 		if enemy.attack_anim_timer > 0 {
@@ -2134,8 +2126,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		}
 
 		// if player is in attack range, start attacking
-		if !enemy.flinching &&
-		   !enemy.charging &&
+		if !enemy.charging &&
 		   enemy.can_see_player &&
 		   check_collision_shapes(
 			   Circle{{}, enemy.attack_charge_range},
@@ -2169,6 +2160,10 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		} else if enemy.player_in_flee_range {
 			change_enemy_state(enemy, .Fleeing, main_world)
 		}
+	case .Charging:
+
+	case .Attacking:
+
 	case .Fleeing:
 		// Run directly away from player
 		enemy.target = enemy.pos + (enemy.pos - main_world.player.pos)
@@ -2176,7 +2171,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		if !enemy.can_see_player {
 			change_enemy_state(enemy, .Searching, main_world)
 		} else if !enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Combat, main_world)
+			change_enemy_state(enemy, .Chasing, main_world)
 		}
 
 	case .Searching:
@@ -2240,14 +2235,19 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			if enemy.player_in_flee_range {
 				change_enemy_state(enemy, .Fleeing, main_world)
 			} else {
-				change_enemy_state(enemy, .Combat, main_world)
+				change_enemy_state(enemy, .Chasing, main_world)
 			}
 		} else if enemy.alert_just_detected {
 			change_enemy_state(enemy, .Alerted, main_world)
 		} else if enemy.search_state == 4 {
 			change_enemy_state(enemy, .Idle, main_world)
 		}
-	case .Death:
+	case .Flinching:
+		enemy.current_flinch_time -= delta
+		if enemy.current_flinch_time <= 0 {
+			change_enemy_state(enemy, .Chasing, main_world) // TEMPORARY, switch to the right state immediately
+		}
+	case .Dying:
 		// Wait still stopped then animate
 		// if length(enemy.vel) < 1 {
 		enemy.death_timer += delta
@@ -2264,13 +2264,19 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 
 	case .Alerted:
 
-	case .Combat:
+	case .Chasing:
+
+	case .Charging:
+
+	case .Attacking:
 
 	case .Fleeing:
 
 	case .Searching:
 
-	case .Death:
+	case .Flinching:
+
+	case .Dying:
 	}
 
 	// Enter state code
@@ -2289,15 +2295,21 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		if enemy.last_alert_intensity_detected > 0.8 {
 			start_enemy_pathing(enemy, world, enemy.last_alert.pos)
 		}
-	case .Combat:
+	case .Chasing:
 		start_enemy_pathing(enemy, world, world.player.pos)
+	case .Charging:
+
+	case .Attacking:
+
 	case .Fleeing:
 
 	case .Searching:
 		enemy.search_timer = 0
 		enemy.search_state = 0
 		start_enemy_pathing(enemy, world, enemy.last_seen_player_pos)
-	case .Death:
+	case .Flinching:
+		enemy.current_flinch_time = enemy.start_flinch_time
+	case .Dying:
 		// Start death animation
 		enemy.death_timer = 0
 	}
@@ -2310,21 +2322,18 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 // :damage enemy
 damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch := true) -> bool {
 	enemy := &world.enemies[enemy_idx]
-	if enemy.state == .Death {
+	if enemy.state == .Dying {
 		return false
 	}
 	enemy.health -= amount
 	if enemy.health <= 0 {
-		enemy.flinching = false
 		enemy.flash_opacity = 0
-		enemy.current_flinch_time = 0
-		change_enemy_state(&world.enemies[enemy_idx], .Death, world^)
+		change_enemy_state(&world.enemies[enemy_idx], .Dying, world^)
 		_on_enemy_dying()
 		return true
 	} else if should_flinch {
 		enemy.charging = false
-		enemy.flinching = true
-		enemy.current_flinch_time = enemy.start_flinch_time
+		change_enemy_state(&world.enemies[enemy_idx], .Flinching, world^)
 		enemy.flash_opacity = 1
 	}
 	return false
@@ -2367,12 +2376,12 @@ all_enemies_dead :: proc(world: World) -> bool {
 
 all_enemies_dying :: proc(world: World) -> bool {
 	for enemy in world.enemies {
-		if enemy.state != .Death {
+		if enemy.state != .Dying {
 			return false
 		}
 	}
 	for enemy in world.disabled_enemies {
-		if enemy.state != .Death {
+		if enemy.state != .Dying {
 			return false
 		}
 	}
