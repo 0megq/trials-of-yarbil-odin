@@ -288,6 +288,8 @@ load_level :: proc(world: ^World) {
 	for data in level.enemy_data {
 		append(&level.enemies, get_enemy_from_data(data))
 	}
+	delete(level.enemy_data)
+	level.enemy_data = nil
 
 	for &barrel in level.exploding_barrels {
 		setup_exploding_barrel(&barrel)
@@ -359,10 +361,10 @@ save_level :: proc() {
 	// save tilemap, level geometry
 
 	data: Level = level
-	clear(&data.enemy_data)
 	for enemy in data.enemies {
 		append(&data.enemy_data, get_data_from_enemy(enemy))
 	}
+	defer delete(data.enemy_data)
 	data.enemies = nil
 
 	save_tilemap(
@@ -389,8 +391,6 @@ unload_level :: proc() {
 	if level.has_tutorial {
 		_unload_tutorial()
 	}
-	// this probably shouldn't go here, but eh
-	delete(main_world.player.cur_attack.exclude_targets)
 	// delete world data
 	for enemy in main_world.enemies {
 		delete(enemy.current_path)
@@ -421,7 +421,6 @@ unload_level :: proc() {
 	// }
 	free_level_memory(level)
 	level.enemies = nil
-	level.enemy_data = nil
 	level.items = nil
 	level.exploding_barrels = nil
 	level.walls = nil
@@ -433,7 +432,8 @@ unload_level :: proc() {
 // WARNING: unsafe to use level struct after calling this function, all allocations will point to deallocated memory
 free_level_memory :: proc(level: Level) {
 	delete(level.enemies)
-	delete(level.enemy_data)
+	// delete(level.enemy_data)
+	assert(level.enemy_data == nil, "Expected level.enemy_data to be nil.")
 	delete(level.items)
 	delete(level.exploding_barrels)
 	delete(level.walls)
