@@ -2238,7 +2238,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player
-			lunge_speed :: 160
+			lunge_speed :: 200
 			lunge_time :: 0.1
 			enemy.sub_state = 0
 			enemy.attack_state_timer = lunge_time

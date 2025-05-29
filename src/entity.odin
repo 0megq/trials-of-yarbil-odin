@@ -3,6 +3,7 @@ package game
 import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
+import "core:math/rand"
 import rl "vendor:raylib"
 
 @(private = "file")
@@ -308,8 +309,8 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	enemy.vision_range = 160
 	enemy.vision_fov = 360
 	enemy.max_speed = 60
-	enemy.attack_charge_range = 32
-	enemy.start_charge_time = 0.3
+	enemy.attack_charge_range = 40
+	enemy.start_charge_time = 0.2
 	enemy.start_flinch_time = 0.2
 	enemy.draw_proc = draw_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
@@ -373,6 +374,12 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 
 // Draw proc for ranged and melee enemies
 draw_enemy :: proc(e: Enemy, in_editor := false) {
+	e := e
+	if e.state == .Charging {
+		shake_amount :: 0.5
+		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+	}
+
 	// DEBUG: Draw collision shape
 	// draw_shape(enemy.shape, e.pos, rl.GREEN)
 	if in_editor {
