@@ -392,6 +392,8 @@ unload_level :: proc() {
 		_unload_tutorial()
 	}
 	// delete world data
+	delete(main_world.player.cur_attack.exclude_targets)
+	main_world.player.cur_attack.exclude_targets = nil
 	for enemy in main_world.enemies {
 		delete(enemy.current_path)
 		delete(enemy.attack.exclude_targets)

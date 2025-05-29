@@ -2473,6 +2473,7 @@ stop_player_attack :: proc(player: ^Player) {
 	if player.attacking {
 		player.attacking = false
 		delete(player.cur_attack.exclude_targets)
+		player.cur_attack.exclude_targets = nil
 	}
 }
 
