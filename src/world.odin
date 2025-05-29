@@ -340,6 +340,7 @@ world_update :: proc() {
 			fully_dead := update_enemy_state(&enemy, delta)
 			if fully_dead {
 				delete(enemy.current_path)
+				delete(enemy.attack.exclude_targets)
 				unordered_remove(&main_world.enemies, idx)
 				_on_enemy_fully_dead()
 
