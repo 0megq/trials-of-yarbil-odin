@@ -306,11 +306,11 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	delete(enemy.attack_poly.points)
 	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
 	enemy.hearing_range = 160
-	enemy.vision_range = 160
-	enemy.vision_fov = 360
+	enemy.vision_range = 100
+	enemy.vision_fov = 120
 	enemy.max_speed = 60
 	enemy.attack_charge_range = 40
-	enemy.start_charge_time = 0.2
+	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
 	enemy.draw_proc = draw_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
@@ -320,11 +320,11 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.flee_range = 60
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
-	enemy.vision_fov = 115
+	enemy.vision_fov = 120
 	enemy.max_speed = 60
 	enemy.attack_charge_range = 120
-	enemy.start_charge_time = 0.5
-	enemy.start_flinch_time = 0.27
+	enemy.start_charge_time = 0.6
+	enemy.start_flinch_time = 0.2
 	enemy.draw_proc = draw_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
@@ -375,7 +375,7 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 // Draw proc for ranged and melee enemies
 draw_enemy :: proc(e: Enemy, in_editor := false) {
 	e := e
-	if e.state == .Charging {
+	if e.variant == .Melee && e.state == .Charging {
 		shake_amount :: 0.5
 		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
 	}
@@ -387,9 +387,9 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
 	}
 
-	when ODIN_DEBUG {
-		rl.DrawCircleLinesV(e.pos, e.attack_charge_range, rl.GREEN)
-	}
+	// when ODIN_DEBUG {
+	// 	rl.DrawCircleLinesV(e.pos, e.attack_charge_range, rl.GREEN)
+	// }
 
 	// Setup sprites
 	sprite := ENEMY_BASIC_SPRITE
@@ -534,7 +534,43 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
 			draw_sprite(sword_sprite, sprite_pos)
 
-			when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
+			// Draw hitbox
+			// when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
+
+			// Draw Vfx slash
+			if e.attack_anim_timer > 0 {
+				frame_count := get_frames(.HitVfx)
+				frame_index := int(
+					math.floor(
+						math.remap(
+							ATTACK_DURATION - e.attack_anim_timer,
+							0,
+							ATTACK_DURATION,
+							0,
+							f32(frame_count),
+						),
+					),
+				)
+				if frame_index >= frame_count {
+					frame_index -= 1
+				}
+				vfx_tex := loaded_textures[.HitVfx]
+				frame_size := vfx_tex.width / i32(frame_count)
+				vfx_sprite := Sprite {
+					tex_id     = .HitVfx,
+					tex_region = {
+						f32(frame_index) * f32(frame_size),
+						0,
+						f32(frame_size),
+						f32(vfx_tex.height),
+					},
+					scale      = 1,
+					tex_origin = {0, f32(vfx_tex.height) / 2},
+					rotation   = e.attack_poly.rotation,
+					tint       = rl.WHITE,
+				}
+				draw_sprite(vfx_sprite, e.pos)
+			}
 		case .Ranged:
 			tex_id := TextureId.Bow
 			tex := loaded_textures[tex_id]
@@ -589,34 +625,6 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		}
 	}
 
-	if e.attack_anim_timer > 0 {
-		frame_count := get_frames(.HitVfx)
-		frame_index := int(
-			math.floor(
-				math.remap(
-					ATTACK_DURATION - e.attack_anim_timer,
-					0,
-					ATTACK_DURATION,
-					0,
-					f32(frame_count),
-				),
-			),
-		)
-		if frame_index >= frame_count {
-			frame_index -= 1
-		}
-		tex := loaded_textures[.HitVfx]
-		frame_size := tex.width / i32(frame_count)
-		vfx_sprite := Sprite {
-			tex_id     = .HitVfx,
-			tex_region = {f32(frame_index) * f32(frame_size), 0, f32(frame_size), f32(tex.height)},
-			scale      = 1,
-			tex_origin = {0, f32(tex.height) / 2},
-			rotation   = e.attack_poly.rotation,
-			tint       = rl.WHITE,
-		}
-		draw_sprite(vfx_sprite, e.pos)
-	}
 
 	// Display state
 	when ODIN_DEBUG {

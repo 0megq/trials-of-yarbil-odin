@@ -306,29 +306,47 @@ world_update :: proc() {
 		}
 
 		/* ------------------------------ Check Alerts ------------------------------ */
-		if false do if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching}; enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
+		if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
+		   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
 			enemy.alert_just_detected = false
 			detected_alert: Alert
 			detected_effective_intensity: f32 = 0
 			for alert in main_world.alerts {
 				effective_intensity := get_effective_intensity(alert)
 				// get effective range
-				effective_enemy_range := effective_intensity * (enemy.vision_range if alert.is_visual else enemy.hearing_range)
+				effective_enemy_range :=
+					effective_intensity *
+					(enemy.vision_range if alert.is_visual else enemy.hearing_range)
 
 				// check los if alert is visual
-				can_detect := !alert.is_visual || check_collsion_circular_concave_circle(enemy.vision_points[:], enemy.pos, {alert.pos, 2}) // 2 is an arbitrary radius. Should work here.
+				can_detect :=
+					!alert.is_visual ||
+					check_collsion_circular_concave_circle(
+						enemy.vision_points[:],
+						enemy.pos,
+						{alert.pos, 2},
+					) // 2 is an arbitrary radius. Should work here.
 
-				detected := can_detect && distance_squared(enemy.pos, alert.pos) < square(min(effective_enemy_range, alert.range)) && alert.time_emitted > enemy.last_alert.time_emitted
+				detected :=
+					can_detect &&
+					distance_squared(enemy.pos, alert.pos) <
+						square(min(effective_enemy_range, alert.range)) &&
+					alert.time_emitted > enemy.last_alert.time_emitted
 
 				if detected {
-					if effective_intensity > detected_effective_intensity || (effective_intensity == detected_effective_intensity && distance_squared(enemy.pos, alert.pos) < distance_squared(enemy.pos, detected_alert.pos)) {
+					if effective_intensity > detected_effective_intensity ||
+					   (effective_intensity == detected_effective_intensity &&
+							   distance_squared(enemy.pos, alert.pos) <
+								   distance_squared(enemy.pos, detected_alert.pos)) {
 						detected_alert = alert
 						detected_effective_intensity = effective_intensity
 					}
 				}
 			}
 			// Check if alert is relevant
-			if detected_effective_intensity > 0 && (detected_effective_intensity > get_effective_intensity(enemy.last_alert) || enemy.state != .Alerted) {
+			if detected_effective_intensity > 0 &&
+			   (detected_effective_intensity > get_effective_intensity(enemy.last_alert) ||
+					   enemy.state != .Alerted) {
 				enemy.alert_just_detected = true
 				enemy.last_alert_intensity_detected = detected_effective_intensity
 				enemy.last_alert = detected_alert
@@ -1992,7 +2010,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		enemy.alert_timer -= delta
 
 		// look at or investigate distraction
-		if enemy.last_alert_intensity_detected > 0.8 &&
+		if enemy.last_alert_intensity_detected > INVESTIGATE_ALERT_INTENSITY &&
 		   distance_squared(enemy.pos, enemy.last_alert.pos) > 500 {
 			update_enemy_pathing(enemy, delta, enemy.last_alert.pos, main_world)
 		}
@@ -2024,7 +2042,11 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 
 
 		// if player is in attack range, start charging
-		if check_collision_shapes(
+		if !enemy.can_see_player {
+			change_enemy_state(enemy, .Searching, main_world)
+		} else if enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing, main_world)
+		} else if check_collision_shapes(
 			Circle{{}, enemy.attack_charge_range},
 			enemy.pos,
 			main_world.player.shape,
@@ -2032,12 +2054,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		) {
 			change_enemy_state(enemy, .Charging, main_world)
 		}
-
-	// if !enemy.can_see_player {
-	// 	change_enemy_state(enemy, .Searching, main_world)
-	// } else if enemy.player_in_flee_range {
-	// 	change_enemy_state(enemy, .Fleeing, main_world)
-	// }
 	case .Charging:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 		// Charging countdown and attack
@@ -2048,40 +2064,58 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	case .Attacking:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
-		if enemy.sub_state == 0 { 	// lunging
-			enemy.attack_state_timer -= delta
-			if enemy.attack_state_timer <= 0 {
-				enemy.sub_state = 1
-				enemy.attack_out = true
-				enemy.attack_anim_timer = ATTACK_ANIM_TIME
-				enemy.weapon_side = -enemy.weapon_side
-				enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
-				damage :: 20
-				knockback :: 200
-				enemy.attack = {
-					targets         = {.Bomb, .ExplodingBarrel, .Player},
-					damage          = damage,
-					knockback       = knockback,
-					data            = SwordAttackData{},
-					pos             = enemy.pos,
-					shape           = enemy.attack_poly,
-					exclude_targets = enemy.attack.exclude_targets,
-					direction       = vector_from_angle(enemy.attack_poly.rotation),
+		switch enemy.variant {
+		case .Melee:
+			if enemy.sub_state == 0 { 	// lunging
+				enemy.attack_state_timer -= delta
+				if enemy.attack_state_timer <= 0 {
+					enemy.sub_state = 1
+					enemy.attack_out = true
+					enemy.attack_anim_timer = ATTACK_ANIM_TIME
+					enemy.weapon_side = -enemy.weapon_side
+					enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
+					damage :: 20
+					knockback :: 200
+					enemy.attack = {
+						targets         = {.Bomb, .ExplodingBarrel, .Player},
+						damage          = damage,
+						knockback       = knockback,
+						data            = SwordAttackData{},
+						pos             = enemy.pos,
+						shape           = enemy.attack_poly,
+						exclude_targets = enemy.attack.exclude_targets,
+						direction       = vector_from_angle(enemy.attack_poly.rotation),
+					}
+				}
+			} else if enemy.sub_state == 1 { 	// attack is out
+				enemy.attack_anim_timer -= delta
+				enemy.attack.pos = enemy.pos
+				perform_attack(&main_world, &enemy.attack)
+				if enemy.attack_anim_timer <= 0 {
+					enemy.sub_state = 2
+					enemy.attack_state_timer = 0.5
+					enemy.attack_out = false
+				}
+			} else if enemy.sub_state == 2 { 	// end lag
+				enemy.attack_state_timer -= delta
+				if enemy.attack_state_timer <= 0 {
+					if check_collision_shapes(
+						Circle{{}, enemy.attack_charge_range},
+						enemy.pos,
+						main_world.player.shape,
+						main_world.player.pos,
+					) {
+						change_enemy_state(enemy, .Charging, main_world)
+					} else {
+						change_enemy_state(enemy, .Chasing, main_world)
+					}
 				}
 			}
-		} else if enemy.sub_state == 1 { 	// attack is out
-			enemy.attack_anim_timer -= delta
-			enemy.attack.pos = enemy.pos
-			perform_attack(&main_world, &enemy.attack)
-			if enemy.attack_anim_timer <= 0 {
-				enemy.sub_state = 2
-				enemy.attack_state_timer = 0.5
-				enemy.attack_out = false
-			}
-		} else if enemy.sub_state == 2 { 	// end lag
-			enemy.attack_state_timer -= delta
-			if enemy.attack_state_timer <= 0 {
-				if check_collision_shapes(
+		case .Ranged:
+			if enemy.can_see_player {
+				if enemy.player_in_flee_range {
+					change_enemy_state(enemy, .Fleeing, main_world)
+				} else if check_collision_shapes(
 					Circle{{}, enemy.attack_charge_range},
 					enemy.pos,
 					main_world.player.shape,
@@ -2091,7 +2125,11 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 				} else {
 					change_enemy_state(enemy, .Chasing, main_world)
 				}
+			} else {
+				change_enemy_state(enemy, .Searching, main_world)
 			}
+
+		case .Turret:
 		}
 	case .Fleeing:
 		// Run directly away from player
@@ -2100,9 +2138,17 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		if !enemy.can_see_player {
 			change_enemy_state(enemy, .Searching, main_world)
 		} else if !enemy.player_in_flee_range {
-			change_enemy_state(enemy, .Chasing, main_world)
+			if check_collision_shapes(
+				Circle{{}, enemy.attack_charge_range},
+				enemy.pos,
+				main_world.player.shape,
+				main_world.player.pos,
+			) {
+				change_enemy_state(enemy, .Charging, main_world)
+			} else {
+				change_enemy_state(enemy, .Chasing, main_world)
+			}
 		}
-
 	case .Searching:
 		switch enemy.sub_state {
 		case 0:
@@ -2163,10 +2209,18 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		if enemy.can_see_player {
 			if enemy.player_in_flee_range {
 				change_enemy_state(enemy, .Fleeing, main_world)
+			} else if check_collision_shapes(
+				Circle{{}, enemy.attack_charge_range},
+				enemy.pos,
+				main_world.player.shape,
+				main_world.player.pos,
+			) {
+				change_enemy_state(enemy, .Charging, main_world)
 			} else {
 				change_enemy_state(enemy, .Chasing, main_world)
 			}
-		} else if enemy.alert_just_detected {
+		} else if enemy.alert_just_detected &&
+		   enemy.last_alert_intensity_detected > INVESTIGATE_ALERT_INTENSITY {
 			change_enemy_state(enemy, .Alerted, main_world)
 		} else if enemy.sub_state == 4 {
 			change_enemy_state(enemy, .Idle, main_world)
@@ -2176,8 +2230,21 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		if enemy.current_flinch_time <= 0 {
 			// Need to take a proper look at this
 			if enemy.can_see_player {
-				change_enemy_state(enemy, .Chasing, main_world)
+				if enemy.player_in_flee_range {
+					change_enemy_state(enemy, .Fleeing, main_world)
+				} else if check_collision_shapes(
+					Circle{{}, enemy.attack_charge_range},
+					enemy.pos,
+					main_world.player.shape,
+					main_world.player.pos,
+				) {
+					change_enemy_state(enemy, .Charging, main_world)
+				} else {
+					change_enemy_state(enemy, .Chasing, main_world)
+
+				}
 			} else {
+				// Need more complex stuff to here determine whether to start searching or not
 				change_enemy_state(enemy, .Idle, main_world)
 			}
 		}
@@ -2192,6 +2259,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 }
 
 change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
+	enemy.sub_state = 0
 	// Exit state code
 	switch enemy.state {
 	case .Idle:
@@ -2238,9 +2306,8 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player
-			lunge_speed :: 200
+			lunge_speed :: 160
 			lunge_time :: 0.1
-			enemy.sub_state = 0
 			enemy.attack_state_timer = lunge_time
 			enemy.vel = normalize(world.player.pos - enemy.pos) * lunge_speed
 
@@ -2282,7 +2349,6 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 
 	case .Searching:
 		enemy.search_timer = 0
-		enemy.sub_state = 0
 		start_enemy_pathing(enemy, world, enemy.last_seen_player_pos)
 	case .Flinching:
 		enemy.current_flinch_time = enemy.start_flinch_time
