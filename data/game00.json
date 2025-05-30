@@ -1,6 +1,7 @@
 {
 	"player_data": {
 		"health": 100.00000000,
+		"max_health": 100.00000000,
 		"weapons": [
 			{
 				"id": 100,
@@ -50,5 +51,5 @@
 		"item_count": 0,
 		"ability": 0
 	},
-	"cur_level_idx": 5
+	"cur_level_idx": 99
 }
