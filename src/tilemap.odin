@@ -2,6 +2,7 @@ package game
 
 
 // import "core:fmt"
+import "core:hash"
 import "core:math"
 import "core:math/rand"
 import "core:reflect"
@@ -280,13 +281,15 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 
 			switch data in tm[x][y] {
 			case GrassData:
-				sprite.tex_region.x = 1
-				sprite.tex_region.y = 1
 				if data.on_fire {
-					sprite.tex_region.x = 2
+					sprite.tex_region.y = 2
 				} else if data.burnt {
-					sprite.tex_region.x = 3
+					sprite.tex_region.y = 3
+				} else {
+					sprite.tex_region.y = 1
 				}
+				coord_bytes := transmute([8]u8)[2]i32{x, y}
+				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3) + 1
 			case DirtData:
 				sprite.tex_region.y = 1
 			case WaterData:
