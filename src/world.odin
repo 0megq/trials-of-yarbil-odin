@@ -897,7 +897,7 @@ draw_world :: proc(world: World) {
 
 			// Vfx slash
 			if player.attacking {
-				frame_count := get_frames(.HitVfx)
+				frame_count := get_frame_count(.HitVfx)
 				frame_index := int(
 					math.floor(
 						math.remap(

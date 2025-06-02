@@ -379,7 +379,6 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	if e.variant == .Melee && e.state == .Charging {
 		shake_amount :: 0.5
 		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
-
 	}
 
 	// DEBUG: Draw collision shape
@@ -400,31 +399,13 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		sprite.tex_id = .EnemyBasicCharge
 	}
 	if e.state == .Attacking {
-		// sprite.tint = rl.GRAY
 		sprite.tex_id = .EnemyBasicAttack
-		frame_count := get_frames(.EnemyBasicAttack)
-		frame_index := int(
-			math.floor(
-				math.remap(
-					e.attack_full_timer,
-					0,
-					0.1 + ATTACK_ANIM_TIME + 0.5,
-					0,
-					f32(frame_count),
-				),
-			),
-		)
-		if frame_index >= frame_count {
-			frame_index -= 1
-		}
-		tex := loaded_textures[.EnemyBasicAttack]
-		frame_size := tex.width / i32(frame_count)
-		sprite.tex_region = {
-			f32(frame_index) * f32(frame_size),
+		sprite.tex_region = get_current_frame_region(
+			e.attack_full_timer,
 			0,
-			f32(frame_size),
-			f32(tex.height),
-		}
+			0.1 + ATTACK_ANIM_TIME + 0.5,
+			sprite.tex_id,
+		)
 	}
 
 	// Looking
@@ -439,23 +420,12 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// Animate when death
 	if e.state == .Dying {
 		sprite.tex_id = .EnemyBasicDeath
-		frame_count := get_frames(.EnemyBasicDeath)
-		frame_index := int(
-			math.floor(
-				math.remap(e.death_timer, 0, ENEMY_DEATH_ANIMATION_TIME, 0, f32(frame_count)),
-			),
-		)
-		if frame_index >= frame_count {
-			frame_index -= 1
-		}
-		tex := loaded_textures[.EnemyBasicDeath]
-		frame_size := tex.width / i32(frame_count)
-		sprite.tex_region = {
-			f32(frame_index) * f32(frame_size),
+		sprite.tex_region = get_current_frame_region(
+			e.death_timer,
 			0,
-			f32(frame_size),
-			f32(tex.height),
-		}
+			ENEMY_DEATH_ANIMATION_TIME,
+			sprite.tex_id,
+		)
 	}
 
 	// Flash sprite
@@ -568,30 +538,24 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 
 			// Draw Vfx slash
 			if e.attack_anim_timer > 0 {
-				frame_count := get_frames(.HitVfx)
-				frame_index := int(
-					math.floor(
-						math.remap(e.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, f32(frame_count)),
-					),
-				)
-				if frame_index >= frame_count {
-					frame_index -= 1
-				}
+				// Setup sprite
 				vfx_tex := loaded_textures[.HitVfx]
-				frame_size := vfx_tex.width / i32(frame_count)
 				vfx_sprite := Sprite {
 					tex_id     = .HitVfx,
-					tex_region = {
-						f32(frame_index) * f32(frame_size),
-						0,
-						f32(frame_size),
-						f32(vfx_tex.height),
-					},
+					tex_region = {},
 					scale      = 1,
 					tex_origin = {0, f32(vfx_tex.height) / 2},
 					rotation   = e.attack_poly.rotation,
 					tint       = rl.WHITE,
 				}
+				// Animate
+				vfx_sprite.tex_region = get_current_frame_region(
+					e.attack_anim_timer,
+					ATTACK_ANIM_TIME,
+					0,
+					vfx_sprite.tex_id,
+				)
+				// Draw
 				draw_sprite(vfx_sprite, e.pos)
 			}
 		case .Ranged:
@@ -604,7 +568,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 				anim_cur = anim_length
 			}
 
-			frame_count := get_frames(tex_id)
+			frame_count := get_frame_count(tex_id)
 			frame_index := int(
 				math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))),
 			)

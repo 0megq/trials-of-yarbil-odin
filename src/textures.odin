@@ -83,7 +83,7 @@ unload_textures :: proc() {
 	}
 }
 
-get_frames :: proc(tex: TextureId) -> int {
+get_frame_count :: proc(tex: TextureId) -> int {
 	#partial switch tex {
 	case .HitVfx:
 		return 4
