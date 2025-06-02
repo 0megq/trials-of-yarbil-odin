@@ -542,13 +542,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 				frame_count := get_frames(.HitVfx)
 				frame_index := int(
 					math.floor(
-						math.remap(
-							ATTACK_DURATION - e.attack_anim_timer,
-							0,
-							ATTACK_DURATION,
-							0,
-							f32(frame_count),
-						),
+						math.remap(e.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, f32(frame_count)),
 					),
 				)
 				if frame_index >= frame_count {
