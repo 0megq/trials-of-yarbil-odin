@@ -12,10 +12,12 @@ TextureId :: enum {
 	// Stick,
 	Player = 200, // 200-299 is entities
 	EnemyBasic,
-	EnemyRanged,
 	EnemyBasicFlash,
-	EnemyRangedFlash,
 	EnemyBasicDeath,
+	EnemyBasicAttack,
+	EnemyBasicCharge,
+	EnemyRanged,
+	EnemyRangedFlash,
 	EnemyRangedDeath,
 	TurretBase,
 	TurretHead,
@@ -55,10 +57,12 @@ load_textures :: proc() {
 		// .Stick           = rl.LoadTexture("res/images/stick.png"),
 		.Player           = rl.LoadTexture("res/images/samurai.png"),
 		.EnemyBasic       = rl.LoadTexture("res/images/enemy_basic.png"),
-		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
 		.EnemyBasicFlash  = rl.LoadTexture("res/images/enemy_basic_flash.png"),
-		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
+		.EnemyBasicAttack = rl.LoadTexture("res/images/enemy_basic_attack.png"),
+		.EnemyBasicCharge = rl.LoadTexture("res/images/enemy_basic_charge.png"),
 		.EnemyBasicDeath  = rl.LoadTexture("res/images/enemy_basic_death.png"),
+		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
+		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
 		.EnemyRangedDeath = rl.LoadTexture("res/images/enemy_ranged_death.png"),
 		.TurretBase       = rl.LoadTexture("res/images/turret_base.png"),
 		.TurretHead       = rl.LoadTexture("res/images/turret_head.png"),
@@ -84,6 +88,10 @@ get_frames :: proc(tex: TextureId) -> int {
 	case .HitVfx:
 		return 4
 	case .EnemyBasicDeath:
+		return 7
+	case .EnemyBasicAttack:
+		return 9
+	case .EnemyRangedDeath:
 		return 7
 	case .Bow:
 		return 4

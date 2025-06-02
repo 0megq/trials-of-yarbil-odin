@@ -2064,6 +2064,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	case .Attacking:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
+		enemy.attack_full_timer += delta
 		switch enemy.variant {
 		case .Melee:
 			if enemy.sub_state == 0 { 	// lunging
@@ -2303,6 +2304,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Charging:
 		enemy.current_charge_time = enemy.start_charge_time
 	case .Attacking:
+		enemy.attack_full_timer = 0
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player

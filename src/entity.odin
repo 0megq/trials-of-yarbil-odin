@@ -95,6 +95,8 @@ Enemy3 :: struct {
 	attack_out:                    bool,
 	attack:                        Attack,
 	attack_state_timer:            f32,
+	attack_anim_timer:             f32,
+	attack_full_timer:             f32,
 	// Flinching
 	start_flinch_time:             f32,
 	current_flinch_time:           f32,
@@ -118,7 +120,6 @@ Enemy3 :: struct {
 	// Death
 	death_timer:                   f32,
 	weapon_side:                   int, // top is 1, bottom is -1
-	attack_anim_timer:             f32,
 	flee_range:                    f32,
 	attack_poly:                   Polygon,
 	max_speed:                     f32,
@@ -378,6 +379,7 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	if e.variant == .Melee && e.state == .Charging {
 		shake_amount :: 0.5
 		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+
 	}
 
 	// DEBUG: Draw collision shape
@@ -394,8 +396,35 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// Setup sprites
 	sprite := ENEMY_BASIC_SPRITE
 
+	if e.state == .Charging {
+		sprite.tex_id = .EnemyBasicCharge
+	}
 	if e.state == .Attacking {
-		sprite.tint = rl.GRAY
+		// sprite.tint = rl.GRAY
+		sprite.tex_id = .EnemyBasicAttack
+		frame_count := get_frames(.EnemyBasicAttack)
+		frame_index := int(
+			math.floor(
+				math.remap(
+					e.attack_full_timer,
+					0,
+					0.1 + ATTACK_ANIM_TIME + 0.5,
+					0,
+					f32(frame_count),
+				),
+			),
+		)
+		if frame_index >= frame_count {
+			frame_index -= 1
+		}
+		tex := loaded_textures[.EnemyBasicAttack]
+		frame_size := tex.width / i32(frame_count)
+		sprite.tex_region = {
+			f32(frame_index) * f32(frame_size),
+			0,
+			f32(frame_size),
+			f32(tex.height),
+		}
 	}
 
 	// Looking
