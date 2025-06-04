@@ -11,11 +11,10 @@ TextureId :: enum {
 	Bow,
 	// Stick,
 	Player = 200, // 200-299 is entities
+	EnemyBasic2,
 	EnemyBasic,
 	EnemyBasicFlash,
 	EnemyBasicDeath,
-	EnemyBasicAttack,
-	EnemyBasicCharge,
 	EnemyRanged,
 	EnemyRangedFlash,
 	EnemyRangedDeath,
@@ -56,10 +55,9 @@ load_textures :: proc() {
 		.Bow              = rl.LoadTexture("res/images/bow.png"),
 		// .Stick           = rl.LoadTexture("res/images/stick.png"),
 		.Player           = rl.LoadTexture("res/images/samurai.png"),
+		.EnemyBasic2      = rl.LoadTexture("res/images/enemy_basic2.png"),
 		.EnemyBasic       = rl.LoadTexture("res/images/enemy_basic.png"),
 		.EnemyBasicFlash  = rl.LoadTexture("res/images/enemy_basic_flash.png"),
-		.EnemyBasicAttack = rl.LoadTexture("res/images/enemy_basic_attack.png"),
-		.EnemyBasicCharge = rl.LoadTexture("res/images/enemy_basic_charge.png"),
 		.EnemyBasicDeath  = rl.LoadTexture("res/images/enemy_basic_death.png"),
 		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
 		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
@@ -83,18 +81,18 @@ unload_textures :: proc() {
 	}
 }
 
-get_frame_count :: proc(tex: TextureId) -> int {
+get_frame_count :: proc(tex: TextureId) -> Vec2i {
 	#partial switch tex {
 	case .HitVfx:
-		return 4
+		return {4, 1}
 	case .EnemyBasicDeath:
-		return 7
-	case .EnemyBasicAttack:
-		return 9
+		return {7, 1}
+	case .EnemyBasic2:
+		return {7, 8}
 	case .EnemyRangedDeath:
-		return 7
+		return {7, 1}
 	case .Bow:
-		return 4
+		return {4, 1}
 	}
 	return 1
 }

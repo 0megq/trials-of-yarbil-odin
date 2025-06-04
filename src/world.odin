@@ -897,7 +897,7 @@ draw_world :: proc(world: World) {
 
 			// Vfx slash
 			if player.attacking {
-				frame_count := get_frame_count(.HitVfx)
+				frame_count := int(get_frame_count(.HitVfx).x)
 				frame_index := int(
 					math.floor(
 						math.remap(
@@ -1966,6 +1966,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
+		enemy.frame = {0, 0}
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
 			update_enemy_pathing(enemy, delta, enemy.post_pos, main_world)
@@ -2058,21 +2059,29 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 		// Charging countdown and attack
 		enemy.current_charge_time -= delta
+
+		enemy.frame = {
+			get_current_hframe(enemy.current_charge_time, enemy.start_charge_time, 0, 2),
+			4,
+		}
 		if enemy.current_charge_time <= 0 {
 			change_enemy_state(enemy, .Attacking, main_world)
 		}
 	case .Attacking:
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
-		enemy.attack_full_timer += delta
 		switch enemy.variant {
 		case .Melee:
 			if enemy.sub_state == 0 { 	// lunging
+				enemy.frame = {
+					get_current_hframe(enemy.attack_state_timer, enemy.lunge_time, 0, 2),
+					5,
+				}
 				enemy.attack_state_timer -= delta
 				if enemy.attack_state_timer <= 0 {
 					enemy.sub_state = 1
 					enemy.attack_out = true
-					enemy.attack_anim_timer = ATTACK_ANIM_TIME
+					enemy.attack_state_timer = ATTACK_ANIM_TIME
 					enemy.weapon_side = -enemy.weapon_side
 					enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
 					damage :: 20
@@ -2089,16 +2098,18 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 					}
 				}
 			} else if enemy.sub_state == 1 { 	// attack is out
-				enemy.attack_anim_timer -= delta
+				enemy.attack_state_timer -= delta
+				enemy.frame = {0, 6}
 				enemy.attack.pos = enemy.pos
 				perform_attack(&main_world, &enemy.attack)
-				if enemy.attack_anim_timer <= 0 {
+				if enemy.attack_state_timer <= 0 {
 					enemy.sub_state = 2
 					enemy.attack_state_timer = 0.5
 					enemy.attack_out = false
 				}
 			} else if enemy.sub_state == 2 { 	// end lag
 				enemy.attack_state_timer -= delta
+				enemy.frame = {0, 7}
 				if enemy.attack_state_timer <= 0 {
 					if check_collision_shapes(
 						Circle{{}, enemy.attack_charge_range},
@@ -2304,13 +2315,11 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Charging:
 		enemy.current_charge_time = enemy.start_charge_time
 	case .Attacking:
-		enemy.attack_full_timer = 0
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player
 			lunge_speed :: 160
-			lunge_time :: 0.1
-			enemy.attack_state_timer = lunge_time
+			enemy.attack_state_timer = enemy.lunge_time
 			enemy.vel = normalize(world.player.pos - enemy.pos) * lunge_speed
 
 		case .Ranged:
