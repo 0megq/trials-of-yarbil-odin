@@ -14,19 +14,19 @@
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Run",
-			"command": "odin run ./src/ -debug -out:build/build.exe -vet -strict-style",
+			"command": "odin run ./src/ -debug -out:build/build.exe",
 		},
 		{
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Release",
-			"command": "odin run ./src/ -out:build/yarbil.exe -vet -strict-style -subsystem:windows",
+			"command": "odin run ./src/ -out:build/yarbil.exe -subsystem:windows",
 		},
 		{
 			"type": "f5anything",
 			"request": "launch",
 			"name": "Playground",
-			"command": "odin run ./tests/playground.odin -file -vet -strict-style -debug -out:build/playground.exe",
+			"command": "odin run ./tests/playground.odin -file -debug -out:build/playground.exe",
 		}
 	]
 }
