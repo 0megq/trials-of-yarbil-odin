@@ -131,8 +131,8 @@ ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {20, -8}, {24, 0}, {20, 8}, {10,
 sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160
 
-PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
-BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
+PLAYER_SPRITE :: Sprite{.player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
+BARREL_SPRITE :: Sprite{.exploding_barrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
@@ -498,7 +498,7 @@ draw_frame :: proc() {
 
 			// Warrior and enemies
 			img_scale_factor :: 4
-			img := loaded_textures[.TitleScreen]
+			img := loaded_textures[.title_screen]
 			center: Vec2 = {f32(UI_SIZE.x) * 0.2, f32(UI_SIZE.y) * 0.5}
 			rl.DrawTextureEx(
 				img,
@@ -511,7 +511,7 @@ draw_frame :: proc() {
 				rl.WHITE,
 			)
 
-			img = loaded_textures[.TitleScreen2]
+			img = loaded_textures[.title_screen2]
 			center = {f32(UI_SIZE.x) * 0.8, f32(UI_SIZE.y) * 0.6}
 			rl.DrawTextureEx(
 				img,

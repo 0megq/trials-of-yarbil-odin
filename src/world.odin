@@ -241,9 +241,7 @@ world_update :: proc() {
 		}
 	}
 
-	/* -------------------------------------------------------------------------- */
-	/*                               MARK:Enemy Loop                              */
-	/* -------------------------------------------------------------------------- */
+	// :enemy loop
 	enemy_loop: #reverse for &enemy, idx in main_world.enemies {
 		/* ---------------------------- Tutorial Dummies ---------------------------- */
 		if level.has_tutorial && tutorial.enable_enemy_dummies {
@@ -356,6 +354,7 @@ world_update :: proc() {
 		/* ------------------------------ Update State ------------------------------ */
 		{
 			fully_dead := update_enemy_state(&enemy, delta)
+			animate_enemy(&enemy)
 			if fully_dead {
 				delete(enemy.current_path)
 				delete(enemy.attack.exclude_targets)
@@ -654,6 +653,15 @@ world_update :: proc() {
 		main_world.player.attack_anim_timer -= delta
 	}
 
+	// do sprite flipping
+	if main_world.player.attacking {
+		main_world.player.flip_sprite = math.abs(main_world.player.attack_poly.rotation) > 90
+	} else if math.sign(main_world.player.vel.x) > 0 {
+		main_world.player.flip_sprite = false
+	} else if math.sign(main_world.player.vel.x) < 0 {
+		main_world.player.flip_sprite = true
+	}
+
 	// Item pickup
 	if is_control_pressed(controls.pickup) {
 		closest_item_idx := -1
@@ -857,8 +865,15 @@ draw_world :: proc(world: World) {
 		// :draw player
 		{
 			player := world.player
+
+			sprite := PLAYER_SPRITE
+
+			if player.flip_sprite {
+				sprite.scale.x = -1
+			}
+
 			// Player Sprite
-			draw_sprite(PLAYER_SPRITE, player.pos)
+			draw_sprite(sprite, player.pos)
 
 			// Draw Item
 			if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
@@ -897,7 +912,7 @@ draw_world :: proc(world: World) {
 
 			// Vfx slash
 			if player.attacking {
-				frame_count := int(get_frame_count(.HitVfx).x)
+				frame_count := int(get_frame_count(.hit_vfx).x)
 				frame_index := int(
 					math.floor(
 						math.remap(
@@ -912,10 +927,10 @@ draw_world :: proc(world: World) {
 				if frame_index >= frame_count {
 					frame_index -= 1
 				}
-				tex := loaded_textures[.HitVfx]
+				tex := loaded_textures[.hit_vfx]
 				frame_size := tex.width / i32(frame_count)
-				sprite := Sprite {
-					tex_id     = .HitVfx,
+				vfx_sprite := Sprite {
+					tex_id     = .hit_vfx,
 					tex_region = {
 						f32(frame_index) * f32(frame_size),
 						0,
@@ -927,7 +942,7 @@ draw_world :: proc(world: World) {
 					rotation   = player.attack_poly.rotation,
 					tint       = rl.WHITE,
 				}
-				draw_sprite(sprite, player.pos)
+				draw_sprite(vfx_sprite, player.pos)
 			}
 
 			/* Health Bar */
@@ -1634,8 +1649,8 @@ use_bomb :: proc(world: ^World) {
 	to_mouse := normalize(mouse_world_pos - world.player.pos)
 
 	// use item
-	tex := loaded_textures[.Bomb]
-	sprite: Sprite = {.Bomb, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {1, 2}, 0, rl.WHITE}
+	tex := loaded_textures[.bomb]
+	sprite: Sprite = {.bomb, {0, 0, f32(tex.width), f32(tex.height)}, {1, 1}, {1, 2}, 0, rl.WHITE}
 
 	sprite.rotation += angle(to_mouse)
 
@@ -1961,12 +1976,51 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 	e.pos += e.vel * delta
 }
 
+animate_enemy :: proc(e: ^Enemy) {
+	frame_duration :: 0.1
+	switch e.state {
+	case .Idle:
+		e.frame = {0, 0}
+	case .Alerted:
+		if e.last_alert_intensity_detected > INVESTIGATE_ALERT_INTENSITY &&
+		   distance_squared(e.pos, e.last_alert.pos) > 500 {
+			e.frame = {0, 0}
+		} else {
+			e.frame = {i32(rl.GetTime() / frame_duration) % 6, 2}
+		}
+	case .Chasing:
+		e.frame = {i32(rl.GetTime() / frame_duration) % 6, 2}
+	case .Charging:
+		flicker_duration :: 0.1
+		e.frame = {i32(rl.GetTime() / flicker_duration) % 2, 3}
+	case .Attacking:
+		switch e.sub_state {
+		case 0:
+			// lunging
+			e.frame = {get_current_hframe(e.attack_state_timer, e.lunge_time, 0, 2), 4}
+		case 1:
+			// attacking
+			e.frame = {0, 5}
+		case 2:
+			// recovery
+			e.frame = {0, 6}
+		}
+	case .Fleeing:
+		e.frame = {i32(rl.GetTime() / frame_duration) % 6, 2}
+	case .Searching:
+		e.frame = {i32(rl.GetTime() / frame_duration) % 6, 2}
+	case .Flinching:
+		e.frame = {0, 0}
+	case .Dying:
+		e.frame = {get_current_hframe(e.death_timer, ENEMY_DEATH_ANIMATION_TIME, 0, 7), 1}
+	}
+}
+
 // Returns true if enemy is fully dead (at the end of death state)
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
-		enemy.frame = {0, 0}
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
 			update_enemy_pathing(enemy, delta, enemy.post_pos, main_world)
@@ -2060,10 +2114,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		// Charging countdown and attack
 		enemy.current_charge_time -= delta
 
-		enemy.frame = {
-			get_current_hframe(enemy.current_charge_time, enemy.start_charge_time, 0, 2),
-			4,
-		}
 		if enemy.current_charge_time <= 0 {
 			change_enemy_state(enemy, .Attacking, main_world)
 		}
@@ -2073,10 +2123,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		switch enemy.variant {
 		case .Melee:
 			if enemy.sub_state == 0 { 	// lunging
-				enemy.frame = {
-					get_current_hframe(enemy.attack_state_timer, enemy.lunge_time, 0, 2),
-					5,
-				}
 				enemy.attack_state_timer -= delta
 				if enemy.attack_state_timer <= 0 {
 					enemy.sub_state = 1
@@ -2099,7 +2145,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 				}
 			} else if enemy.sub_state == 1 { 	// attack is out
 				enemy.attack_state_timer -= delta
-				enemy.frame = {0, 6}
 				enemy.attack.pos = enemy.pos
 				perform_attack(&main_world, &enemy.attack)
 				if enemy.attack_state_timer <= 0 {
@@ -2109,7 +2154,6 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 				}
 			} else if enemy.sub_state == 2 { 	// end lag
 				enemy.attack_state_timer -= delta
-				enemy.frame = {0, 7}
 				if enemy.attack_state_timer <= 0 {
 					if check_collision_shapes(
 						Circle{{}, enemy.attack_charge_range},
@@ -2327,9 +2371,9 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 			arrow_damage :: 20.0
 
 			to_player := normalize(main_world.player.pos - enemy.pos)
-			tex := loaded_textures[.Arrow]
+			tex := loaded_textures[.arrow]
 			arrow_sprite := Sprite {
-				.Arrow,
+				.arrow,
 				{0, 0, f32(tex.width), f32(tex.height)},
 				{1, 1},
 				{f32(tex.width) / 2, f32(tex.height) / 2},
@@ -2385,9 +2429,11 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 		change_enemy_state(&world.enemies[enemy_idx], .Dying, world^)
 		_on_enemy_dying()
 		return true
-	} else if should_flinch && enemy.state != .Attacking {
-		change_enemy_state(&world.enemies[enemy_idx], .Flinching, world^)
+	} else if should_flinch {
 		enemy.flash_opacity = 1
+		if enemy.state != .Attacking {
+			change_enemy_state(&world.enemies[enemy_idx], .Flinching, world^)
+		}
 	}
 	return false
 }

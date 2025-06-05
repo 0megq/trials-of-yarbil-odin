@@ -580,8 +580,7 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
 	e.idle_look_angle = data.look_angle
-	e.variant = data.variant
-	setup_enemy(&e)
+	setup_enemy(&e, data.variant)
 	return
 }
 
