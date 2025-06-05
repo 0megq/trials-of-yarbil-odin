@@ -256,6 +256,7 @@ world_update :: proc() {
 						enemy.flash_opacity *
 						enemy.flash_opacity *
 						enemy.flash_opacity)
+			enemy.flash_opacity = max(enemy.flash_opacity, 0)
 		}
 
 		enemy.target = enemy.pos
@@ -662,6 +663,17 @@ world_update :: proc() {
 		main_world.player.flip_sprite = true
 	}
 
+	// Sprite flash
+	{
+		flash_opacity := main_world.player.flash_opacity
+		if flash_opacity > 0 {
+			flash_opacity -=
+				delta / (flash_opacity * flash_opacity * flash_opacity * flash_opacity)
+			main_world.player.flash_opacity = max(flash_opacity, 0)
+		}
+	}
+
+
 	// Item pickup
 	if is_control_pressed(controls.pickup) {
 		closest_item_idx := -1
@@ -873,8 +885,18 @@ draw_world :: proc(world: World) {
 			}
 
 			// Player Sprite
-			draw_sprite(sprite, player.pos)
+			rl.BeginShaderMode(shader)
 
+			col_override: [4]f32 = {1, 1, 1, player.flash_opacity}
+			rl.SetShaderValueV(
+				shader,
+				rl.GetShaderLocation(shader, "col_override"),
+				&col_override,
+				.VEC4,
+				1,
+			)
+			draw_sprite(sprite, player.pos)
+			rl.EndShaderMode()
 			// Draw Item
 			if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
 				draw_item(player.items[player.selected_item_idx].id, player.pos)
@@ -2578,6 +2600,10 @@ player_move :: proc(p: ^Player, delta: f32) {
 damage_player :: proc(player: ^Player, amount: f32) {
 	player.health -= amount
 	player.health = max(player.health, 0)
+	player.flash_opacity = 1
+	screen_shake_time = 0.1
+	screen_shake_intensity = 1.5
+	play_sound(.PlayerHurt)
 	if player.health <= 0 {
 		// Player is dead reload the level
 		// TODO: make an actual player death animation

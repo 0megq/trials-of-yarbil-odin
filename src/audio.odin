@@ -7,6 +7,7 @@ SoundId :: enum {
 	SwordSlash,
 	SwordHit,
 	SwordKill,
+	PlayerHurt,
 }
 
 loaded_sounds: [SoundId]rl.Sound
@@ -18,6 +19,7 @@ pitch_variation: [SoundId]f32 = {
 	.SwordSlash = 0.1,
 	.SwordHit   = 0,
 	.SwordKill  = 0,
+	.PlayerHurt = 0,
 }
 
 init_audio_and_load_sounds :: proc() {
@@ -30,6 +32,7 @@ load_sounds :: proc() {
 		.SwordSlash = rl.LoadSound("res/sound/sword_slash.mp3"),
 		.SwordHit   = rl.LoadSound("res/sound/sword_hit.mp3"),
 		.SwordKill  = rl.LoadSound("res/sound/sword_kill.mp3"),
+		.PlayerHurt = rl.LoadSound("res/sound/player_hurt.mp3"),
 	}
 	for &pool, id in sound_pool {
 		for &alias in pool {

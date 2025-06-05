@@ -193,6 +193,7 @@ Player :: struct {
 	weapon_side:           int, // top is 1, bottom is -1
 	attack_anim_timer:     f32,
 	flip_sprite:           bool,
+	flash_opacity:         f32,
 }
 
 ZEntity :: struct {
@@ -375,7 +376,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 
 	// DEBUG: Draw collision shape
-	draw_shape(e.shape, e.pos, rl.GREEN)
+	// draw_shape(e.shape, e.pos, rl.GREEN)
 	// draw vision and post range
 	when ODIN_DEBUG do if in_editor {
 		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
@@ -402,22 +403,16 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 		sprite.scale.x = -1
 	}
 
-	// Flash sprite
-	flash_sprite := sprite
-	flash_sprite.tex_id = .enemy_basic2_flash
-	flash_sprite.tint = {
-		255,
-		255,
-		255,
-		u8(math.clamp(math.remap(e.flash_opacity, 0, 1, 0, 255), 0, 255)),
-	}
-
 	// Look arrow
-	draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
+	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
 
 	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, e.flash_opacity}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
 	draw_sprite(sprite, e.pos)
-	draw_sprite(flash_sprite, e.pos)
+	rl.EndShaderMode()
+	// draw_sprite(flash_sprite, e.pos)
 
 
 	// Draw health bar

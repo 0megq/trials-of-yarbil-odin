@@ -138,6 +138,8 @@ BARREL_SPRITE :: Sprite{.exploding_barrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
 
+shader: rl.Shader
+
 // "Progress saved!" visuals
 completion_show_time: f32 = 0
 flash_interval: f32 : 1 // will switch on and off with this interval
@@ -232,6 +234,8 @@ main :: proc() {
 
 	init_audio_and_load_sounds()
 	defer close_audio_and_unload_sounds()
+
+	shader = rl.LoadShader("", "res/shaders/color_override.fs")
 
 	// Load resources and data
 	{
