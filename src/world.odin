@@ -2381,6 +2381,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Charging:
 		enemy.current_charge_time = enemy.start_charge_time
 	case .Attacking:
+		play_sound(.EnemyLunge)
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player
