@@ -46,7 +46,7 @@ INVESTIGATE_ALERT_INTENSITY :: 0.8
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.12
-ATTACK_INTERVAL :: 0.03
+ATTACK_INTERVAL :: 0.1
 ATTACK_ANIM_TIME :: 0.2
 SWORD_DAMAGE :: 20
 SWORD_KNOCKBACK :: 80
@@ -127,7 +127,7 @@ STICK_HITBOX_POINTS := []Vec2 {
 	{STICK_HITBOX_OFFSET, 10},
 }
 
-ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {20, -8}, {24, 0}, {20, 8}, {10, 10}}
+ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{6, -10}, {16, -8}, {20, 0}, {16, 8}, {6, 10}}
 
 sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160

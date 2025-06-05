@@ -76,11 +76,8 @@ Enemy3 :: struct {
 	variant:                       EnemyVariant,
 	tex:                           TextureId,
 	frame:                         Vec2i,
-	// Pereception Stats
-	hearing_range:                 f32,
-	vision_range:                  f32,
+	// Pereception Data
 	look_angle:                    f32, // direction they are looking (in degrees facing right going ccw)
-	vision_fov:                    f32, // wideness (in degrees)
 	vision_points:                 [50]Vec2,
 	// Perception Results
 	can_see_player:                bool,
@@ -91,22 +88,17 @@ Enemy3 :: struct {
 	last_alert_intensity_detected: f32,
 	last_alert:                    Alert,
 	// Combat
-	attack_charge_range:           f32, // Range for the enemy to start charging
-	start_charge_time:             f32,
 	current_charge_time:           f32,
 	attack_out:                    bool,
 	attack:                        Attack,
 	attack_state_timer:            f32,
-	lunge_time:                    f32,
 	// Flinching
-	start_flinch_time:             f32,
 	current_flinch_time:           f32,
 	// Idle
 	idle_look_timer:               f32,
 	idle_look_angle:               f32,
 	// Health
 	health:                        f32,
-	max_health:                    f32,
 	// Pathfinding
 	current_path:                  []Vec2,
 	current_path_point:            int,
@@ -121,10 +113,26 @@ Enemy3 :: struct {
 	// Death
 	death_timer:                   f32,
 	weapon_side:                   int, // top is 1, bottom is -1
-	flee_range:                    f32,
 	attack_poly:                   Polygon,
-	max_speed:                     f32,
-	draw_proc:                     proc(e: Enemy3, in_editor := false),
+	super_armor:                   bool,
+	using const_data:              ConstEnemyData,
+}
+
+ConstEnemyData :: struct {
+	hearing_range:        f32,
+	vision_range:         f32,
+	attack_charge_range:  f32, // Range for the enemy to start charging
+	flee_range:           f32,
+	vision_fov:           f32, // wideness (in degrees)
+	start_charge_time:    f32,
+	lunge_speed:          f32,
+	lunge_time:           f32,
+	attack_out_time:      f32,
+	attack_recovery_time: f32,
+	start_flinch_time:    f32,
+	max_health:           f32,
+	max_speed:            f32,
+	draw_proc:            proc(e: Enemy3, in_editor := false),
 }
 
 EnemyState :: enum {
@@ -298,15 +306,19 @@ new_entity :: proc(pos: Vec2) -> Entity {
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	delete(enemy.attack_poly.points)
 	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
+	enemy.tex = .enemy_basic2
+	enemy.flee_range = 20
 	enemy.hearing_range = 160
 	enemy.vision_range = 100
-	enemy.vision_fov = 120
+	enemy.vision_fov = 180
 	enemy.max_speed = 60
 	enemy.attack_charge_range = 40
-	enemy.start_charge_time = 0.3
+	enemy.start_charge_time = 0.2
 	enemy.start_flinch_time = 0.2
-	enemy.lunge_time = 0.1
-	enemy.tex = .enemy_basic2
+	enemy.lunge_speed = 200
+	enemy.lunge_time = 0.15
+	enemy.attack_out_time = 0.2
+	enemy.attack_recovery_time = 0.5
 	enemy.draw_proc = draw_melee_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
@@ -384,7 +396,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 
 	// when ODIN_DEBUG {
-	// 	rl.DrawCircleLinesV(e.pos, e.attack_charge_range, rl.GREEN)
+	// 	rl.DrawCircleLinesV(e.pos, e.flee_range, rl.GREEN)
 	// }
 
 	// Setup sprites
@@ -409,10 +421,12 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	// Draw sprites
 	rl.BeginShaderMode(shader)
 	col_override: [4]f32 = {1, 1, 1, e.flash_opacity}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
 	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
 	draw_sprite(sprite, e.pos)
 	rl.EndShaderMode()
-	// draw_sprite(flash_sprite, e.pos)
 
 
 	// Draw health bar

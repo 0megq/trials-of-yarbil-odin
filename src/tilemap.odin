@@ -47,7 +47,7 @@ StoneData :: struct {
 WaterData :: struct {
 }
 
-update_tilemap :: proc(world: ^World) {
+update_tilemap :: proc(world: ^World, do_fire_damage := true) {
 	tilemap := &world.tilemap
 	// Fire spread for grass tiles
 	for tile_pos in get_tiles_on_fire(tilemap^) {
@@ -83,14 +83,16 @@ update_tilemap :: proc(world: ^World) {
 		}
 
 		// Deal damage
-		fire_attack := Attack {
-			shape   = Rectangle{0, 0, TILE_SIZE, TILE_SIZE},
-			data    = FireAttackData{},
-			pos     = Vec2{f32(tile_pos.x), f32(tile_pos.y)} * TILE_SIZE,
-			damage  = FIRE_TILE_DAMAGE * delta,
-			targets = {.ExplodingBarrel, .Player, .Enemy},
+		if do_fire_damage {
+			fire_attack := Attack {
+				shape   = Rectangle{0, 0, TILE_SIZE, TILE_SIZE},
+				data    = FireAttackData{},
+				pos     = Vec2{f32(tile_pos.x), f32(tile_pos.y)} * TILE_SIZE,
+				damage  = FIRE_TILE_DAMAGE * delta,
+				targets = {.ExplodingBarrel, .Player, .Enemy},
+			}
+			perform_attack(world, &fire_attack)
 		}
-		perform_attack(world, &fire_attack)
 	}
 }
 

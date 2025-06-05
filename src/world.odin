@@ -27,8 +27,7 @@ World :: struct {
 	alerts:            [dynamic]Alert,
 }
 
-// pause_game: f32 = 0
-
+pause_game_time: f32 = 0
 screen_shake_time: f32 = 0
 screen_shake_intensity: f32 = 1
 
@@ -116,13 +115,13 @@ world_update :: proc() {
 	}
 
 	// FIX THIS. This stops the rest of the proc, including collecting input stuff which is kind of bad!!!
-	// if pause_game > 0 {
-	// 	pause_game -= delta
-	// 	return
-	// }
+	if pause_game_time > 0 {
+		pause_game_time -= delta
+		delta = 0
+	}
 
 	// Fire spread and other tile updates
-	update_tilemap(&main_world)
+	update_tilemap(&main_world, false)
 
 	// fire dash timer
 	if !main_world.player.can_fire_dash {
@@ -896,7 +895,6 @@ draw_world :: proc(world: World) {
 				1,
 			)
 			draw_sprite(sprite, player.pos)
-			rl.EndShaderMode()
 			// Draw Item
 			if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
 				draw_item(player.items[player.selected_item_idx].id, player.pos)
@@ -932,6 +930,23 @@ draw_world :: proc(world: World) {
 				)
 			}
 
+			/* Health Bar */
+			{
+				health_bar_length: f32 = 20
+				health_bar_height: f32 = 5
+				health_bar_base_rec := get_centered_rect(
+					{player.pos.x, player.pos.y - 20},
+					{health_bar_length, health_bar_height},
+				)
+				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+				health_bar_filled_rec := health_bar_base_rec
+				health_bar_filled_rec.width *= player.health / player.max_health
+				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+			}
+			/* End of Health Bar */
+
+			rl.EndShaderMode()
+
 			// Vfx slash
 			if player.attacking {
 				frame_count := int(get_frame_count(.hit_vfx).x)
@@ -966,19 +981,6 @@ draw_world :: proc(world: World) {
 				}
 				draw_sprite(vfx_sprite, player.pos)
 			}
-
-			/* Health Bar */
-			health_bar_length: f32 = 20
-			health_bar_height: f32 = 5
-			health_bar_base_rec := get_centered_rect(
-				{player.pos.x, player.pos.y - 20},
-				{health_bar_length, health_bar_height},
-			)
-			rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-			health_bar_filled_rec := health_bar_base_rec
-			health_bar_filled_rec.width *= player.health / player.max_health
-			rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-			/* End of Health Bar */
 
 			// when ODIN_DEBUG {
 			// 	if !player.holding_item &&
@@ -2149,7 +2151,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 				if enemy.attack_state_timer <= 0 {
 					enemy.sub_state = 1
 					enemy.attack_out = true
-					enemy.attack_state_timer = ATTACK_ANIM_TIME
+					enemy.attack_state_timer = enemy.attack_out_time
 					enemy.weapon_side = -enemy.weapon_side
 					enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
 					damage :: 20
@@ -2171,21 +2173,27 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 				perform_attack(&main_world, &enemy.attack)
 				if enemy.attack_state_timer <= 0 {
 					enemy.sub_state = 2
-					enemy.attack_state_timer = 0.5
+					enemy.attack_state_timer = enemy.attack_recovery_time
 					enemy.attack_out = false
 				}
 			} else if enemy.sub_state == 2 { 	// end lag
 				enemy.attack_state_timer -= delta
 				if enemy.attack_state_timer <= 0 {
-					if check_collision_shapes(
-						Circle{{}, enemy.attack_charge_range},
-						enemy.pos,
-						main_world.player.shape,
-						main_world.player.pos,
-					) {
-						change_enemy_state(enemy, .Charging, main_world)
+					if enemy.can_see_player {
+						if enemy.player_in_flee_range {
+							change_enemy_state(enemy, .Fleeing, main_world)
+						} else if check_collision_shapes(
+							Circle{{}, enemy.attack_charge_range},
+							enemy.pos,
+							main_world.player.shape,
+							main_world.player.pos,
+						) {
+							change_enemy_state(enemy, .Charging, main_world)
+						} else {
+							change_enemy_state(enemy, .Chasing, main_world)
+						}
 					} else {
-						change_enemy_state(enemy, .Chasing, main_world)
+						change_enemy_state(enemy, .Searching, main_world)
 					}
 				}
 			}
@@ -2347,10 +2355,12 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Chasing:
 
 	case .Charging:
+		enemy.super_armor = false
 
 	case .Attacking:
 		clear(&enemy.attack.exclude_targets) // We only need to clear, no need to delete
 		enemy.attack_out = false
+		enemy.super_armor = false
 	case .Fleeing:
 
 	case .Searching:
@@ -2381,14 +2391,13 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Charging:
 		enemy.current_charge_time = enemy.start_charge_time
 	case .Attacking:
+		enemy.super_armor = true
 		play_sound(.EnemyLunge)
 		switch enemy.variant {
 		case .Melee:
 			// lunge at player
-			lunge_speed :: 160
 			enemy.attack_state_timer = enemy.lunge_time
-			enemy.vel = normalize(world.player.pos - enemy.pos) * lunge_speed
-
+			enemy.vel = normalize(world.player.pos - enemy.pos) * enemy.lunge_speed
 		case .Ranged:
 			// launch arrow
 			arrow_damage :: 20.0
@@ -2454,7 +2463,7 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 		return true
 	} else if should_flinch {
 		enemy.flash_opacity = 1
-		if enemy.state != .Attacking {
+		if !enemy.super_armor {
 			change_enemy_state(&world.enemies[enemy_idx], .Flinching, world^)
 		}
 	}
@@ -2604,6 +2613,7 @@ damage_player :: proc(player: ^Player, amount: f32) {
 	player.flash_opacity = 1
 	screen_shake_time = 0.1
 	screen_shake_intensity = 1.5
+	pause_game_time = 0.1
 	play_sound(.PlayerHurt)
 	if player.health <= 0 {
 		// Player is dead reload the level
