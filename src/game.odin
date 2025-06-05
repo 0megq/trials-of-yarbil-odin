@@ -1,11 +1,11 @@
 package game
 
 
-import "./external/sound"
 import "core:crypto"
 import "core:fmt"
 import "core:math"
 import "core:mem"
+import "sound"
 // import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
