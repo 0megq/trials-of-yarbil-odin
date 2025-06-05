@@ -135,9 +135,7 @@ world_update :: proc() {
 
 	if !(level.has_tutorial && tutorial.disable_ability) &&
 	   is_control_pressed(controls.movement_ability) {
-		move_successful := false
 		if main_world.player.can_fire_dash {
-			move_successful = true
 			main_world.player.can_fire_dash = false
 			main_world.player.fire_dash_timer = FIRE_DASH_COOLDOWN
 			main_world.player.fire_dash_ready_time = 0
@@ -155,8 +153,7 @@ world_update :: proc() {
 			}
 			perform_attack(&main_world, &attack)
 			delete(attack.exclude_targets)
-		}
-		if move_successful {
+
 			stop_player_attack(&main_world.player)
 			main_world.player.charging_weapon = false
 			main_world.player.holding_item = false
@@ -886,7 +883,7 @@ draw_world :: proc(world: World) {
 			// Player Sprite
 			rl.BeginShaderMode(shader)
 
-			col_override: [4]f32 = {1, 1, 1, player.flash_opacity}
+			col_override: [4]f32 = {1, 1, 1, math.round(player.flash_opacity)}
 			rl.SetShaderValueV(
 				shader,
 				rl.GetShaderLocation(shader, "col_override"),
@@ -2034,7 +2031,7 @@ animate_enemy :: proc(e: ^Enemy) {
 	case .Searching:
 		e.frame = {i32(rl.GetTime() / frame_duration) % 6, 2}
 	case .Flinching:
-		e.frame = {0, 0}
+		e.frame = {0, 7}
 	case .Dying:
 		e.frame = {get_current_hframe(e.death_timer, ENEMY_DEATH_ANIMATION_TIME, 0, 7), 1}
 	}

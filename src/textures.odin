@@ -67,7 +67,7 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 	case .enemy_basic_death:
 		return {7, 1}
 	case .enemy_basic2:
-		return {7, 7}
+		return {7, 8}
 	case .enemy_ranged_death:
 		return {7, 1}
 	case .bow:

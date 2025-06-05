@@ -382,10 +382,13 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	e := e
 	// shake when charging
+	shake_amount: f32
 	if e.state == .Charging {
-		shake_amount :: 0.5
-		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+		shake_amount = 0.5
+	} else if e.state == .Flinching {
+		shake_amount = 0.5
 	}
+	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
 
 	// DEBUG: Draw collision shape
 	// draw_shape(e.shape, e.pos, rl.GREEN)
@@ -420,7 +423,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 
 	// Draw sprites
 	rl.BeginShaderMode(shader)
-	col_override: [4]f32 = {1, 1, 1, e.flash_opacity}
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
 	if e.state == .Charging && (e.current_charge_time < 0.05) {
 		col_override = {0, 1, 1, 1}
 	}
