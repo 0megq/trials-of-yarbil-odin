@@ -1,6 +1,7 @@
 package game
 
 
+import "./external/sound"
 import "core:crypto"
 import "core:fmt"
 import "core:math"
@@ -229,8 +230,7 @@ main :: proc() {
 	defer rl.UnloadImage(icon)
 	rl.SetWindowIcon(icon)
 
-	init_audio_and_load_sounds()
-	defer close_audio_and_unload_sounds()
+	sound.init()
 
 	// Load resources and data
 	{
@@ -271,6 +271,7 @@ main :: proc() {
 	// Update Loop
 	for !rl.WindowShouldClose() && !game_should_close {
 		update()
+		sound.update(main_world.player.pos, 0)
 	}
 
 	// Save level if in editor

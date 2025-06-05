@@ -1263,9 +1263,9 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 						enemy.vel += attack.direction * attack.knockback
 						screen_shake_time = .05
 						screen_shake_intensity = 1.5
-						play_sound(.SwordKill)
+						// play_sound(.SwordKill)
 					} else {
-						play_sound(.SwordHit)
+						// play_sound(.SwordHit)
 					}
 					// Super minor memory bug, if player attacks and then immediately exits the game
 					append(&attack.exclude_targets, enemy.id)
@@ -1739,7 +1739,7 @@ fire_selected_weapon :: proc(player: ^Player) -> int {
 			player.can_attack = false
 
 			// Sound
-			play_sound(.SwordSlash)
+			// play_sound(.SwordSlash)
 
 			// Switch side
 			player.weapon_side = -player.weapon_side
