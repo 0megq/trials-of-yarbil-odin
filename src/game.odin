@@ -17,7 +17,7 @@ fmt_i := fmt._arg_number
 mem_i := mem._default_resize_bytes_align
 
 
-VERSION_NUMBER :: "v0.9"
+VERSION_NUMBER :: "v0.10"
 GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
 UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
@@ -46,7 +46,7 @@ INVESTIGATE_ALERT_INTENSITY :: 0.8
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.12
-ATTACK_INTERVAL :: 0.1
+ATTACK_INTERVAL :: 0.04
 ATTACK_ANIM_TIME :: 0.2
 SWORD_DAMAGE :: 20
 SWORD_KNOCKBACK :: 80
