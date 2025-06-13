@@ -12,11 +12,7 @@ TextureId :: enum {
 	bow,
 	// Stick,
 	player = 200, // 200-299 is entities
-	enemy_basic2,
-	enemy_basic2_flash,
 	enemy_basic,
-	enemy_basic_flash,
-	enemy_basic_death,
 	enemy_ranged,
 	enemy_ranged_flash,
 	enemy_ranged_death,
@@ -64,9 +60,7 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 	#partial switch tex {
 	case .hit_vfx:
 		return {4, 1}
-	case .enemy_basic_death:
-		return {7, 1}
-	case .enemy_basic2:
+	case .enemy_basic:
 		return {7, 8}
 	case .enemy_ranged_death:
 		return {7, 1}

@@ -306,7 +306,7 @@ new_entity :: proc(pos: Vec2) -> Entity {
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	delete(enemy.attack_poly.points)
 	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
-	enemy.tex = .enemy_basic2
+	enemy.tex = .enemy_basic
 	enemy.flee_range = 20
 	enemy.hearing_range = 160
 	enemy.vision_range = 100
@@ -324,6 +324,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 }
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
+	enemy.tex = .enemy_ranged
 	enemy.flee_range = 60
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
@@ -332,7 +333,7 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.6
 	enemy.start_flinch_time = 0.2
-	enemy.draw_proc = draw_enemy
+	enemy.draw_proc = draw_ranged_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
@@ -503,15 +504,19 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 
 
 // Draw proc for ranged and melee enemies
-draw_enemy :: proc(e: Enemy, in_editor := false) {
+draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	e := e
-	if e.variant == .Melee && e.state == .Charging {
-		shake_amount :: 0.5
-		e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+	// Shake when charging or flinching
+	shake_amount: f32
+	if e.state == .Charging {
+		shake_amount = 0.5
+	} else if e.state == .Flinching {
+		shake_amount = 0.5
 	}
+	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
 
 	// DEBUG: Draw collision shape
-	draw_shape(e.shape, e.pos, rl.GREEN)
+	// draw_shape(e.shape, e.pos, rl.GREEN)
 	when ODIN_DEBUG do if in_editor {
 		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
 		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
@@ -523,65 +528,32 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 
 	// Setup sprites
 	sprite: Sprite
+	sprite.scale = 1
+	sprite.tex_id = e.tex
+	sprite.tint = {255, 255, 255, 255}
 	sprite.tex_region = get_frame_region(e.frame, e.tex)
 	frame_size := get_frame_size(sprite.tex_id)
 	sprite.tex_origin = {f32(frame_size.x), f32(frame_size.y)} / 2
 
-	// if e.state == .Charging {
-	// 	sprite.tex_id = .EnemyBasic2
-	// }
-	// if e.state == .Attacking {
-	// 	sprite.tex_id = .EnemyBasic2
-	// 	sprite.tex_region = get_current_frame_region(
-	// 		e.attack_full_timer,
-	// 		0,
-	// 		0.1 + ATTACK_ANIM_TIME + 0.5,
-	// 		sprite.tex_id,
-	// 	)
-	// }
-
 	// Looking
 	flipped := false
-	sprite.rotation = e.look_angle
-	if sprite.rotation < -90 || sprite.rotation > 90 {
+	if e.look_angle < -90 || e.look_angle > 90 {
 		flipped = true
-		sprite.scale = {-1, 1}
-		sprite.rotation += 180
+		sprite.scale.x = -1
 	}
 
-	// Animate when death
-	// if e.state == .Dying {
-	// 	sprite.tex_id = .EnemyBasicDeath
-	// 	sprite.tex_region = get_current_frame_region(
-	// 		e.death_timer,
-	// 		0,
-	// 		ENEMY_DEATH_ANIMATION_TIME,
-	// 		sprite.tex_id,
-	// 	)
-	// }
-
-	// Flash sprite
-	flash_sprite := sprite
-	flash_sprite.tint = {
-		255,
-		255,
-		255,
-		u8(math.clamp(math.remap(e.flash_opacity, 0, 1, 0, 255), 0, 255)),
-	}
-	flash_sprite.tex_id = .enemy_basic_flash
-
-	// Switch to ranged version
-	if e.variant == .Ranged {
-		sprite.tex_id = .enemy_ranged
-		if e.state == .Dying {
-			sprite.tex_id = .enemy_ranged_death
-		}
-		flash_sprite.tex_id = .enemy_ranged_flash
-	}
+	// Look arrow
+	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
 
 	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
 	draw_sprite(sprite, e.pos)
-	draw_sprite(flash_sprite, e.pos)
+	rl.EndShaderMode()
 
 
 	// Draw health bar
@@ -614,134 +586,49 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 	// Draw weapons and attack vfx
 	if e.state != .Dying {
-		#partial switch e.variant {
-		case .Melee:
-			// position, rotate, and animate sprite based on look direction and attack animation
-			sprite_rotation: f32
-			pos_rotation: f32
-			if e.attack_state_timer > 0 && e.state == .Attacking && e.sub_state == 1 {
-				alpha: f32 = math.remap(e.attack_state_timer, ATTACK_ANIM_TIME, 0, 0, 1)
-				pos_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_pos_max_rotation *
-					f32(e.weapon_side)
-				sprite_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_sprite_max_rotation *
-					f32(e.weapon_side)
-			} else {
-				pos_rotation = sword_pos_max_rotation * f32(e.weapon_side)
-				sprite_rotation = sword_sprite_max_rotation * f32(e.weapon_side)
-			}
-
-
-			tex_id := TextureId.sword
-			tex := loaded_textures[tex_id]
-
-			sword_sprite: Sprite = {
-				tex_id     = tex_id,
-				tex_region = {0, 0, f32(tex.width), f32(tex.height)},
-				scale      = 1,
-				tex_origin = {0, 1},
-				rotation   = 0,
-				tint       = rl.WHITE,
-			}
-			sprite_pos := e.pos
-
-			// if flipped {
-			// 	sword_sprite.scale.x = -1
-			// 	sword_sprite.rotation += 180
-			// }
-
-			// position and rotation offset
-			sword_sprite.rotation = sprite_rotation
-
-			radius :: 5
-			offset: Vec2 : {2, 0}
-			sprite_pos += offset + radius * vector_from_angle(pos_rotation)
-
-			// Rotate sprite and rotate its position to face mouse
-			sword_sprite.rotation += e.look_angle
-			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
-			draw_sprite(sword_sprite, sprite_pos)
-
-			// Draw hitbox
-			// when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
-
-			// Draw Vfx slash
-			if e.attack_state_timer > 0 && e.state == .Attacking && e.sub_state == 1 {
-				// Setup sprite
-				vfx_tex := loaded_textures[.hit_vfx]
-				vfx_sprite := Sprite {
-					tex_id     = .hit_vfx,
-					tex_region = {},
-					scale      = 1,
-					tex_origin = {0, f32(vfx_tex.height) / 2},
-					rotation   = e.attack_poly.rotation,
-					tint       = rl.WHITE,
-				}
-				// Animate
-				vfx_sprite.tex_region = get_current_frame_region(
-					e.attack_state_timer,
-					ATTACK_ANIM_TIME,
-					0,
-					vfx_sprite.tex_id,
-				)
-				// Draw
-				draw_sprite(vfx_sprite, e.pos)
-			}
-		case .Ranged:
-			tex_id := TextureId.bow
-			tex := loaded_textures[tex_id]
-			// Animate
-			anim_length := e.start_charge_time
-			anim_cur := math.clamp(e.current_charge_time, 0, anim_length)
-			if e.state != .Charging {
-				anim_cur = anim_length
-			}
-
-			frame_count := int(get_frame_count(tex_id).x)
-			frame_index := int(
-				math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))),
-			)
-			if frame_index >= frame_count {
-				frame_index -= 1
-			}
-
-			frame_size := tex.width / i32(frame_count)
-
-			bow_sprite: Sprite = {
-				tex_id     = tex_id,
-				tex_region = {
-					f32(frame_index) * f32(frame_size),
-					0,
-					f32(frame_size),
-					f32(tex.height),
-				},
-				scale      = 1,
-				tex_origin = {7.5, 7.5},
-				rotation   = 0,
-				tint       = rl.WHITE,
-			}
-			sprite_pos := e.pos
-
-			if flipped {
-				bow_sprite.scale.x = -1
-				bow_sprite.rotation += 180
-			}
-
-			// rotation offset
-			// bow_sprite.rotation = 0
-
-			// position offset
-			offset: Vec2 : {5, 0}
-			sprite_pos += offset
-
-			// Rotate sprite and rotate its position to face mouse
-			bow_sprite.rotation += e.look_angle
-			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
-			draw_sprite(bow_sprite, sprite_pos)
+		tex_id := TextureId.bow
+		tex := loaded_textures[tex_id]
+		// Animate
+		anim_length := e.start_charge_time
+		anim_cur := math.clamp(e.current_charge_time, 0, anim_length)
+		if e.state != .Charging {
+			anim_cur = anim_length
 		}
+
+		frame_count := int(get_frame_count(tex_id).x)
+		frame_index := int(math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))))
+		if frame_index >= frame_count {
+			frame_index -= 1
+		}
+
+		frame_size := tex.width / i32(frame_count)
+
+		bow_sprite: Sprite = {
+			tex_id     = tex_id,
+			tex_region = {f32(frame_index) * f32(frame_size), 0, f32(frame_size), f32(tex.height)},
+			scale      = 1,
+			tex_origin = {7.5, 7.5},
+			rotation   = 0,
+			tint       = rl.WHITE,
+		}
+		sprite_pos := e.pos
+
+		if flipped {
+			bow_sprite.scale.x = -1
+			bow_sprite.rotation += 180
+		}
+
+		// rotation offset
+		// bow_sprite.rotation = 0
+
+		// position offset
+		offset: Vec2 : {5, 0}
+		sprite_pos += offset
+
+		// Rotate sprite and rotate its position to face mouse
+		bow_sprite.rotation += e.look_angle
+		sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
+		draw_sprite(bow_sprite, sprite_pos)
 	}
 
 
