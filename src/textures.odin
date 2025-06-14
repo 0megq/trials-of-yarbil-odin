@@ -14,8 +14,6 @@ TextureId :: enum {
 	player = 200, // 200-299 is entities
 	enemy_basic,
 	enemy_ranged,
-	enemy_ranged_flash,
-	enemy_ranged_death,
 	turret_base,
 	turret_head,
 	arrow,
@@ -62,8 +60,6 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 		return {4, 1}
 	case .enemy_basic:
 		return {7, 8}
-	case .enemy_ranged_death:
-		return {7, 1}
 	case .bow:
 		return {4, 1}
 	}
