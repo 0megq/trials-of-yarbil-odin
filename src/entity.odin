@@ -430,7 +430,6 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
 	draw_sprite(sprite, e.pos)
-	rl.EndShaderMode()
 
 
 	// Draw health bar
@@ -458,28 +457,30 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	// 	rl.YELLOW,
 	// )
 
-	attack_area_color := rl.Color{255, 255, 255, 120}
-	if e.attack_out {
-		attack_area_color = rl.Color{255, 0, 0, 120}
-	}
-	// Draw weapons and attack vfx
-	if e.state != .Dying {
-		// Draw hitbox
-		when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
-	}
+	// attack_area_color := rl.Color{255, 255, 255, 120}
+	// if e.attack_out {
+	// 	attack_area_color = rl.Color{255, 0, 0, 120}
+	// }
+	// // Draw weapons and attack vfx
+	// if e.state != .Dying {
+	// 	// Draw hitbox
+	// 	when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
+	// }
+
+	rl.EndShaderMode()
 
 	// Display state
-	when ODIN_DEBUG {
-		draw_text(
-			e.pos + {0, -8},
-			{0, 1},
-			fmt.ctprint(e.state, e.sub_state),
-			rl.GetFontDefault(),
-			6,
-			1,
-			rl.WHITE,
-		)
-	}
+	// when ODIN_DEBUG {
+	// 	draw_text(
+	// 		e.pos + {0, -8},
+	// 		{0, 1},
+	// 		fmt.ctprint(e.state, e.sub_state),
+	// 		rl.GetFontDefault(),
+	// 		6,
+	// 		1,
+	// 		rl.WHITE,
+	// 	)
+	// }
 
 
 	// Draw vision area
@@ -553,7 +554,6 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	}
 	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
 	draw_sprite(sprite, e.pos)
-	rl.EndShaderMode()
 
 
 	// Draw health bar
@@ -579,11 +579,6 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	// 	2,
 	// 	rl.YELLOW,
 	// )
-
-	attack_area_color := rl.Color{255, 255, 255, 120}
-	if e.attack_out {
-		attack_area_color = rl.Color{255, 0, 0, 120}
-	}
 	// Draw weapons and attack vfx
 	if e.state != .Dying {
 		tex_id := TextureId.bow
@@ -631,19 +626,20 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 		draw_sprite(bow_sprite, sprite_pos)
 	}
 
+	rl.EndShaderMode()
 
 	// Display state
-	when ODIN_DEBUG {
-		draw_text(
-			e.pos + {0, -8},
-			{0, 1},
-			fmt.ctprint(e.state, e.sub_state),
-			rl.GetFontDefault(),
-			6,
-			1,
-			rl.WHITE,
-		)
-	}
+	// when ODIN_DEBUG {
+	// 	draw_text(
+	// 		e.pos + {0, -8},
+	// 		{0, 1},
+	// 		fmt.ctprint(e.state, e.sub_state),
+	// 		rl.GetFontDefault(),
+	// 		6,
+	// 		1,
+	// 		rl.WHITE,
+	// 	)
+	// }
 
 
 	// Draw vision area
