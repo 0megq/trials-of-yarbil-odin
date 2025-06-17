@@ -191,6 +191,16 @@ init_editor_state :: proc(e: ^EditorState) {
 	}
 }
 
+destruct_editor_state :: proc(e: ^EditorState) {
+	delete(e.entity_x_field.current_string)
+	delete(e.entity_y_field.current_string)
+	delete(e.shape_x_field.current_string)
+	delete(e.shape_y_field.current_string)
+	delete(e.radius_field.current_string)
+	delete(e.width_field.current_string)
+	delete(e.height_field.current_string)
+}
+
 draw_level :: proc(show_tile_grid := false) {
 	draw_tilemap(level_tilemap, show_tile_grid)
 

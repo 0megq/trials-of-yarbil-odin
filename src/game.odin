@@ -282,6 +282,8 @@ main :: proc() {
 	if editor_state.mode != .None {
 		save_level()
 	}
+	destruct_editor_state(&editor_state)
+
 	// Free level memory
 	unload_level()
 

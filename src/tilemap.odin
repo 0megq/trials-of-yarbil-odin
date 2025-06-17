@@ -322,12 +322,10 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 	if show_grid {
 		for x in start.x ..= end.x {
 			for y in start.y ..= end.y {
-				rl.DrawRectangleLines(
-					i32(x) * TILE_SIZE,
-					i32(y) * TILE_SIZE,
-					TILE_SIZE,
-					TILE_SIZE,
-					{100, 100, 100, 100},
+				rl.DrawRectangleLinesEx(
+					{f32(x) * TILE_SIZE, f32(y) * TILE_SIZE, TILE_SIZE, TILE_SIZE},
+					1,
+					{50, 50, 50, 200},
 				)
 			}
 		}
