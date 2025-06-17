@@ -1,5 +1,6 @@
 package game
 
+import "core:strings"
 import rl "vendor:raylib"
 
 EditorState :: struct {
@@ -114,7 +115,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.entity_x_field = NumberField {
 			{20, 390, 200, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" E.X ",
 			false,
 			0,
@@ -125,7 +126,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.entity_y_field = NumberField {
 			{20, 450, 200, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" E.Y ",
 			false,
 			0,
@@ -136,7 +137,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.shape_x_field = NumberField {
 			{20, 150, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" S.X ",
 			false,
 			0,
@@ -147,7 +148,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.shape_y_field = NumberField {
 			{20, 210, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" S.Y ",
 			false,
 			0,
@@ -158,7 +159,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.radius_field = NumberField {
 			{20, 270, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" R ",
 			false,
 			0,
@@ -169,7 +170,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.width_field = NumberField {
 			{20, 270, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" W ",
 			false,
 			0,
@@ -180,7 +181,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.height_field = NumberField {
 			{20, 330, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" H ",
 			false,
 			0,
