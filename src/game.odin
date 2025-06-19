@@ -262,7 +262,7 @@ main :: proc() {
 	setup_pause_menu()
 	setup_win_menu()
 
-	init_editor_state(&editor_state)
+	init_editor_state(&editor_state, true)
 
 	// Init ui camera
 	ui_camera = rl.Camera2D {
@@ -377,17 +377,63 @@ update :: proc() {
 						editor_state.show_tile_grid = !editor_state.show_tile_grid
 					}
 
-					if rl.IsKeyPressed(.RIGHT) {
-						save_level()
-						game_data.cur_level_idx += 1
-						// We reinitialize editor state to clear data from the previous level
-						init_editor_state(&editor_state)
-						reload_level(&main_world)
-					} else if rl.IsKeyPressed(.LEFT) {
-						save_level()
-						game_data.cur_level_idx -= 1
-						init_editor_state(&editor_state)
-						reload_level(&main_world)
+					// Next/prev level
+					if rl.IsKeyDown(.LEFT_SHIFT) {
+						if rl.IsKeyPressed(.RIGHT) {
+							save_level()
+							game_data.cur_level_idx += 1
+							// We reinitialize editor state to clear data from the previous level
+							init_editor_state(&editor_state)
+							reload_level(&main_world)
+						} else if rl.IsKeyPressed(.LEFT) {
+							save_level()
+							game_data.cur_level_idx -= 1
+							init_editor_state(&editor_state)
+							reload_level(&main_world)
+						}
+					} else {
+						if rl.IsKeyPressed(.RIGHT) && level.cur_stage_idx + 1 < len(level.stages) {
+							// save enemies into enemy data
+							clear(&level.stages[level.cur_stage_idx].enemy_data)
+							for enemy in level.cur_enemies {
+								append(
+									&level.stages[level.cur_stage_idx].enemy_data,
+									get_data_from_enemy(enemy),
+								)
+							}
+							clear(&level.cur_enemies)
+
+							// increment stage idx
+							level.cur_stage_idx += 1
+
+							// load in next stage
+							for data in level.stages[level.cur_stage_idx].enemy_data {
+								append(&level.cur_enemies, get_enemy_from_data(data))
+							}
+
+							init_editor_state(&editor_state)
+						} else if rl.IsKeyPressed(.LEFT) && level.cur_stage_idx > 0 {
+							// save enemies into enemy data
+							clear(&level.stages[level.cur_stage_idx].enemy_data)
+							for enemy in level.cur_enemies {
+								append(
+									&level.stages[level.cur_stage_idx].enemy_data,
+									get_data_from_enemy(enemy),
+								)
+							}
+							clear(&level.cur_enemies)
+
+							// increment stage idx
+							level.cur_stage_idx -= 1
+
+							// load in next stage
+							for data in level.stages[level.cur_stage_idx].enemy_data {
+								append(&level.cur_enemies, get_enemy_from_data(data))
+							}
+
+							// reset editor state
+							init_editor_state(&editor_state)
+						}
 					}
 				}
 			}

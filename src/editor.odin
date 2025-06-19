@@ -59,7 +59,11 @@ EditorState :: struct {
 editor_state: EditorState
 
 
-init_editor_state :: proc(e: ^EditorState) {
+init_editor_state :: proc(e: ^EditorState, first := false) {
+	if !first {
+		destruct_editor_state(e)
+	}
+
 	// Tutorial editor
 	e.selected_prompt = nil
 	e.selected_prompt_idx = -1
@@ -206,11 +210,11 @@ draw_level :: proc(show_tile_grid := false) {
 
 	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
 
-	for wall in level.half_walls {
+	for wall in level.stages[level.cur_stage_idx].half_walls {
 		draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
 	}
 
-	for item in level.items {
+	for item in level.stages[level.cur_stage_idx].items {
 		tex_id := item_to_texture[item.data.id]
 		tex := loaded_textures[tex_id]
 		sprite: Sprite = {
@@ -226,19 +230,19 @@ draw_level :: proc(show_tile_grid := false) {
 	}
 
 	// level.tilemap_file
-	for wall in level.walls {
+	for wall in level.stages[level.cur_stage_idx].walls {
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
 
-	for enemy in level.enemies {
+	for enemy in level.cur_enemies {
 		enemy.draw_proc(enemy, true)
 	}
 
-	for barrel in level.exploding_barrels {
+	for barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}
 
-	draw_sprite(PLAYER_SPRITE, level.player_pos)
+	draw_sprite(PLAYER_SPRITE, level.player_start)
 
 	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
 

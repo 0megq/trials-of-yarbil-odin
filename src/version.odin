@@ -98,6 +98,31 @@ Enemy1 :: struct {
 	distraction_time_emitted: f32,
 }
 
+Level4 :: struct {
+	version:               int,
+	// start player pos
+	player_pos:            Vec2,
+	// portal pos
+	portal_pos:            Vec2,
+	// enemies
+	enemies:               [dynamic]Enemy3, // This field is used when level editing
+	enemy_data:            [dynamic]EnemyData2, // Used for serialization
+	// items
+	items:                 [dynamic]Item,
+	// barrels
+	exploding_barrels:     [dynamic]ExplodingBarrel,
+	// walls
+	walls:                 [dynamic]PhysicsEntity,
+	// half walls
+	half_walls:            [dynamic]HalfWall,
+	// camera bounding box
+	bounds:                Rectangle,
+	// tutorial
+	has_tutorial:          bool,
+	// if game should be saved after completing the level
+	save_after_completion: bool,
+}
+
 Level3 :: struct {
 	// start player pos
 	player_pos:            Vec2,
@@ -172,7 +197,22 @@ convert_level3_to_current :: proc(input: Level3) -> Level {
 }
 
 convert_level4_to_current :: proc(input: Level4) -> Level {
+	return convert_level5_to_current(convert_level4_level5(input, true))
+}
+
+convert_level5_to_current :: proc(input: Level5) -> Level {
 	return input
+}
+
+convert_level4_level5 :: proc(
+	input: Level4,
+	clear_memory: bool,
+	allocator := context.allocator,
+) -> (
+	result: Level5,
+) {
+	fmt.println("WARNING: Level 4 -> Level 5 Conversion IS NOT IMPLEMENTED")
+	return
 }
 
 convert_level2_level3 :: proc(

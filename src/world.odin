@@ -8,6 +8,7 @@ import "core:math/rand"
 import "core:slice"
 import rl "vendor:raylib"
 
+
 // world data
 World :: struct {
 	player:            Player,
@@ -50,8 +51,43 @@ world_update :: proc() {
 		main_world.player.shape,
 		main_world.player.pos,
 	)
-	// Do next level stuff
-	if all_enemies_dying(main_world) &&
+
+	// Spawn next wave
+	if all_enemies_dying(main_world) && level.cur_stage_idx + 1 < len(level.stages) {
+		fmt.println("switch")
+		level.cur_stage_idx += 1
+
+		// Load new wave
+		// Copy items, exploding barrels, etc.
+		clear(&main_world.items)
+		for item in level.stages[level.cur_stage_idx].items {
+			append(&main_world.items, item)
+		}
+
+		clear(&main_world.exploding_barrels)
+		for exploding_barrel in level.stages[level.cur_stage_idx].exploding_barrels {
+			append(&main_world.exploding_barrels, exploding_barrel)
+		}
+
+		clear(&main_world.walls)
+		for wall in level.stages[level.cur_stage_idx].walls {
+			append(&main_world.walls, wall)
+		}
+
+		clear(&main_world.half_walls)
+		for wall in level.stages[level.cur_stage_idx].half_walls {
+			append(&main_world.half_walls, wall)
+		}
+
+		// Copy enemies
+		clear(&level.cur_enemies)
+		for data in level.stages[level.cur_stage_idx].enemy_data {
+			append(&level.cur_enemies, get_enemy_from_data(data))
+		}
+		for en in level.cur_enemies {
+			append(&main_world.enemies, en)
+		}
+	} else if all_enemies_dying(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
 		if game_data.cur_level_idx == 12 {
@@ -1015,13 +1051,14 @@ draw_world_ui :: proc(world: World) {
 				rl.WHITE,
 			)
 		}
+		// Display current stage
+		rl.DrawText(fmt.ctprint("Stage ", level.cur_stage_idx), 1350, 750, 16, rl.WHITE)
 	}
 
 	switch editor_state.mode {
 	case .Level:
 		draw_geometry_editor_ui(editor_state)
 		rl.DrawText("Level Editor", 1300, 32, 16, rl.WHITE)
-
 	case .Entity:
 		draw_entity_editor_ui(editor_state)
 		rl.DrawText("Entity Editor", 1300, 32, 16, rl.WHITE)

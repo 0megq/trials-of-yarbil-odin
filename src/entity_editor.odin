@@ -14,50 +14,50 @@ update_entity_editor :: proc(e: ^EditorState) {
 
 	if e.all_entities_selected {
 		if rl.IsKeyPressed(.UP) {
-			level.player_pos.y -= TILE_SIZE
-			for &enemy in level.enemies {
+			level.player_start.y -= TILE_SIZE
+			for &enemy in level.cur_enemies {
 				enemy.pos.y -= TILE_SIZE
 			}
-			for &barrel in level.exploding_barrels {
+			for &barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 				barrel.pos.y -= TILE_SIZE
 			}
-			for &item in level.items {
+			for &item in level.stages[level.cur_stage_idx].items {
 				item.pos.y -= TILE_SIZE
 			}
 		}
 		if rl.IsKeyPressed(.DOWN) {
-			level.player_pos.y += TILE_SIZE
-			for &enemy in level.enemies {
+			level.player_start.y += TILE_SIZE
+			for &enemy in level.cur_enemies {
 				enemy.pos.y += TILE_SIZE
 			}
-			for &barrel in level.exploding_barrels {
+			for &barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 				barrel.pos.y += TILE_SIZE
 			}
-			for &item in level.items {
+			for &item in level.stages[level.cur_stage_idx].items {
 				item.pos.y += TILE_SIZE
 			}
 		}
 		if rl.IsKeyPressed(.LEFT) {
-			level.player_pos.x -= TILE_SIZE
-			for &enemy in level.enemies {
+			level.player_start.x -= TILE_SIZE
+			for &enemy in level.cur_enemies {
 				enemy.pos.x -= TILE_SIZE
 			}
-			for &barrel in level.exploding_barrels {
+			for &barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 				barrel.pos.x -= TILE_SIZE
 			}
-			for &item in level.items {
+			for &item in level.stages[level.cur_stage_idx].items {
 				item.pos.x -= TILE_SIZE
 			}
 		}
 		if rl.IsKeyPressed(.RIGHT) {
-			level.player_pos.x += TILE_SIZE
-			for &enemy in level.enemies {
+			level.player_start.x += TILE_SIZE
+			for &enemy in level.cur_enemies {
 				enemy.pos.x += TILE_SIZE
 			}
-			for &barrel in level.exploding_barrels {
+			for &barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 				barrel.pos.x += TILE_SIZE
 			}
-			for &item in level.items {
+			for &item in level.stages[level.cur_stage_idx].items {
 				item.pos.x += TILE_SIZE
 			}
 		}
@@ -67,13 +67,13 @@ update_entity_editor :: proc(e: ^EditorState) {
 
 	// select entity
 	outer: if rl.IsMouseButtonPressed(.LEFT) {
-		if check_collision_shape_point(PLAYER_SHAPE, level.player_pos, mouse_world_pos) {
+		if check_collision_shape_point(PLAYER_SHAPE, level.player_start, mouse_world_pos) {
 			e.selected_phys_entity = nil
 			e.selected_entity = .Player
-			e.entity_mouse_rel_pos = level.player_pos - mouse_world_pos
+			e.entity_mouse_rel_pos = level.player_start - mouse_world_pos
 			break outer
 		}
-		for &enemy in level.enemies {
+		for &enemy in level.cur_enemies {
 			if check_collision_shape_point(enemy.shape, enemy.pos, mouse_world_pos) {
 				e.selected_phys_entity = &enemy.physics_entity
 				e.selected_entity = .Enemy
@@ -82,7 +82,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 				break outer
 			}
 		}
-		for &barrel in level.exploding_barrels {
+		for &barrel in level.stages[level.cur_stage_idx].exploding_barrels {
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
 				e.selected_entity = .ExplodingBarrel
@@ -90,7 +90,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 				break outer
 			}
 		}
-		for &item in level.items {
+		for &item in level.stages[level.cur_stage_idx].items {
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
 				e.selected_entity = .Item
@@ -107,7 +107,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 		pos: ^Vec2
 
 		if e.selected_entity == .Player {
-			pos = &level.player_pos
+			pos = &level.player_start
 		} else {
 			pos = &e.selected_phys_entity.pos
 		}
@@ -130,23 +130,23 @@ update_entity_editor :: proc(e: ^EditorState) {
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.DELETE) {
 		#partial switch e.selected_entity {
 		case .Enemy:
-			for enemy, i in level.enemies {
+			for enemy, i in level.cur_enemies {
 				if enemy.id == e.selected_phys_entity.id {
-					unordered_remove(&level.enemies, i)
+					unordered_remove(&level.cur_enemies, i)
 					break
 				}
 			}
 		case .ExplodingBarrel:
-			for barrel, i in level.exploding_barrels {
+			for barrel, i in level.stages[level.cur_stage_idx].exploding_barrels {
 				if barrel.id == e.selected_phys_entity.id {
-					unordered_remove(&level.exploding_barrels, i)
+					unordered_remove(&level.stages[level.cur_stage_idx].exploding_barrels, i)
 					break
 				}
 			}
 		case .Item:
-			for item, i in level.items {
+			for item, i in level.stages[level.cur_stage_idx].items {
 				if item.id == e.selected_phys_entity.id {
-					unordered_remove(&level.items, i)
+					unordered_remove(&level.stages[level.cur_stage_idx].items, i)
 					break
 				}
 			}
@@ -165,14 +165,14 @@ update_entity_editor :: proc(e: ^EditorState) {
 			enemy.entity = new_entity(mouse_world_pos)
 			setup_enemy(&enemy, .Melee)
 
-			append(&level.enemies, enemy)
+			append(&level.cur_enemies, enemy)
 		} else if rl.IsKeyPressed(.TWO) {
 			// creating new melee enemy
 			enemy: Enemy
 			enemy.entity = new_entity(mouse_world_pos)
 			setup_enemy(&enemy, .Ranged)
 
-			append(&level.enemies, enemy)
+			append(&level.cur_enemies, enemy)
 		} else if rl.IsKeyPressed(.THREE) {
 			// creating new item
 			item: Item
@@ -183,19 +183,19 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 			setup_item(&item)
 
-			append(&level.items, item)
+			append(&level.stages[level.cur_stage_idx].items, item)
 		} else if rl.IsKeyPressed(.FOUR) {
 			barrel: ExplodingBarrel
 			barrel.entity = new_entity(mouse_world_pos)
 			setup_exploding_barrel(&barrel)
 
-			append(&level.exploding_barrels, barrel)
+			append(&level.stages[level.cur_stage_idx].exploding_barrels, barrel)
 		} else if rl.IsKeyPressed(.FIVE) {
 			turret: Enemy
 			turret.entity = new_entity(mouse_world_pos)
 			setup_enemy(&turret, .Turret)
 
-			append(&level.enemies, turret)
+			append(&level.cur_enemies, turret)
 		}
 	}
 
@@ -216,7 +216,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 draw_entity_editor_world :: proc(e: EditorState) {
 	// draw selected entity outline
 	if e.selected_entity == .Player {
-		draw_shape_lines(PLAYER_SHAPE, level.player_pos, rl.YELLOW)
+		draw_shape_lines(PLAYER_SHAPE, level.player_start, rl.YELLOW)
 	} else if e.selected_entity != .Nil {
 		draw_shape_lines(e.selected_phys_entity.shape, e.selected_phys_entity.pos, rl.YELLOW)
 	}
