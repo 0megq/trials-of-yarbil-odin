@@ -38,10 +38,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 
 	if e.all_geometry_selected {
 		if rl.IsKeyPressed(.UP) {
-			for &wall in level.stages[level.cur_stage_idx].walls {
+			for &wall in level.walls {
 				wall.pos.y -= TILE_SIZE
 			}
-			for &wall in level.stages[level.cur_stage_idx].half_walls {
+			for &wall in level.half_walls {
 				wall.pos.y -= TILE_SIZE
 			}
 			// level.portal_pos.y -= TILE_SIZE
@@ -57,10 +57,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 			}
 		}
 		if rl.IsKeyPressed(.DOWN) {
-			for &wall in level.stages[level.cur_stage_idx].walls {
+			for &wall in level.walls {
 				wall.pos.y += TILE_SIZE
 			}
-			for &wall in level.stages[level.cur_stage_idx].half_walls {
+			for &wall in level.half_walls {
 				wall.pos.y += TILE_SIZE
 			}
 			level.portal_pos.y += TILE_SIZE
@@ -76,10 +76,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 			}
 		}
 		if rl.IsKeyPressed(.LEFT) {
-			for &wall in level.stages[level.cur_stage_idx].walls {
+			for &wall in level.walls {
 				wall.pos.y -= TILE_SIZE
 			}
-			for &wall in level.stages[level.cur_stage_idx].half_walls {
+			for &wall in level.half_walls {
 				wall.pos.y -= TILE_SIZE
 			}
 			level.portal_pos.y -= TILE_SIZE
@@ -96,10 +96,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 			}
 		}
 		if rl.IsKeyPressed(.RIGHT) {
-			for &wall in level.stages[level.cur_stage_idx].walls {
+			for &wall in level.walls {
 				wall.pos.y += TILE_SIZE
 			}
-			for &wall in level.stages[level.cur_stage_idx].half_walls {
+			for &wall in level.half_walls {
 				wall.pos.y += TILE_SIZE
 			}
 			level.portal_pos.y += TILE_SIZE
@@ -123,22 +123,22 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	if e.new_shape_but.status == .Released {
 		if rl.IsKeyDown(.LEFT_CONTROL) {
 			append(
-				&level.stages[level.cur_stage_idx].half_walls,
+				&level.half_walls,
 				HalfWall{entity = new_entity(world_camera.target), shape = Rectangle{0, 0, 8, 8}},
 			)
-			e.selected_wall_index = len(level.stages[level.cur_stage_idx].half_walls) - 1
-			e.selected_wall = &level.stages[level.cur_stage_idx].half_walls[e.selected_wall_index]
+			e.selected_wall_index = len(level.half_walls) - 1
+			e.selected_wall = &level.half_walls[e.selected_wall_index]
 			e.half_wall_selected = true
 		} else {
 			append(
-				&level.stages[level.cur_stage_idx].walls,
+				&level.walls,
 				PhysicsEntity {
 					entity = new_entity(world_camera.target),
 					shape = Rectangle{0, 0, 8, 8},
 				},
 			)
-			e.selected_wall_index = len(level.stages[level.cur_stage_idx].walls) - 1
-			e.selected_wall = &level.stages[level.cur_stage_idx].walls[e.selected_wall_index]
+			e.selected_wall_index = len(level.walls) - 1
+			e.selected_wall = &level.walls[e.selected_wall_index]
 			e.half_wall_selected = false
 		}
 		set_shape_fields_to_selected_shape(e)
@@ -165,9 +165,9 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	// Delete (delete)
 	if rl.IsKeyPressed(.DELETE) && e.selected_wall != nil {
 		if e.half_wall_selected {
-			unordered_remove(&level.stages[level.cur_stage_idx].half_walls, e.selected_wall_index)
+			unordered_remove(&level.half_walls, e.selected_wall_index)
 		} else {
-			unordered_remove(&level.stages[level.cur_stage_idx].walls, e.selected_wall_index)
+			unordered_remove(&level.walls, e.selected_wall_index)
 		}
 		e.selected_wall = nil
 		e.selected_wall_index = -1
@@ -181,7 +181,7 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 
 	// Selecting shapes
 	if rl.IsMouseButtonPressed(.LEFT) {
-		for &wall, index in level.stages[level.cur_stage_idx].walls {
+		for &wall, index in level.walls {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
@@ -191,7 +191,7 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 			}
 		}
 
-		for &wall, index in level.stages[level.cur_stage_idx].half_walls {
+		for &wall, index in level.half_walls {
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
@@ -346,13 +346,13 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 place_walls_and_calculate_graph :: proc(world: ^World) {
 	// Place wall tiles based on wall geometry
 	world.wall_tilemap = false
-	for wall in level.stages[level.cur_stage_idx].walls {
+	for wall in level.walls {
 		tiles := get_tiles_in_shape(wall.shape, wall.pos, 0.1)
 		for tile in tiles {
 			world.wall_tilemap[tile.x][tile.y] = true
 		}
 	}
-	for half_wall in level.stages[level.cur_stage_idx].half_walls {
+	for half_wall in level.half_walls {
 		tiles := get_tiles_in_shape(half_wall.shape, half_wall.pos, 0.1)
 		for tile in tiles {
 			world.wall_tilemap[tile.x][tile.y] = true

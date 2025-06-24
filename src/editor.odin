@@ -19,7 +19,7 @@ EditorState :: struct {
 	// Entity editor
 	selected_entity:       LevelEntityType,
 	selected_phys_entity:  ^PhysicsEntity,
-	selected_enemy:        ^Enemy,
+	selected_enemy:        ^EnemyData,
 	entity_mouse_rel_pos:  Vec2,
 	all_entities_selected: bool,
 
@@ -210,11 +210,11 @@ draw_level :: proc(show_tile_grid := false) {
 
 	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
 
-	for wall in level.stages[level.cur_stage_idx].half_walls {
+	for wall in level.half_walls {
 		draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
 	}
 
-	for item in level.stages[level.cur_stage_idx].items {
+	for item in level.items {
 		tex_id := item_to_texture[item.data.id]
 		tex := loaded_textures[tex_id]
 		sprite: Sprite = {
@@ -230,15 +230,16 @@ draw_level :: proc(show_tile_grid := false) {
 	}
 
 	// level.tilemap_file
-	for wall in level.stages[level.cur_stage_idx].walls {
+	for wall in level.walls {
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
 
-	for enemy in level.cur_enemies {
+	for data in level.enemy_data {
+		enemy := get_enemy_from_data(data, false)
 		enemy.draw_proc(enemy, true)
 	}
 
-	for barrel in level.stages[level.cur_stage_idx].exploding_barrels {
+	for barrel in level.exploding_barrels {
 		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}
 

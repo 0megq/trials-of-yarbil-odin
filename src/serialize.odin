@@ -175,22 +175,15 @@ get_tutorial_flag_from_name :: proc(name: string) -> ^bool {
 
 EnemyData :: EnemyData2
 EnemyData2 :: struct {
-	id:             uuid.Identifier,
-	pos:            Vec2,
-	start_disabled: bool,
-	look_angle:     f32,
-	health:         f32,
-	max_health:     f32,
-	variant:        EnemyVariant, // maybe make this an enum
-}
-
-// A nice feature later on would to have something where I could have certain elements, like walls stay instead of changing. Let's do that later
-Stage :: struct {
-	enemy_data:        [dynamic]EnemyData2,
-	items:             [dynamic]Item,
-	exploding_barrels: [dynamic]ExplodingBarrel,
-	walls:             [dynamic]PhysicsEntity,
-	half_walls:        [dynamic]HalfWall,
+	id:              uuid.Identifier,
+	pos:             Vec2,
+	start_disabled:  bool,
+	look_angle:      f32,
+	health:          f32,
+	max_health:      f32,
+	variant:         EnemyVariant, // maybe make this an enum
+	enter_stage_idx: int,
+	exit_stage_idx:  int,
 }
 
 // Used for serialization and level editor
@@ -200,26 +193,19 @@ Level5 :: struct {
 	version:               int,
 	player_start:          Vec2,
 	portal_pos:            Vec2,
-	stages:                [dynamic]Stage,
-	bounds:                Rectangle,
-	save_after_completion: bool,
-	has_tutorial:          bool,
-	// These are just for editing purposes
-	cur_enemies:           [dynamic]Enemy,
-	cur_stage_idx:         int,
-}
-Level5M :: struct {
-	version:               int,
-	player_start:          Vec2,
-	portal_pos:            Vec2,
-	stages:                []Stage,
+	enemy_data:            [dynamic]EnemyData2,
+	items:                 [dynamic]Item,
+	exploding_barrels:     [dynamic]ExplodingBarrel,
+	walls:                 [dynamic]PhysicsEntity,
+	half_walls:            [dynamic]HalfWall,
+	stage_count:           int,
 	bounds:                Rectangle,
 	save_after_completion: bool,
 	has_tutorial:          bool,
 	// These are just for editing purposes
 	cur_stage_idx:         int,
-	cur_enemies:           [dynamic]Enemy,
 }
+
 // updates made while in an editor mode will be saved here
 level: Level
 level_tilemap: Tilemap
@@ -270,53 +256,41 @@ load_level :: proc(world: ^World) {
 			rl.TraceLog(.WARNING, "Error parsing level data")
 
 			data.version = LEVEL_VERSION
-			data.stages = make([dynamic]Stage)
 			{
-				empty_stage: Stage
-				empty_stage.enemy_data = make([dynamic]EnemyData)
-				empty_stage.items = make([dynamic]Item)
-				empty_stage.exploding_barrels = make([dynamic]ExplodingBarrel)
-				empty_stage.walls = make([dynamic]PhysicsEntity)
-				empty_stage.half_walls = make([dynamic]HalfWall)
-				append(&data.stages, empty_stage)
+				data.enemy_data = make([dynamic]EnemyData)
+				data.items = make([dynamic]Item)
+				data.exploding_barrels = make([dynamic]ExplodingBarrel)
+				data.walls = make([dynamic]Wall)
+				data.half_walls = make([dynamic]HalfWall)
 			}
+			data.stage_count = 1
 			data.cur_stage_idx = 0
-			data.cur_enemies = make([dynamic]Enemy)
 		}
 	} else {
 		rl.TraceLog(.WARNING, "Error loading level data")
 
 		data.version = LEVEL_VERSION
-		data.stages = make([dynamic]Stage)
 		{
-			empty_stage: Stage
-			empty_stage.enemy_data = make([dynamic]EnemyData)
-			empty_stage.items = make([dynamic]Item)
-			empty_stage.exploding_barrels = make([dynamic]ExplodingBarrel)
-			empty_stage.walls = make([dynamic]PhysicsEntity)
-			empty_stage.half_walls = make([dynamic]HalfWall)
-			append(&data.stages, empty_stage)
+			data.enemy_data = make([dynamic]EnemyData)
+			data.items = make([dynamic]Item)
+			data.exploding_barrels = make([dynamic]ExplodingBarrel)
+			data.walls = make([dynamic]Wall)
+			data.half_walls = make([dynamic]HalfWall)
 		}
+		data.stage_count = 1
 		data.cur_stage_idx = 0
-		data.cur_enemies = make([dynamic]Enemy)
 	}
 
 	level = data
 
 	rl.TraceLog(.INFO, "Level Loaded")
 
-	for data in level.stages[level.cur_stage_idx].enemy_data {
-		append(&level.cur_enemies, get_enemy_from_data(data))
+	for &barrel in level.exploding_barrels {
+		setup_exploding_barrel(&barrel)
 	}
 
-	for &stage in level.stages {
-		for &barrel in stage.exploding_barrels {
-			setup_exploding_barrel(&barrel)
-		}
-
-		for &item in stage.items {
-			setup_item(&item)
-		}
+	for &item in level.items {
+		setup_item(&item)
 	}
 
 	world.player.pos = level.player_start
@@ -338,8 +312,16 @@ load_level :: proc(world: ^World) {
 	)
 	world.tilemap = level_tilemap
 
-	// First stage of enemies
-	world.enemies = slice.clone_to_dynamic(level.cur_enemies[:])
+	// Copy in the enemies that are in the current stage
+	world.enemies = make([dynamic]Enemy)
+	for data in level.enemy_data {
+		in_current_stage :=
+			data.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= data.exit_stage_idx
+		if in_current_stage {
+			append(&world.enemies, get_enemy_from_data(data))
+		}
+	}
 	world.disabled_enemies = make([dynamic]Enemy)
 	#reverse for enemy, i in world.enemies {
 		if enemy.start_disabled {
@@ -348,7 +330,18 @@ load_level :: proc(world: ^World) {
 		}
 	}
 
-	world.items = slice.clone_to_dynamic(level.stages[level.cur_stage_idx].items[:])
+	// Copy in the items that are in the current stage
+	world.items = make([dynamic]Item)
+	for item in level.items {
+		in_current_stage :=
+			item.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= item.exit_stage_idx
+		if in_current_stage {
+			append(&world.items, item)
+		}
+	}
+
+	// Disable some of them
 	world.disabled_items = make([dynamic]Item)
 	#reverse for item, i in world.items {
 		if item.start_disabled {
@@ -356,12 +349,38 @@ load_level :: proc(world: ^World) {
 			unordered_remove(&world.items, i)
 		}
 	}
-	world.exploding_barrels = slice.clone_to_dynamic(
-		level.stages[level.cur_stage_idx].exploding_barrels[:],
-	)
 
-	world.walls = slice.clone_to_dynamic(level.stages[level.cur_stage_idx].walls[:])
-	world.half_walls = slice.clone_to_dynamic(level.stages[level.cur_stage_idx].half_walls[:])
+	// Copy in the barrels that are in the current stage
+	world.exploding_barrels = make([dynamic]ExplodingBarrel)
+	for barrel in level.exploding_barrels {
+		in_current_stage :=
+			barrel.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= barrel.exit_stage_idx
+		if in_current_stage {
+			append(&world.exploding_barrels, barrel)
+		}
+	}
+
+	world.walls = make([dynamic]PhysicsEntity)
+	for wall in level.walls {
+		in_current_stage :=
+			wall.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= wall.exit_stage_idx
+		if in_current_stage {
+			append(&world.walls, wall)
+		}
+	}
+
+	world.half_walls = make([dynamic]HalfWall)
+	for wall in level.half_walls {
+		in_current_stage :=
+			wall.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= wall.exit_stage_idx
+		if in_current_stage {
+			append(&world.half_walls, wall)
+		}
+	}
+
 	place_walls_and_calculate_graph(world)
 
 	// Load tutorial if it exists
@@ -381,22 +400,7 @@ save_level :: proc() {
 	// save player pos
 	// save enemies, items, barrels
 	// save tilemap, level geometry
-
-	clear(&level.stages[level.cur_stage_idx].enemy_data)
-	for enemy in level.cur_enemies {
-		append(&level.stages[level.cur_stage_idx].enemy_data, get_data_from_enemy(enemy))
-	}
-	data: Level5M = {
-		level.version,
-		level.player_start,
-		level.portal_pos,
-		level.stages[:],
-		level.bounds,
-		level.save_after_completion,
-		level.has_tutorial,
-		level.cur_stage_idx,
-		nil,
-	}
+	data := level
 
 	save_tilemap(
 		level_tilemap,
@@ -453,23 +457,17 @@ unload_level :: proc() {
 	// 	delete(enemy.current_path)
 	// }
 	free_level_memory(level)
-	level.cur_enemies = nil
-	level.stages = nil
 
 	rl.TraceLog(.INFO, "Level Unloaded")
 }
 
 // WARNING: unsafe to use level struct after calling this function, all allocations will point to deallocated memory
 free_level_memory :: proc(level: Level) {
-	delete(level.cur_enemies)
-	for &stage in level.stages {
-		delete(stage.enemy_data)
-		delete(stage.items)
-		delete(stage.exploding_barrels)
-		delete(stage.walls)
-		delete(stage.half_walls)
-	}
-	delete(level.stages)
+	delete(level.enemy_data)
+	delete(level.items)
+	delete(level.exploding_barrels)
+	delete(level.walls)
+	delete(level.half_walls)
 }
 
 reload_game_data :: proc(game_idx := 0) {
@@ -602,7 +600,7 @@ get_player_data :: proc(player: Player) -> PlayerData {
 	}
 }
 
-get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
+get_enemy_from_data :: proc(data: EnemyData, init_state := true) -> (e: Enemy) {
 	e.id = data.id
 	e.pos = data.pos
 	e.health = data.health
@@ -610,10 +608,20 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
 	e.idle_look_angle = data.look_angle
-	setup_enemy(&e, data.variant)
+	setup_enemy(&e, data.variant, init_state)
 	return
 }
 
 get_data_from_enemy :: proc(e: Enemy) -> EnemyData {
-	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, e.variant}
+	return {
+		e.id,
+		e.pos,
+		e.start_disabled,
+		e.look_angle,
+		e.health,
+		e.max_health,
+		e.variant,
+		e.enter_stage_idx,
+		e.exit_stage_idx,
+	}
 }

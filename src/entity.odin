@@ -36,10 +36,12 @@ EntityType :: enum {
 }
 
 Entity :: struct {
-	id:             uuid.Identifier,
-	pos:            Vec2,
-	queue_free:     bool,
-	start_disabled: bool,
+	id:              uuid.Identifier,
+	pos:             Vec2,
+	queue_free:      bool,
+	start_disabled:  bool,
+	enter_stage_idx: int,
+	exit_stage_idx:  int,
 }
 
 PhysicsEntity :: struct {
@@ -300,7 +302,7 @@ ArrowAttackData :: struct {
 
 
 new_entity :: proc(pos: Vec2) -> Entity {
-	return {uuid.generate_v4(), pos, false, false}
+	return {uuid.generate_v4(), pos, false, false, 0, 0}
 }
 
 setup_melee_enemy :: proc(enemy: ^Enemy) {
@@ -662,12 +664,14 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	// }
 }
 
-setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant) {
+
+ENEMY_SHAPE :: Rectangle{-8, -8, 16, 16}
+setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant, init_state := true) {
 	enemy.post_pos = enemy.pos
-	enemy.shape = get_centered_rect({}, {16, 16})
+	enemy.shape = ENEMY_SHAPE
 	enemy.weapon_side = 1
 	enemy.variant = variant
-	change_enemy_state(enemy, .Idle, main_world)
+	if init_state do change_enemy_state(enemy, .Idle, main_world)
 	switch enemy.variant {
 	case .Melee:
 		setup_melee_enemy(enemy)

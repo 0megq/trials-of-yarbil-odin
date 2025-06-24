@@ -53,44 +53,76 @@ world_update :: proc() {
 	)
 
 	// Spawn next wave
-	if all_enemies_dying(main_world) && level.cur_stage_idx + 1 < len(level.stages) {
+	if all_enemies_dying(main_world) && level.cur_stage_idx + 1 < level.stage_count {
 		fmt.println("switch")
+
+		// Delete old entities
+		#reverse for enemy, i in main_world.enemies {
+			if enemy.exit_stage_idx == level.cur_stage_idx {
+				// Do I really need this?
+			}
+		}
+
+		#reverse for item, i in main_world.items {
+			if item.exit_stage_idx == level.cur_stage_idx {
+				unordered_remove(&main_world.items, i)
+			}
+		}
+
+		#reverse for barrel, i in main_world.exploding_barrels {
+			if barrel.exit_stage_idx == level.cur_stage_idx {
+				unordered_remove(&main_world.exploding_barrels, i)
+			}
+		}
+
+		#reverse for wall, i in main_world.walls {
+			if wall.exit_stage_idx == level.cur_stage_idx {
+				unordered_remove(&main_world.walls, i)
+			}
+		}
+
+		#reverse for wall, i in main_world.half_walls {
+			if wall.exit_stage_idx == level.cur_stage_idx {
+				unordered_remove(&main_world.walls, i)
+			}
+		}
+
 		level.cur_stage_idx += 1
 
-		// Load new wave
-		// Copy items, exploding barrels, etc.
-		clear(&main_world.items)
-		for item in level.stages[level.cur_stage_idx].items {
-			append(&main_world.items, item)
+		// Spawn new entities
+		for data in level.enemy_data {
+			if data.enter_stage_idx == level.cur_stage_idx {
+				append(&main_world.enemies, get_enemy_from_data(data))
+			}
 		}
 
-		clear(&main_world.exploding_barrels)
-		for exploding_barrel in level.stages[level.cur_stage_idx].exploding_barrels {
-			append(&main_world.exploding_barrels, exploding_barrel)
+		for item in level.items {
+			if item.enter_stage_idx == level.cur_stage_idx {
+				append(&main_world.items, item)
+			}
 		}
 
-		clear(&main_world.walls)
-		for wall in level.stages[level.cur_stage_idx].walls {
-			append(&main_world.walls, wall)
+		for barrel in level.exploding_barrels {
+			if barrel.enter_stage_idx == level.cur_stage_idx {
+				append(&main_world.exploding_barrels, barrel)
+			}
 		}
 
-		clear(&main_world.half_walls)
-		for wall in level.stages[level.cur_stage_idx].half_walls {
-			append(&main_world.half_walls, wall)
+		for wall in level.walls {
+			if wall.enter_stage_idx == level.cur_stage_idx {
+				append(&main_world.walls, wall)
+			}
 		}
 
-		// Copy enemies
-		clear(&level.cur_enemies)
-		for data in level.stages[level.cur_stage_idx].enemy_data {
-			append(&level.cur_enemies, get_enemy_from_data(data))
+		for wall in level.half_walls {
+			if wall.enter_stage_idx == level.cur_stage_idx {
+				append(&main_world.half_walls, wall)
+			}
 		}
-		for en in level.cur_enemies {
-			append(&main_world.enemies, en)
-		}
-	} else if all_enemies_dying(main_world) &&
+	} else if is_level_complete(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
-		if game_data.cur_level_idx == 12 {
+		if game_data.cur_level_idx == 12 { 	// 12 is the hardcoded last level
 			queue_menu_change(.Win)
 		} else {
 			// if not last level
@@ -106,7 +138,7 @@ world_update :: proc() {
 	screen_shake_time -= delta
 
 	if (speedrun_timer == 0 && main_world.player.vel != 0) ||
-	   (speedrun_timer != 0 && !all_enemies_dying(main_world)) {
+	   (speedrun_timer != 0 && !is_level_complete(main_world)) {
 		speedrun_timer += delta
 	}
 
@@ -763,11 +795,11 @@ draw_world :: proc(world: World) {
 
 		// Draw portal
 		light_blue :: Color{42, 110, 224, 255}
-		portal_color := light_blue if all_enemies_dying(world) else Color{33, 14, 95, 255}
+		portal_color := light_blue if is_level_complete(world) else Color{33, 14, 95, 255}
 		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
 
-		// Draw arrow to portal if level finished and player is at least 64 units away
-		if all_enemies_dying(world) && !player_at_portal {
+		// Draw arrow to portal if level finished and player is not at the portal
+		if is_level_complete(world) && !player_at_portal {
 			angle_to_portal := angle(level.portal_pos - world.player.pos)
 			arrow_polygon := Polygon {
 				world.player.pos,
@@ -781,7 +813,7 @@ draw_world :: proc(world: World) {
 		if player_at_portal {
 			prompt: cstring
 			prompt = "Press E"
-			if !all_enemies_dying(world) {
+			if !is_level_complete(world) {
 				prompt = "Kill All Enemies"
 			}
 			size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 6, 1)
@@ -1074,7 +1106,7 @@ draw_world_ui :: proc(world: World) {
 		// }
 
 
-		if all_enemies_dying(world) {
+		if is_level_complete(world) {
 			if level.save_after_completion && completion_show_time < max_show_time {
 				completion_show_time += delta
 				is_on := int(math.floor(completion_show_time / flash_interval)) % 2 == 0
@@ -2514,7 +2546,7 @@ _on_enemy_dying :: proc() {
 
 _on_all_enemies_dying :: proc() {
 	// Have some nice feedback here, audio or visual works
-	if level.save_after_completion {
+	if is_level_complete(main_world) && level.save_after_completion {
 		main_world.player.health = main_world.player.max_health
 		game_data.cur_level_idx += 1
 		save_game_data()
@@ -2551,6 +2583,11 @@ all_enemies_dying :: proc(world: World) -> bool {
 		}
 	}
 	return true
+}
+
+is_level_complete :: proc(world: World) -> bool {
+	assert(level.cur_stage_idx + 1 <= level.stage_count, "This shouldn't happen")
+	return all_enemies_dying(world) && level.cur_stage_idx + 1 == level.stage_count
 }
 
 lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {

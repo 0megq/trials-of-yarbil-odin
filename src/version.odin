@@ -281,7 +281,7 @@ get_data2_from_data1 :: proc(e: EnemyData1) -> EnemyData2 {
 		variant = .Ranged
 	}
 
-	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant}
+	return {e.id, e.pos, e.start_disabled, e.look_angle, e.health, e.max_health, variant, 0, 0}
 }
 
 get_data1_from_enemy2 :: proc(e: Enemy2) -> EnemyData1 {

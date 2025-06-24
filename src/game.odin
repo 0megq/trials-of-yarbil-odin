@@ -392,44 +392,14 @@ update :: proc() {
 							reload_level(&main_world)
 						}
 					} else {
-						if rl.IsKeyPressed(.RIGHT) && level.cur_stage_idx + 1 < len(level.stages) {
-							// save enemies into enemy data
-							clear(&level.stages[level.cur_stage_idx].enemy_data)
-							for enemy in level.cur_enemies {
-								append(
-									&level.stages[level.cur_stage_idx].enemy_data,
-									get_data_from_enemy(enemy),
-								)
-							}
-							clear(&level.cur_enemies)
-
+						if rl.IsKeyPressed(.RIGHT) && level.cur_stage_idx + 1 < level.stage_count {
 							// increment stage idx
 							level.cur_stage_idx += 1
 
-							// load in next stage
-							for data in level.stages[level.cur_stage_idx].enemy_data {
-								append(&level.cur_enemies, get_enemy_from_data(data))
-							}
-
 							init_editor_state(&editor_state)
 						} else if rl.IsKeyPressed(.LEFT) && level.cur_stage_idx > 0 {
-							// save enemies into enemy data
-							clear(&level.stages[level.cur_stage_idx].enemy_data)
-							for enemy in level.cur_enemies {
-								append(
-									&level.stages[level.cur_stage_idx].enemy_data,
-									get_data_from_enemy(enemy),
-								)
-							}
-							clear(&level.cur_enemies)
-
 							// increment stage idx
 							level.cur_stage_idx -= 1
-
-							// load in next stage
-							for data in level.stages[level.cur_stage_idx].enemy_data {
-								append(&level.cur_enemies, get_enemy_from_data(data))
-							}
 
 							// reset editor state
 							init_editor_state(&editor_state)
