@@ -218,6 +218,27 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 		set_shape_fields_to_selected_shape(e)
 	}
 
+	// Changing stage exit and enter
+	if e.selected_wall != nil {
+		if rl.IsKeyDown(.LEFT_CONTROL) {
+			if rl.IsKeyPressed(.LEFT_BRACKET) do e.selected_wall.enter_stage_idx -= 1
+			if rl.IsKeyPressed(.RIGHT_BRACKET) do e.selected_wall.enter_stage_idx += 1
+		} else {
+			if rl.IsKeyPressed(.LEFT_BRACKET) do e.selected_wall.exit_stage_idx -= 1
+			if rl.IsKeyPressed(.RIGHT_BRACKET) do e.selected_wall.exit_stage_idx += 1
+		}
+		e.selected_wall.enter_stage_idx = math.clamp(
+			e.selected_wall.enter_stage_idx,
+			0,
+			level.stage_count - 1,
+		)
+		e.selected_wall.exit_stage_idx = math.clamp(
+			e.selected_wall.exit_stage_idx,
+			0,
+			level.stage_count - 1,
+		)
+	}
+
 	// Increasing/decreasing size of rectangle walls by tile size
 	if e.selected_wall != nil {
 		#partial switch &wall in e.selected_wall.shape {
@@ -346,13 +367,13 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 place_walls_and_calculate_graph :: proc(world: ^World) {
 	// Place wall tiles based on wall geometry
 	world.wall_tilemap = false
-	for wall in level.walls {
+	for wall in world.walls {
 		tiles := get_tiles_in_shape(wall.shape, wall.pos, 0.1)
 		for tile in tiles {
 			world.wall_tilemap[tile.x][tile.y] = true
 		}
 	}
-	for half_wall in level.half_walls {
+	for half_wall in world.half_walls {
 		tiles := get_tiles_in_shape(half_wall.shape, half_wall.pos, 0.1)
 		for tile in tiles {
 			world.wall_tilemap[tile.x][tile.y] = true
@@ -455,6 +476,18 @@ draw_geometry_editor_ui :: proc(e: EditorState) {
 	if e.selected_wall != nil {
 		draw_button(e.change_shape_but)
 		draw_shape_fields(e)
+		rl.DrawText(
+			fmt.ctprint(
+				"Enter: ",
+				e.selected_wall.enter_stage_idx,
+				", Exit: ",
+				e.selected_wall.exit_stage_idx,
+			),
+			1300,
+			700,
+			16,
+			rl.YELLOW,
+		)
 	}
 	draw_button(e.new_shape_but)
 

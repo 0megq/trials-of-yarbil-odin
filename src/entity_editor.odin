@@ -74,6 +74,10 @@ update_entity_editor :: proc(e: ^EditorState) {
 			break outer
 		}
 		for &data in level.enemy_data {
+			in_current_stage :=
+				data.enter_stage_idx <= level.cur_stage_idx &&
+				level.cur_stage_idx <= data.exit_stage_idx
+			if !in_current_stage do continue
 			if check_collision_shape_point(ENEMY_SHAPE, data.pos, mouse_world_pos) {
 				e.selected_phys_entity = nil
 				e.selected_entity = .Enemy
@@ -83,6 +87,10 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 		}
 		for &barrel in level.exploding_barrels {
+			in_current_stage :=
+				barrel.enter_stage_idx <= level.cur_stage_idx &&
+				level.cur_stage_idx <= barrel.exit_stage_idx
+			if !in_current_stage do continue
 			if check_collision_shape_point(barrel.shape, barrel.pos, mouse_world_pos) {
 				e.selected_phys_entity = &barrel.physics_entity
 				e.selected_entity = .ExplodingBarrel
@@ -91,6 +99,10 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 		}
 		for &item in level.items {
+			in_current_stage :=
+				item.enter_stage_idx <= level.cur_stage_idx &&
+				level.cur_stage_idx <= item.exit_stage_idx
+			if !in_current_stage do continue
 			if check_collision_shape_point(item.shape, item.pos, mouse_world_pos) {
 				e.selected_phys_entity = &item.physics_entity
 				e.selected_entity = .Item
@@ -171,6 +183,9 @@ update_entity_editor :: proc(e: ^EditorState) {
 			enemy.entity = new_entity(mouse_world_pos)
 			setup_enemy(&enemy, .Melee)
 
+			enemy.enter_stage_idx = level.cur_stage_idx
+			enemy.exit_stage_idx = level.cur_stage_idx
+
 			append(&level.enemy_data, get_data_from_enemy(enemy))
 		} else if rl.IsKeyPressed(.TWO) {
 			// creating new melee enemy
@@ -178,6 +193,8 @@ update_entity_editor :: proc(e: ^EditorState) {
 			enemy.entity = new_entity(mouse_world_pos)
 			setup_enemy(&enemy, .Ranged)
 
+			enemy.enter_stage_idx = level.cur_stage_idx
+			enemy.exit_stage_idx = level.cur_stage_idx
 			append(&level.enemy_data, get_data_from_enemy(enemy))
 		} else if rl.IsKeyPressed(.THREE) {
 			// creating new item
@@ -189,20 +206,48 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 			setup_item(&item)
 
+			item.enter_stage_idx = level.cur_stage_idx
+			item.exit_stage_idx = level.cur_stage_idx
 			append(&level.items, item)
 		} else if rl.IsKeyPressed(.FOUR) {
 			barrel: ExplodingBarrel
 			barrel.entity = new_entity(mouse_world_pos)
 			setup_exploding_barrel(&barrel)
 
+			barrel.enter_stage_idx = level.cur_stage_idx
+			barrel.exit_stage_idx = level.cur_stage_idx
 			append(&level.exploding_barrels, barrel)
 		} else if rl.IsKeyPressed(.FIVE) {
 			enemy: Enemy
 			enemy.entity = new_entity(mouse_world_pos)
 			setup_enemy(&enemy, .Turret)
 
+			enemy.enter_stage_idx = level.cur_stage_idx
+			enemy.exit_stage_idx = level.cur_stage_idx
 			append(&level.enemy_data, get_data_from_enemy(enemy))
 		}
+	}
+
+	// Changing stage exit and enter
+	if e.selected_enemy != nil || e.selected_phys_entity != nil {
+		enter_stage_idx: ^int
+		exit_stage_idx: ^int
+		if e.selected_enemy != nil {
+			enter_stage_idx = &e.selected_enemy.enter_stage_idx
+			exit_stage_idx = &e.selected_enemy.exit_stage_idx
+		} else {
+			enter_stage_idx = &e.selected_phys_entity.enter_stage_idx
+			exit_stage_idx = &e.selected_phys_entity.exit_stage_idx
+		}
+		if rl.IsKeyDown(.LEFT_CONTROL) {
+			if rl.IsKeyPressed(.LEFT_BRACKET) do enter_stage_idx^ -= 1
+			if rl.IsKeyPressed(.RIGHT_BRACKET) do enter_stage_idx^ += 1
+		} else {
+			if rl.IsKeyPressed(.LEFT_BRACKET) do exit_stage_idx^ -= 1
+			if rl.IsKeyPressed(.RIGHT_BRACKET) do exit_stage_idx^ += 1
+		}
+		enter_stage_idx^ = math.clamp(enter_stage_idx^, 0, level.stage_count - 1)
+		exit_stage_idx^ = math.clamp(exit_stage_idx^, 0, level.stage_count - 1)
 	}
 
 	// copy entity id
@@ -244,9 +289,33 @@ draw_entity_editor_ui :: proc(e: EditorState) {
 		rl.DrawText("All entities selected", 30, 60, 20, rl.YELLOW)
 	}
 	if e.selected_phys_entity != nil {
+		rl.DrawText(
+			fmt.ctprint(
+				"Enter: ",
+				e.selected_phys_entity.enter_stage_idx,
+				", Exit: ",
+				e.selected_phys_entity.exit_stage_idx,
+			),
+			1300,
+			700,
+			16,
+			rl.YELLOW,
+		)
 		rl.DrawText(fmt.ctprintf("%v", e.selected_phys_entity.pos), 30, 60, 20, rl.YELLOW)
 	}
 	if e.selected_enemy != nil {
+		rl.DrawText(
+			fmt.ctprint(
+				"Enter: ",
+				e.selected_enemy.enter_stage_idx,
+				", Exit: ",
+				e.selected_enemy.exit_stage_idx,
+			),
+			1300,
+			700,
+			16,
+			rl.YELLOW,
+		)
 		rl.DrawText(fmt.ctprintf("%v", e.selected_enemy.pos), 30, 60, 20, rl.YELLOW)
 	}
 }

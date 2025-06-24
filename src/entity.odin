@@ -110,6 +110,7 @@ Enemy3 :: struct {
 	sub_state:                     int,
 	alert_timer:                   f32,
 	search_timer:                  f32,
+	spawn_timer:                   f32,
 	// Sprite flash
 	flash_opacity:                 f32,
 	// Death
@@ -131,6 +132,7 @@ ConstEnemyData :: struct {
 	lunge_time:           f32,
 	attack_out_time:      f32,
 	attack_recovery_time: f32,
+	start_spawn_time:     f32,
 	start_flinch_time:    f32,
 	max_health:           f32,
 	max_speed:            f32,
@@ -138,6 +140,8 @@ ConstEnemyData :: struct {
 }
 
 EnemyState :: enum {
+	Nil,
+	Spawning,
 	Idle,
 	Alerted,
 	Chasing,
@@ -435,7 +439,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 
 
 	// Draw health bar
-	if e.state != .Dying {
+	if e.state != .Dying && e.state != .Spawning {
 		health_bar_length: f32 = 20
 		health_bar_height: f32 = 5
 		health_bar_base_rec := get_centered_rect(
@@ -559,7 +563,7 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 
 
 	// Draw health bar
-	if e.state != .Dying {
+	if e.state != .Dying && e.state != .Spawning {
 		health_bar_length: f32 = 20
 		health_bar_height: f32 = 5
 		health_bar_base_rec := get_centered_rect(
@@ -582,7 +586,7 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	// 	rl.YELLOW,
 	// )
 	// Draw weapons and attack vfx
-	if e.state != .Dying {
+	if e.state != .Dying && e.state != .Spawning {
 		tex_id := TextureId.bow
 		tex := loaded_textures[tex_id]
 		// Animate
@@ -666,12 +670,13 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 
 
 ENEMY_SHAPE :: Rectangle{-8, -8, 16, 16}
-setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant, init_state := true) {
+setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant, state := EnemyState.Idle) {
 	enemy.post_pos = enemy.pos
 	enemy.shape = ENEMY_SHAPE
 	enemy.weapon_side = 1
 	enemy.variant = variant
-	if init_state do change_enemy_state(enemy, .Idle, main_world)
+	enemy.start_spawn_time = 1.0
+	change_enemy_state(enemy, state, main_world)
 	switch enemy.variant {
 	case .Melee:
 		setup_melee_enemy(enemy)

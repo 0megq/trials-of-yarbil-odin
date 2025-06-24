@@ -57,9 +57,11 @@ world_update :: proc() {
 		fmt.println("switch")
 
 		// Delete old entities
-		#reverse for enemy, i in main_world.enemies {
+		#reverse for &enemy in main_world.enemies {
 			if enemy.exit_stage_idx == level.cur_stage_idx {
-				// Do I really need this?
+				if enemy.state != .Dying {
+					change_enemy_state(&enemy, .Dying, main_world)
+				}
 			}
 		}
 
@@ -92,7 +94,7 @@ world_update :: proc() {
 		// Spawn new entities
 		for data in level.enemy_data {
 			if data.enter_stage_idx == level.cur_stage_idx {
-				append(&main_world.enemies, get_enemy_from_data(data))
+				append(&main_world.enemies, get_enemy_from_data(data, .Spawning))
 			}
 		}
 
@@ -119,6 +121,7 @@ world_update :: proc() {
 				append(&main_world.half_walls, wall)
 			}
 		}
+		place_walls_and_calculate_graph(&main_world)
 	} else if is_level_complete(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
@@ -1084,7 +1087,8 @@ draw_world_ui :: proc(world: World) {
 			)
 		}
 		// Display current stage
-		rl.DrawText(fmt.ctprint("Stage ", level.cur_stage_idx), 1350, 750, 16, rl.WHITE)
+		rl.DrawText(fmt.ctprint("Stage: ", level.cur_stage_idx), 1300, 725, 16, rl.WHITE)
+		rl.DrawText(fmt.ctprint("Last Stage: ", level.stage_count - 1), 1300, 750, 16, rl.WHITE)
 	}
 
 	switch editor_state.mode {
@@ -1341,7 +1345,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					continue
 				}
 
-				if enemy.state == .Dying {
+				if enemy.state == .Dying || enemy.state == .Spawning {
 					continue
 				}
 
@@ -1413,6 +1417,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 	case ExplosionAttackData:
 		if .Enemy in attack.targets {
 			#reverse for &enemy, i in enemies {
+				if enemy.state == .Spawning do continue
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					// Knockback
@@ -1482,6 +1487,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 	case FireAttackData:
 		if .Enemy in attack.targets {
 			#reverse for &enemy, i in enemies {
+				if enemy.state == .Spawning do continue
 				if check_collision_shapes(attack.shape, attack.pos, enemy.shape, enemy.pos) {
 					// Damage
 					damage_enemy(&main_world, i, attack.damage, false)
@@ -1530,7 +1536,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				if enemy.id == arrows[data.arrow_idx].source {
 					continue
 				}
-				if enemy.state == .Dying {
+				if enemy.state == .Dying || enemy.state == .Spawning {
 					continue
 				}
 				_, _, depth := resolve_collision_shapes(
@@ -2069,6 +2075,11 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 animate_enemy :: proc(e: ^Enemy) {
 	frame_duration :: 0.1
 	switch e.state {
+	case .Nil:
+		e.frame = 0
+	case .Spawning:
+		// Do spawning animation
+		e.frame = {get_current_hframe(e.spawn_timer, e.start_spawn_time, 0, 1), 8}
 	case .Idle:
 		e.frame = {0, 0}
 	case .Alerted:
@@ -2110,6 +2121,12 @@ animate_enemy :: proc(e: ^Enemy) {
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
+	case .Nil:
+	case .Spawning:
+		enemy.spawn_timer -= delta
+		if enemy.spawn_timer < 0 {
+			change_enemy_state(enemy, .Idle, main_world)
+		}
 	case .Idle:
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
@@ -2414,7 +2431,11 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	enemy.sub_state = 0
 	// Exit state code
 	switch enemy.state {
+	case .Nil:
+
 	case .Idle:
+
+	case .Spawning:
 
 	case .Alerted:
 
@@ -2438,11 +2459,14 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 
 	// Enter state code
 	switch state {
+	case .Nil:
 	case .Idle:
 		enemy.idle_look_timer = 2
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			start_enemy_pathing(enemy, world, enemy.post_pos)
 		}
+	case .Spawning:
+		enemy.spawn_timer = enemy.start_spawn_time
 	case .Alerted:
 		base_duration :: 5
 		// Reset alert timer
@@ -2509,6 +2533,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		// Start death animation
 		enemy.death_timer = 0
 	}
+	if enemy.state == .Nil && state == .Nil do return
 	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 
 	enemy.state = state

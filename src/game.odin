@@ -331,12 +331,12 @@ update :: proc() {
 	when ODIN_DEBUG {
 		delta *= debug_speed
 
-		if rl.IsKeyPressed(.LEFT_BRACKET) {
-			debug_speed -= 0.25
-		}
-		if rl.IsKeyPressed(.RIGHT_BRACKET) {
-			debug_speed += 0.25
-		}
+		// if rl.IsKeyPressed(.LEFT_BRACKET) {
+		// 	debug_speed -= 0.25
+		// }
+		// if rl.IsKeyPressed(.RIGHT_BRACKET) {
+		// 	debug_speed += 0.25
+		// }
 	}
 
 	if menu_change_queued {
@@ -395,14 +395,9 @@ update :: proc() {
 						if rl.IsKeyPressed(.RIGHT) && level.cur_stage_idx + 1 < level.stage_count {
 							// increment stage idx
 							level.cur_stage_idx += 1
-
-							init_editor_state(&editor_state)
 						} else if rl.IsKeyPressed(.LEFT) && level.cur_stage_idx > 0 {
-							// increment stage idx
+							// decrement stage idx
 							level.cur_stage_idx -= 1
-
-							// reset editor state
-							init_editor_state(&editor_state)
 						}
 					}
 				}

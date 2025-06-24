@@ -211,10 +211,18 @@ draw_level :: proc(show_tile_grid := false) {
 	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
 
 	for wall in level.half_walls {
+		in_current_stage :=
+			wall.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= wall.exit_stage_idx
+		if !in_current_stage do continue
 		draw_shape(wall.shape, wall.pos, rl.LIGHTGRAY)
 	}
 
 	for item in level.items {
+		in_current_stage :=
+			item.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= item.exit_stage_idx
+		if !in_current_stage do continue
 		tex_id := item_to_texture[item.data.id]
 		tex := loaded_textures[tex_id]
 		sprite: Sprite = {
@@ -229,17 +237,28 @@ draw_level :: proc(show_tile_grid := false) {
 		draw_sprite(sprite, item.pos)
 	}
 
-	// level.tilemap_file
 	for wall in level.walls {
+		in_current_stage :=
+			wall.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= wall.exit_stage_idx
+		if !in_current_stage do continue
 		draw_shape(wall.shape, wall.pos, rl.GRAY)
 	}
 
 	for data in level.enemy_data {
-		enemy := get_enemy_from_data(data, false)
+		in_current_stage :=
+			data.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= data.exit_stage_idx
+		if !in_current_stage do continue
+		enemy := get_enemy_from_data(data, .Nil)
 		enemy.draw_proc(enemy, true)
 	}
 
 	for barrel in level.exploding_barrels {
+		in_current_stage :=
+			barrel.enter_stage_idx <= level.cur_stage_idx &&
+			level.cur_stage_idx <= barrel.exit_stage_idx
+		if !in_current_stage do continue
 		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}
 

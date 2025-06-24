@@ -600,7 +600,7 @@ get_player_data :: proc(player: Player) -> PlayerData {
 	}
 }
 
-get_enemy_from_data :: proc(data: EnemyData, init_state := true) -> (e: Enemy) {
+get_enemy_from_data :: proc(data: EnemyData, state := EnemyState.Idle) -> (e: Enemy) {
 	e.id = data.id
 	e.pos = data.pos
 	e.health = data.health
@@ -608,7 +608,7 @@ get_enemy_from_data :: proc(data: EnemyData, init_state := true) -> (e: Enemy) {
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
 	e.idle_look_angle = data.look_angle
-	setup_enemy(&e, data.variant, init_state)
+	setup_enemy(&e, data.variant, state)
 	return
 }
 
