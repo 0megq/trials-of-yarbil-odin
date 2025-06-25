@@ -141,6 +141,8 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 			e.selected_wall = &level.walls[e.selected_wall_index]
 			e.half_wall_selected = false
 		}
+		e.selected_wall.enter_stage_idx = level.cur_stage_idx
+		e.selected_wall.exit_stage_idx = level.cur_stage_idx
 		set_shape_fields_to_selected_shape(e)
 	}
 
@@ -182,6 +184,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	// Selecting shapes
 	if rl.IsMouseButtonPressed(.LEFT) {
 		for &wall, index in level.walls {
+			in_current_stage :=
+				wall.enter_stage_idx <= level.cur_stage_idx &&
+				level.cur_stage_idx <= wall.exit_stage_idx
+			if !in_current_stage do continue
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
@@ -192,6 +198,10 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 		}
 
 		for &wall, index in level.half_walls {
+			in_current_stage :=
+				wall.enter_stage_idx <= level.cur_stage_idx &&
+				level.cur_stage_idx <= wall.exit_stage_idx
+			if !in_current_stage do continue
 			if check_collision_shape_point(wall.shape, wall.pos, mouse_world_pos) {
 				e.selected_wall = &wall
 				e.selected_wall_index = index
@@ -243,7 +253,7 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	if e.selected_wall != nil {
 		#partial switch &wall in e.selected_wall.shape {
 		case Rectangle:
-			{
+			if !rl.IsKeyDown(.LEFT_CONTROL) {
 				original_width := wall.width
 				original_height := wall.height
 				if rl.IsKeyDown(.LEFT_SHIFT) {

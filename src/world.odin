@@ -85,7 +85,7 @@ world_update :: proc() {
 
 		#reverse for wall, i in main_world.half_walls {
 			if wall.exit_stage_idx == level.cur_stage_idx {
-				unordered_remove(&main_world.walls, i)
+				unordered_remove(&main_world.half_walls, i)
 			}
 		}
 

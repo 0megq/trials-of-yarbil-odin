@@ -208,7 +208,9 @@ destruct_editor_state :: proc(e: ^EditorState) {
 draw_level :: proc(show_tile_grid := false) {
 	draw_tilemap(level_tilemap, show_tile_grid)
 
-	rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
+	if level.cur_stage_idx == level.stage_count - 1 {
+		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, {50, 50, 50, 255})
+	}
 
 	for wall in level.half_walls {
 		in_current_stage :=
@@ -262,7 +264,9 @@ draw_level :: proc(show_tile_grid := false) {
 		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}
 
-	draw_sprite(PLAYER_SPRITE, level.player_start)
+	if level.cur_stage_idx == 0 {
+		draw_sprite(PLAYER_SPRITE, level.player_start)
+	}
 
 	rl.DrawRectangleRec(level.bounds, {0, 0, 120, 100})
 
