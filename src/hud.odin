@@ -185,14 +185,17 @@ draw_hud :: proc(player: Player) {
 		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 120}
 		// text_pos := get_centered_text_pos(center, "Ready", font_size, 2)
 		rect := get_centered_rect(center, {128, 20})
-		if player.can_fire_dash {
+		if player.can_dash {
 			rl.DrawRectangleRec(rect, rl.YELLOW)
 			// rl.DrawTextEx(rl.GetFontDefault(), "Ready", text_pos, 20, 2, rl.ORANGE)
 		} else {
 			rl.DrawRectangleRec(rect, rl.LIGHTGRAY)
 			rl.DrawRectangleV(
-				{rect.x + rect.width * (1 - player.fire_dash_timer / FIRE_DASH_COOLDOWN), rect.y},
-				{rect.width * player.fire_dash_timer / FIRE_DASH_COOLDOWN, rect.height},
+				{
+					rect.x + rect.width * (1 - player.dash_cooldown_timer / FIRE_DASH_COOLDOWN),
+					rect.y,
+				},
+				{rect.width * player.dash_cooldown_timer / FIRE_DASH_COOLDOWN, rect.height},
 				rl.GRAY,
 			)
 		}

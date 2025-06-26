@@ -25,11 +25,14 @@ ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
 PLAYER_BASE_MAX_SPEED :: 80
 PLAYER_BASE_ACCELERATION :: 1500
 PLAYER_BASE_FRICTION :: 750
-PLAYER_BASE_HARSH_FRICTION :: 2000
+PLAYER_BASE_HARSH_FRICTION :: 8000
 ENEMY_PATHFINDING_TIME :: 0.2
 FIRE_DASH_RADIUS :: 8
 FIRE_DASH_FIRE_DURATION :: 1
-FIRE_DASH_COOLDOWN :: 2
+FIRE_DASH_COOLDOWN :: 0.4
+FIRE_DASH_DISTANCE :: 40.0
+FIRE_DASH_DURATION :: 0.1
+FIRE_DASH_SPEED :: FIRE_DASH_DISTANCE / FIRE_DASH_DURATION
 FIRE_TILE_DAMAGE :: 1
 ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
@@ -837,7 +840,7 @@ world_to_ui :: proc(point: Vec2) -> Vec2 {
 	return window_to_ui(world_to_window(point))
 }
 
-// MARK: Input
+// MARK: Input (not normalized!)
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
 	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
