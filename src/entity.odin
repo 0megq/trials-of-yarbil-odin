@@ -195,9 +195,10 @@ Player :: struct {
 	attack_interval_timer: f32, // valid only while playing game
 	attack_poly:           Polygon, // valid only while playing game
 	surfing:               bool, // valid only while playing game
-	can_fire_dash:         bool, // valid only while playing game
-	fire_dash_timer:       f32, // valid only while playing game
-	fire_dash_ready_time:  f32,
+	can_dash:              bool, // valid only while playing game
+	dash_dur_timer:        f32,
+	dash_cooldown_timer:   f32, // valid only while playing game
+	dash_ready_time:       f32,
 	weapon_side:           int, // top is 1, bottom is -1
 	attack_anim_timer:     f32,
 	flip_sprite:           bool,
@@ -284,11 +285,9 @@ AttackData :: union {
 	ArrowAttackData,
 }
 
-SwordAttackData :: struct {
-}
+SwordAttackData :: struct {}
 
-FireAttackData :: struct {
-}
+FireAttackData :: struct {}
 
 ExplosionAttackData :: struct {
 	burn_instantly: bool,
@@ -688,7 +687,7 @@ setup_item :: proc(item: ^Item) {
 }
 
 setup_player :: proc(player: ^Player) {
-	player.can_fire_dash = true
+	player.can_dash = true
 	player.weapon_side = 1
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16

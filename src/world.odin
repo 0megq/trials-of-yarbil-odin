@@ -124,40 +124,42 @@ world_update :: proc() {
 	update_tilemap(&main_world, false)
 
 	// fire dash timer
-	if !main_world.player.can_fire_dash {
-		main_world.player.fire_dash_timer -= delta
-		if main_world.player.fire_dash_timer <= 0 {
-			main_world.player.can_fire_dash = true
+	if main_world.player.dash_dur_timer > 0 {
+		main_world.player.dash_dur_timer -= delta
+	} else if !main_world.player.can_dash {
+		main_world.player.dash_cooldown_timer -= delta
+		if main_world.player.dash_cooldown_timer <= 0 {
+			main_world.player.can_dash = true
 		}
 	} else {
-		main_world.player.fire_dash_ready_time += delta
+		main_world.player.dash_ready_time += delta
 	}
 
 	if !(level.has_tutorial && tutorial.disable_ability) &&
-	   is_control_pressed(controls.movement_ability) {
-		if main_world.player.can_fire_dash {
-			main_world.player.can_fire_dash = false
-			main_world.player.fire_dash_timer = FIRE_DASH_COOLDOWN
-			main_world.player.fire_dash_ready_time = 0
+	   is_control_pressed(controls.movement_ability) &&
+	   main_world.player.can_dash {
+		main_world.player.can_dash = false
+		main_world.player.dash_dur_timer = FIRE_DASH_DURATION
+		main_world.player.dash_cooldown_timer = FIRE_DASH_COOLDOWN
+		main_world.player.dash_ready_time = 0
+		main_world.player.vel = normalize(get_directional_input()) * FIRE_DASH_SPEED
 
-			main_world.player.vel = normalize(get_directional_input()) * 400
-			fire := Fire{{main_world.player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
-			append(&main_world.fires, fire)
-			attack := Attack {
-				pos       = main_world.player.pos,
-				shape     = Circle{{}, FIRE_DASH_RADIUS},
-				damage    = 10,
-				knockback = 100,
-				targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
-				data      = ExplosionAttackData{true},
-			}
-			perform_attack(&main_world, &attack)
-			delete(attack.exclude_targets)
-
-			stop_player_attack(&main_world.player)
-			main_world.player.charging_weapon = false
-			main_world.player.holding_item = false
+		fire := Fire{{main_world.player.pos, FIRE_DASH_RADIUS}, FIRE_DASH_FIRE_DURATION}
+		append(&main_world.fires, fire)
+		attack := Attack {
+			pos       = main_world.player.pos,
+			shape     = Circle{{}, FIRE_DASH_RADIUS},
+			damage    = 10,
+			knockback = 100,
+			targets   = {.Bomb, .Enemy, .ExplodingBarrel, .Tile},
+			data      = ExplosionAttackData{true},
 		}
+		perform_attack(&main_world, &attack)
+		delete(attack.exclude_targets)
+
+		stop_player_attack(&main_world.player)
+		main_world.player.charging_weapon = false
+		main_world.player.holding_item = false
 	}
 
 	player_move(&main_world.player, delta)
@@ -868,6 +870,7 @@ draw_world :: proc(world: World) {
 		for &entity in world.arrows {
 			entity.sprite.scale = entity.z + 1
 			draw_sprite(entity.sprite, entity.pos)
+			draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
 		}
 
 		// :draw player
@@ -2413,7 +2416,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 				&main_world.arrows,
 				Arrow {
 					entity = new_entity(enemy.pos),
-					shape = Circle{{}, 4},
+					shape = Circle{{}, 2},
 					vel = to_player * 300,
 					z = 0,
 					vel_z = 8,
@@ -2469,7 +2472,7 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 
 _on_enemy_dying :: proc() {
 	// Reset player dash
-	main_world.player.fire_dash_timer = 0
+	main_world.player.dash_cooldown_timer = 0
 	if all_enemies_dying(main_world) {
 		_on_all_enemies_dying()
 	}
@@ -2552,6 +2555,10 @@ update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2, world: World
 
 // MARK: Player
 player_move :: proc(p: ^Player, delta: f32) {
+	if p.dash_dur_timer > 0 {
+		p.pos += p.vel * delta
+		return
+	}
 	max_speed: f32 = PLAYER_BASE_MAX_SPEED
 	// Slow down player
 	if p.holding_item || p.charging_weapon || p.attacking {
@@ -2568,7 +2575,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 	if length(p.vel) > max_speed {
 		friction = harsh_friction
 	}
-	friction_v := normalize(friction_dir) * friction * delta
+	friction_v := friction_dir * friction * delta
 
 	// Prevent friction overshooting when deaccelerating
 	// if math.sign(p.vel.x) == sign(friction_dir.x) {p.vel.x = 0}
@@ -2578,8 +2585,15 @@ player_move :: proc(p: ^Player, delta: f32) {
 		p.vel = normalize(p.vel + acceleration_v + friction_v) * max_speed
 	} else if length(p.vel + acceleration_v + friction_v) < max_speed &&
 	   length(p.vel) > max_speed &&
-	   angle_between(p.vel, acceleration_v) <= 90 { 	// If overshooting below max speed
-		p.vel = normalize(p.vel + acceleration_v + friction_v) * max_speed
+	   dot(p.vel, acceleration_v) > 0 { 	// If harsh friction is overshooting below max speed
+		new_vel := normalize(p.vel + acceleration_v + friction_v) * max_speed
+		// if the new velocity is not between the velocity and the acceleration then get a new velocity without friction
+		if math.sign(cross(p.vel, new_vel)) != math.sign(cross(p.vel, acceleration_v)) ||
+		   dot(normalize(p.vel), normalize(acceleration_v)) >
+			   dot(normalize(p.vel), normalize(new_vel)) {
+			new_vel = normalize(p.vel + acceleration_v) * max_speed
+		}
+		p.vel = new_vel
 	} else {
 		p.vel += acceleration_v
 		p.vel += friction_v
