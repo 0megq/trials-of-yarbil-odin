@@ -324,7 +324,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.tex = .enemy_ranged
-	enemy.flee_range = 60
+	enemy.flee_range = 40
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
 	enemy.vision_fov = 120

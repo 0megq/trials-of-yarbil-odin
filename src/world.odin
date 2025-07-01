@@ -573,7 +573,7 @@ world_update :: proc() {
 	}
 
 	#reverse for &arrow, i in main_world.arrows {
-		zentity_move(&arrow, 300, 30, delta)
+		zentity_move(&arrow, 300, 6, delta)
 
 		arrow.attack.pos = arrow.pos
 		arrow.attack.shape = arrow.shape
@@ -870,7 +870,7 @@ draw_world :: proc(world: World) {
 		for &entity in world.arrows {
 			entity.sprite.scale = entity.z + 1
 			draw_sprite(entity.sprite, entity.pos)
-			draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
+			// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
 		}
 
 		// :draw player
@@ -2141,7 +2141,9 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		// Charging countdown and attack
 		enemy.current_charge_time -= delta
 
-		if enemy.current_charge_time <= 0 {
+		if enemy.variant == .Ranged && enemy.player_in_flee_range {
+			change_enemy_state(enemy, .Fleeing, main_world)
+		} else if enemy.current_charge_time <= 0 {
 			change_enemy_state(enemy, .Attacking, main_world)
 		}
 	case .Attacking:
@@ -2392,9 +2394,10 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	case .Chasing:
 		start_enemy_pathing(enemy, world, world.player.pos)
 	case .Charging:
-		enemy.current_charge_time = enemy.start_charge_time
+		if enemy.state != .Fleeing {
+			enemy.current_charge_time = enemy.start_charge_time
+		}
 	case .Attacking:
-		enemy.super_armor = true
 		play_sound(.EnemyLunge)
 		switch enemy.variant {
 		case .Melee:
@@ -2419,10 +2422,10 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 				&main_world.arrows,
 				Arrow {
 					entity = new_entity(enemy.pos),
-					shape = Circle{{}, 2},
-					vel = to_player * 300,
+					shape = Circle{{}, 1},
+					vel = to_player * 170,
 					z = 0,
-					vel_z = 8,
+					vel_z = 4,
 					rot = angle(to_player),
 					sprite = arrow_sprite,
 					attack = Attack {
