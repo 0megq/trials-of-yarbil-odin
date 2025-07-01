@@ -11,6 +11,18 @@ square :: proc(num: $T) -> T {
 	return num * num
 }
 
+// moves the current value to the target by delta, ensures that you don't go past the target. 
+// delta is expected to be a positive magnitude
+move_towards :: proc(current: f32, target: f32, delta: f32) -> f32 {
+	dir := math.sign(target - current)
+	new := current + delta * dir
+
+	if dir > 0 {
+		return max(new, target)
+	} else {
+		return min(new, target)
+	}
+}
 
 ease_out_back :: proc(alpha: f32, multiplier: f32 = 1.0) -> f32 {
 	c1: f32 = 1.70158 * multiplier

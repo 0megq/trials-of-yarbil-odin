@@ -887,6 +887,9 @@ draw_world :: proc(world: World) {
 			rl.BeginShaderMode(shader)
 
 			col_override: [4]f32 = {1, 1, 1, math.round(player.flash_opacity)}
+			if player.dash_dur_timer > 0 {
+				col_override = {0, 1, 0, 1}
+			}
 			rl.SetShaderValueV(
 				shader,
 				rl.GetShaderLocation(shader, "col_override"),
@@ -2556,66 +2559,46 @@ update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2, world: World
 // MARK: Player
 player_move :: proc(p: ^Player, delta: f32) {
 	if p.dash_dur_timer > 0 {
+		if p.dash_dur_timer < 0.05 {
+			p.vel = normalize(get_directional_input()) * FIRE_DASH_END_SPEED
+		}
 		p.pos += p.vel * delta
 		return
 	}
-	max_speed: f32 = PLAYER_BASE_MAX_SPEED
-	// Slow down player
-	if p.holding_item || p.charging_weapon || p.attacking {
-		max_speed = PLAYER_BASE_MAX_SPEED / 2
+
+	max_speed: f32 = PLAYER_MAX_SPEED
+	if p.attacking {
+		max_speed = PLAYER_MAX_SPEED / 2
 	}
-	acceleration: f32 = PLAYER_BASE_ACCELERATION
-	friction: f32 = PLAYER_BASE_FRICTION
-	harsh_friction: f32 = PLAYER_BASE_HARSH_FRICTION
 
 	input := get_directional_input()
-	acceleration_v := normalize(input) * acceleration * delta
+	acceleration_v := normalize(input) * PLAYER_BASE_ACC * delta
+	target_vel := normalize(input) * max_speed
 
-	friction_dir: Vec2 = -normalize(p.vel)
-	if length(p.vel) > max_speed {
-		friction = harsh_friction
-	}
-	friction_v := friction_dir * friction * delta
+	// apply friction in the right direction
+	friction_v := -unit(p.vel) * PLAYER_BASE_ACC * FRICTION_MULT * delta
+	reduction_v := -unit(p.vel) * PLAYER_SPEED_REDUCTION * delta
+	reduced_vel := unit(p.vel) * max_speed
 
-	// Prevent friction overshooting when deaccelerating
-	// if math.sign(p.vel.x) == sign(friction_dir.x) {p.vel.x = 0}
-	// if math.sign(p.vel.y) == sign(friction_dir.y) {p.vel.y = 0}
-
-	if length(p.vel + acceleration_v + friction_v) > max_speed && length(p.vel) <= max_speed { 	// If overshooting above max speed
-		p.vel = normalize(p.vel + acceleration_v + friction_v) * max_speed
-	} else if length(p.vel + acceleration_v + friction_v) < max_speed &&
-	   length(p.vel) > max_speed &&
-	   dot(p.vel, acceleration_v) > 0 { 	// If harsh friction is overshooting below max speed
-		new_vel := normalize(p.vel + acceleration_v + friction_v) * max_speed
-		// if the new velocity is not between the velocity and the acceleration then get a new velocity without friction
-		if math.sign(cross(p.vel, new_vel)) != math.sign(cross(p.vel, acceleration_v)) ||
-		   dot(normalize(p.vel), normalize(acceleration_v)) >
-			   dot(normalize(p.vel), normalize(new_vel)) {
-			new_vel = normalize(p.vel + acceleration_v) * max_speed
-		}
-		p.vel = new_vel
+	if length(p.vel) > max_speed && sign(p.vel.x) == sign(acceleration_v.x) {
+		p.vel.x = move_towards(p.vel.x, reduced_vel.x, math.abs(reduction_v.x))
+	} else if acceleration_v.x != 0 {
+		p.vel.x = move_towards(p.vel.x, target_vel.x, acceleration_v.x)
 	} else {
-		p.vel += acceleration_v
-		p.vel += friction_v
-		// Account for friction overshooting when slowing down
-		if acceleration_v.x == 0 && math.sign(p.vel.x) == math.sign(friction_v.x) {
-			p.vel.x = 0
-		}
-		if acceleration_v.y == 0 && math.sign(p.vel.y) == math.sign(friction_v.y) {
-			p.vel.y = 0
-		}
+		p.vel.x = move_towards(p.vel.x, 0, math.abs(friction_v.x))
+	}
+
+	if length(p.vel) > max_speed && sign(p.vel.y) == sign(acceleration_v.y) {
+		p.vel.y = move_towards(p.vel.y, reduced_vel.y, math.abs(reduction_v.y))
+	} else if acceleration_v.y != 0 {
+		p.vel.y = move_towards(p.vel.y, target_vel.y, acceleration_v.y)
+	} else {
+		p.vel.y = move_towards(p.vel.y, 0, math.abs(friction_v.y))
 	}
 
 	p.pos += p.vel * delta
 
-	// fmt.printfln(
-	// 	"speed: %v, vel: %v fric vector: %v, acc vector: %v, acc length: %v",
-	// 	length(e.vel),
-	// 	e.vel,
-	// 	friction_v,
-	// 	acceleration_v,
-	// 	length(acceleration_v),
-	// )
+	// fmt.printfln("speed: %v, vel: %v", length(p.vel), target_vel)
 }
 
 damage_player :: proc(player: ^Player, amount: f32) {

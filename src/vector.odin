@@ -110,3 +110,7 @@ angle_between :: proc(v1: Vec2, v2: Vec2) -> f32 {
 vector_from_angle :: proc(deg: f32) -> Vec2 {
 	return {math.cos(deg * math.RAD_PER_DEG), math.sin(deg * math.RAD_PER_DEG)}
 }
+
+unit :: proc(v: Vec2) -> Vec2 {
+	return v / length(v)
+}
