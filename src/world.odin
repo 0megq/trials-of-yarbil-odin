@@ -887,8 +887,10 @@ draw_world :: proc(world: World) {
 			rl.BeginShaderMode(shader)
 
 			col_override: [4]f32 = {1, 1, 1, math.round(player.flash_opacity)}
-			if player.dash_dur_timer > 0 {
+			if player.dash_dur_timer > 0.05 {
 				col_override = {0, 1, 0, 1}
+			} else if player.dash_dur_timer > 0 {
+				col_override = {0, 1, 1, 1}
 			}
 			rl.SetShaderValueV(
 				shader,
@@ -2559,11 +2561,20 @@ update_enemy_pathing :: proc(enemy: ^Enemy, delta: f32, dest: Vec2, world: World
 	return false
 }
 
-// MARK: Player
+// :move player
 player_move :: proc(p: ^Player, delta: f32) {
 	if p.dash_dur_timer > 0 {
 		if p.dash_dur_timer < 0.05 {
-			p.vel = normalize(get_directional_input()) * FIRE_DASH_END_SPEED
+			speed := length(p.vel)
+			p.vel +=
+				normalize(get_directional_input()) *
+				10 *
+				math.remap(p.dash_dur_timer, 0.05, 0, 0, 2) *
+				PLAYER_BASE_ACC *
+				delta
+			p.vel =
+				normalize(p.vel) *
+				move_towards(speed, FIRE_DASH_END_SPEED, PLAYER_SPEED_REDUCTION * delta)
 		}
 		p.pos += p.vel * delta
 		return
