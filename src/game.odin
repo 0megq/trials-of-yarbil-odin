@@ -236,6 +236,7 @@ main :: proc() {
 	defer rl.UnloadImage(icon)
 	rl.SetWindowIcon(icon)
 
+	sound.init()
 	init_audio_and_load_sounds()
 	defer close_audio_and_unload_sounds()
 
@@ -279,6 +280,10 @@ main :: proc() {
 
 	// Update Loop
 	for !rl.WindowShouldClose() && !game_should_close {
+		sound.update({}, 5)
+		if rl.IsKeyPressed(.V) {
+			sound.play("event:/player_slash")
+		}
 		update()
 	}
 
