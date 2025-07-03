@@ -280,10 +280,7 @@ main :: proc() {
 
 	// Update Loop
 	for !rl.WindowShouldClose() && !game_should_close {
-		sound.update({}, 5)
-		if rl.IsKeyPressed(.V) {
-			sound.play("event:/player_slash")
-		}
+		sound.update({}, 1.0)
 		update()
 	}
 
