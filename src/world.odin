@@ -2162,7 +2162,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 					enemy.weapon_side = -enemy.weapon_side
 					enemy.attack_poly.rotation = angle(main_world.player.pos - enemy.pos)
 					damage :: 20
-					knockback :: 200
+					knockback :: 100
 					enemy.attack = {
 						targets         = {.Bomb, .ExplodingBarrel, .Player},
 						damage          = damage,
