@@ -18,9 +18,9 @@ move_towards :: proc(current: f32, target: f32, delta: f32) -> f32 {
 	new := current + delta * dir
 
 	if dir > 0 {
-		return max(new, target)
-	} else {
 		return min(new, target)
+	} else {
+		return max(new, target)
 	}
 }
 
