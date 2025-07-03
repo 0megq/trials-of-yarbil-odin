@@ -225,7 +225,7 @@ main :: proc() {
 	// Setup Window
 	{
 		rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
-		rl.SetWindowMaxSize(1920, 1057)
+		// rl.SetWindowMaxSize(1920, 1057)
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 		rl.SetExitKey(.KEY_NULL)
 		// Set window values
