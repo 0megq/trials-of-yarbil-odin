@@ -203,6 +203,8 @@ Player :: struct {
 	attack_anim_timer:     f32,
 	flip_sprite:           bool,
 	flash_opacity:         f32,
+	dying:                 bool,
+	death_animation_timer: f32,
 }
 
 ZEntity :: struct {

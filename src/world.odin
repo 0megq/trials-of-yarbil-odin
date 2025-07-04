@@ -33,13 +33,21 @@ screen_shake_intensity: f32 = 1
 
 world_update :: proc() {
 	// Perform Queued World Actions (death and deletion). Remove things from the previous frame
-	if main_world.player.queue_free {
-		on_player_death()
-		main_world.player.queue_free = false
+	if main_world.player.death_animation_timer > 0 {
+		main_world.player.death_animation_timer -= delta
+		if main_world.player.death_animation_timer <= 0 {
+			on_player_fully_dead()
+		}
+		return
 	}
 	#reverse for barrel, i in main_world.exploding_barrels { 	// This needs to be in reverse since we are removing
 		if barrel.queue_free {
 			unordered_remove(&main_world.exploding_barrels, i)
+		}
+	}
+	#reverse for arrow, i in main_world.arrows {
+		if arrow.queue_free {
+			unordered_remove(&main_world.arrows, i)
 		}
 	}
 
@@ -583,12 +591,12 @@ world_update :: proc() {
 
 		// if the arrow hit something while performing its attack, then delete it
 		if perform_attack(&main_world, &arrow.attack) == -1 {
-			delete_arrow(i)
+			arrow.queue_free = true
 			continue
 		}
 
 		if arrow.z <= 0 {
-			delete_arrow(i)
+			arrow.queue_free = true
 		}
 	}
 
@@ -871,6 +879,21 @@ draw_world :: proc(world: World) {
 			entity.sprite.scale = entity.z + 1
 			draw_sprite(entity.sprite, entity.pos)
 			// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
+		}
+
+		if world.player.dying {
+			overlay: Color
+			if world.player.death_animation_timer > 0.8 {
+				overlay = {255, 0, 0, 125}
+			} else {
+				overlay = {
+					0,
+					0,
+					0,
+					u8(math.remap_clamped(world.player.death_animation_timer, 0.8, 0.2, 0, 255)),
+				}
+			}
+			rl.DrawRectangleV(window_to_world(0), {f32(GAME_SIZE.x), f32(GAME_SIZE.y)}, overlay)
 		}
 
 		// :draw player
@@ -1163,7 +1186,7 @@ update_world_camera_and_mouse_pos :: proc() {
 }
 
 // Clears entities and reloads game data and level
-on_player_death :: proc() {
+on_player_fully_dead :: proc() {
 	clear_temp_entities(&main_world)
 	// Reload the game data. Maybe we don't need to reload game data each time
 	reload_game_data()
@@ -1687,7 +1710,7 @@ use_bomb :: proc(world: ^World) {
 	append(
 		&world.bombs,
 		Bomb {
-			entity = new_entity(world.player.pos + rotate_vector({-5, 3}, angle(to_mouse))),
+			entity = new_entity(world.player.pos),
 			shape = Rectangle{-1, 0, 3, 3},
 			vel = to_mouse * base_vel,
 			z = 0,
@@ -2572,6 +2595,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 				math.remap(p.dash_dur_timer, 0.05, 0, 0, 2) *
 				PLAYER_BASE_ACC *
 				delta
+
 			p.vel =
 				normalize(p.vel) *
 				move_towards(speed, FIRE_DASH_END_SPEED, PLAYER_SPEED_REDUCTION * delta)
@@ -2615,6 +2639,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 }
 
 damage_player :: proc(player: ^Player, amount: f32) {
+	if player.dying do return
 	player.health -= amount
 	player.health = max(player.health, 0)
 	player.flash_opacity = 1
@@ -2623,11 +2648,15 @@ damage_player :: proc(player: ^Player, amount: f32) {
 	pause_game_time = 0.1
 	play_sound(.PlayerHurt)
 	if player.health <= 0 {
-		// Player is dead reload the level
-		// TODO: make an actual player death animation
-		fmt.println("you dead D:")
-		player.queue_free = true
+		start_player_death()
 	}
+}
+
+start_player_death :: proc() {
+	player := &main_world.player
+	player.dying = true
+	player.death_animation_timer = 1.0
+	player.vel = 0
 }
 
 heal_player :: proc(player: ^Player, amount: f32) {
@@ -2671,8 +2700,4 @@ damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount:
 
 		delete(attack.exclude_targets)
 	}
-}
-
-delete_arrow :: proc(idx: int) {
-	unordered_remove(&main_world.arrows, idx)
 }
