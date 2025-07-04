@@ -900,6 +900,9 @@ draw_world :: proc(world: World) {
 		{
 			player := world.player
 
+			// DEBUG: Collision shape
+			// draw_shape(player.shape, player.pos, rl.RED)
+
 			sprite := PLAYER_SPRITE
 
 			if player.flip_sprite {
@@ -1023,8 +1026,6 @@ draw_world :: proc(world: World) {
 
 			// DEBUG: Player pickup range
 			// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
-			// DEBUG: Collision shape
-			// draw_shape(player.shape, player.pos, rl.RED)
 		}
 	}
 }

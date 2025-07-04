@@ -15,8 +15,6 @@ TILEMAP_FILE_PREFIX :: "./data/tilemap"
 GAME_FILE_PREFIX :: "./data/game"
 TUTORIAL_FILE_PREFIX :: "./data/tutorial"
 
-PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
-
 PlayerData :: struct {
 	// player health
 	health:              f32,
