@@ -60,6 +60,7 @@ editor_state: EditorState
 
 
 init_editor_state :: proc(e: ^EditorState) {
+	destruct_editor_state(e)
 	// Tutorial editor
 	e.selected_prompt = nil
 	e.selected_prompt_idx = -1
