@@ -207,7 +207,7 @@ main :: proc() {
 	context.random_generator = crypto.random_generator()
 
 	// Setup Tracking Allocator
-	when ODIN_DEBUG {
+	when false && ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
 		context.allocator = mem.tracking_allocator(&track)
