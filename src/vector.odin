@@ -114,3 +114,11 @@ vector_from_angle :: proc(deg: f32) -> Vec2 {
 unit :: proc(v: Vec2) -> Vec2 {
 	return v / length(v)
 }
+
+i2f :: proc(v: Vec2i) -> Vec2 {
+	return {f32(v.x), f32(v.y)}
+}
+
+f2i :: proc(v: Vec2) -> Vec2i {
+	return {i32(v.x), i32(v.y)}
+}

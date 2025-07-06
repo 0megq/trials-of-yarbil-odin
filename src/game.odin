@@ -226,9 +226,9 @@ main :: proc() {
 	// Setup Window
 	{
 		rl.SetConfigFlags({.WINDOW_RESIZABLE})
-		// rl.SetWindowMaxSize(1920, 1057)
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 		rl.SetExitKey(.KEY_NULL)
+
 		// Set window values
 		window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 		window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
@@ -705,6 +705,26 @@ draw_frame :: proc() {
 	}
 	rl.EndMode2D()
 
+	// draw letterbox borders
+	scaled_window_size := f2i(i2f(UI_SIZE) * window_over_ui)
+	letterbox_size := window_size - scaled_window_size
+	rl.DrawRectangle(0, 0, letterbox_size.x / 2, window_size.y, rl.BLACK)
+	rl.DrawRectangle(
+		window_size.x - letterbox_size.x / 2,
+		0,
+		letterbox_size.x / 2,
+		window_size.y,
+		rl.BLACK,
+	)
+	rl.DrawRectangle(0, 0, window_size.x, letterbox_size.y / 2, rl.BLACK)
+	rl.DrawRectangle(
+		0,
+		window_size.y - letterbox_size.y / 2,
+		window_size.x,
+		letterbox_size.y / 2,
+		rl.BLACK,
+	)
+
 	rl.EndDrawing()
 }
 
@@ -762,31 +782,13 @@ fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 }
 
 handle_window_resize :: proc() {
-	previous_window_size := window_size
 	window_size = {rl.GetScreenWidth(), rl.GetScreenHeight()}
-	size_delta := window_size - previous_window_size
-	// If one is negative pick the lower one
-	if size_delta.x < 0 || size_delta.y < 0 {
-		if size_delta.x < size_delta.y {
-			window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
-		} else {
-			window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
-		}
-	} else {
-		// If not negative pick the larger one
-		if size_delta.x < size_delta.y {
-			window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
-		} else {
-			window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
-		}
-	}
-	if window_size.y == 1057 {
-		window_size.x = 1920
-	}
-	rl.SetWindowSize(window_size.x, window_size.y)
 
-	window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
-	window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
+	window_over_game = min(
+		f32(window_size.x) / f32(GAME_SIZE.x),
+		f32(window_size.y) / f32(GAME_SIZE.y),
+	)
+	window_over_ui = min(f32(window_size.x) / f32(UI_SIZE.x), f32(window_size.y) / f32(UI_SIZE.y))
 }
 
 exp_decay_angle :: proc(a, b: f32, decay: f32, delta: f32) -> f32 {
