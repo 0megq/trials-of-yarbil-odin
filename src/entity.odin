@@ -65,6 +65,8 @@ ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
 	max_health:          f32,
+	exploding:           bool,
+	explosion_timer:     f32,
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 

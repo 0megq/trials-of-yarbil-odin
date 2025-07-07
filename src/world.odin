@@ -494,6 +494,12 @@ world_update :: proc() {
 				main_world.player.pos += pnormal * pdepth
 			}
 		}
+		if entity.exploding {
+			entity.explosion_timer -= delta
+			if entity.explosion_timer < 0 {
+				barrel_explode(&entity)
+			}
+		}
 	}
 
 	#reverse for &bomb, i in main_world.bombs {
@@ -584,6 +590,8 @@ world_update :: proc() {
 		zentity_move(&arrow, 300, 6, delta)
 
 		arrow.attack.pos = arrow.pos
+		arrow.attack.direction = normalize(arrow.vel)
+		arrow.attack.knockback = 80
 		arrow.attack.shape = arrow.shape
 		arrow.attack.data = ArrowAttackData {
 			arrow_idx = i,
@@ -867,7 +875,25 @@ draw_world :: proc(world: World) {
 			if barrel.queue_free {
 				continue
 			}
+			rl.BeginShaderMode(shader)
+
+			col_override: [4]f32 = {1, 0.1, 0.1, 0}
+			// visually show damage with overlay and particles
+			col_override.a = 1 - barrel.health / barrel.max_health
+			// when about to explode, flash and big boom sfx
+			if barrel.exploding {
+				col_override = {1, 1, 1, 1}
+			}
+
+			rl.SetShaderValueV(
+				shader,
+				rl.GetShaderLocation(shader, "col_override"),
+				&col_override,
+				.VEC4,
+				1,
+			)
 			draw_sprite(BARREL_SPRITE, barrel.pos)
+			rl.EndShaderMode()
 		}
 
 		for &entity in world.bombs {
@@ -1338,7 +1364,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += attack.direction * attack.knockback
-					damage_exploding_barrel(&main_world, &barrel, attack.damage)
+					damage_exploding_barrel(&barrel, attack.damage)
 					append(&attack.exclude_targets, barrel.id)
 					targets_hit += 1
 				}
@@ -1401,11 +1427,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 				// Check for collision and apply knockback and damage
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					barrel.vel += normalize(barrel.pos - attack.pos) * attack.knockback
-					damage_exploding_barrel(
-						&main_world,
-						&barrel,
-						attack.damage * EXPLOSION_DAMAGE_MULTIPLIER,
-					)
+					damage_exploding_barrel(&barrel, attack.damage * EXPLOSION_DAMAGE_MULTIPLIER)
 					targets_hit += 1
 				}
 			}
@@ -1460,7 +1482,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 
 				if check_collision_shapes(attack.shape, attack.pos, barrel.shape, barrel.pos) {
 					// Damage
-					damage_exploding_barrel(&main_world, &barrel, attack.damage)
+					damage_exploding_barrel(&barrel, attack.damage)
 					targets_hit += 1
 				}
 			}
@@ -1527,7 +1549,8 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 
 				if depth > 0 {
 					// Damage
-					damage_exploding_barrel(world, &barrel, attack.damage)
+					barrel.vel += attack.direction * attack.knockback
+					damage_exploding_barrel(&barrel, attack.damage)
 
 					return -1
 				}
@@ -1543,6 +1566,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 			)
 
 			if depth > 0 {
+				player.vel += attack.direction * attack.knockback
 				damage_player(&world.player, attack.damage)
 
 				return -1
@@ -2675,30 +2699,35 @@ stop_player_attack :: proc(player: ^Player) {
 }
 
 // MARK: Other
-damage_exploding_barrel :: proc(world: ^World, barrel: ^ExplodingBarrel, amount: f32) {
+damage_exploding_barrel :: proc(barrel: ^ExplodingBarrel, amount: f32) {
 	if barrel.queue_free {
 		return
 	}
 	barrel.health -= amount
 	if barrel.health <= 0 {
 		// KABOOM!!!
-		// Visual
-		fire := Fire{Circle{barrel.pos, 60}, 2}
-		barrel.queue_free = true
-
-		append(&world.fires, fire)
-		// Damage
-		attack := Attack {
-			targets   = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
-			damage    = 40,
-			knockback = 400,
-			pos       = fire.pos,
-			shape     = Circle{{}, fire.radius},
-			data      = ExplosionAttackData{false},
-		}
-
-		perform_attack(world, &attack)
-
-		delete(attack.exclude_targets)
+		barrel.exploding = true
+		barrel.explosion_timer = 0.1
 	}
+}
+
+barrel_explode :: proc(barrel: ^ExplodingBarrel) {
+	// Visual
+	fire := Fire{Circle{barrel.pos, 60}, 2}
+	barrel.queue_free = true
+
+	append(&main_world.fires, fire)
+	// Damage
+	attack := Attack {
+		targets   = {.Player, .Enemy, .ExplodingBarrel, .Bomb, .Tile},
+		damage    = 40,
+		knockback = 400,
+		pos       = fire.pos,
+		shape     = Circle{{}, fire.radius},
+		data      = ExplosionAttackData{false},
+	}
+
+	perform_attack(&main_world, &attack)
+
+	delete(attack.exclude_targets)
 }
