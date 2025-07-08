@@ -377,7 +377,9 @@
 				]
 			},
 			"health": 50.00000000,
-			"max_health": 50.00000000
+			"max_health": 50.00000000,
+			"exploding": false,
+			"explosion_timer": 0.00000000
 		},
 		{
 			"moving_entity": {
@@ -422,7 +424,9 @@
 				]
 			},
 			"health": 50.00000000,
-			"max_health": 50.00000000
+			"max_health": 50.00000000,
+			"exploding": false,
+			"explosion_timer": 0.00000000
 		},
 		{
 			"moving_entity": {
@@ -467,7 +471,9 @@
 				]
 			},
 			"health": 50.00000000,
-			"max_health": 50.00000000
+			"max_health": 50.00000000,
+			"exploding": false,
+			"explosion_timer": 0.00000000
 		}
 	],
 	"walls": [

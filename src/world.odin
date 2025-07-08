@@ -449,7 +449,7 @@ world_update :: proc() {
 
 
 	#reverse for &entity in main_world.exploding_barrels {
-		generic_move(&entity, 1000, delta)
+		if !entity.exploding do generic_move(&entity, 1000, delta)
 		for wall in main_world.walls {
 			_, normal, depth := resolve_collision_shapes(
 				entity.shape,
@@ -557,6 +557,7 @@ world_update :: proc() {
 			should_explode = true
 		}
 		if should_explode {
+			play_sound(.Explosion)
 			explosion_radius: f32 = 16
 			append(&main_world.fires, Fire{Circle{bomb.pos, explosion_radius}, 0.5})
 			// Potential memory leak with exclude_targets
@@ -1628,9 +1629,6 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 	// }
 	}
 	return
-}
-
-bomb_explosion :: proc(world: ^World, pos: Vec2, radius: f32) {
 }
 
 // Empties the dyn arrays for all temporary entities like bombs or arrows
@@ -2706,6 +2704,7 @@ damage_exploding_barrel :: proc(barrel: ^ExplodingBarrel, amount: f32) {
 	barrel.health -= amount
 	if barrel.health <= 0 {
 		// KABOOM!!!
+		play_sound(.Explosion)
 		barrel.exploding = true
 		barrel.explosion_timer = 0.1
 	}
@@ -2713,7 +2712,7 @@ damage_exploding_barrel :: proc(barrel: ^ExplodingBarrel, amount: f32) {
 
 barrel_explode :: proc(barrel: ^ExplodingBarrel) {
 	// Visual
-	fire := Fire{Circle{barrel.pos, 60}, 2}
+	fire := Fire{Circle{barrel.pos, 61}, 2}
 	barrel.queue_free = true
 
 	append(&main_world.fires, fire)
