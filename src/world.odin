@@ -2449,6 +2449,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		play_sound(.EnemyLunge)
 		switch enemy.variant {
 		case .Melee:
+			enemy.super_armor = true
 			// lunge at player
 			enemy.attack_state_timer = enemy.lunge_time
 			enemy.vel = normalize(world.player.pos - enemy.pos) * enemy.lunge_speed
@@ -2641,7 +2642,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 	reduction_v := -unit(p.vel) * PLAYER_SPEED_REDUCTION * delta
 	reduced_vel := unit(p.vel) * max_speed
 
-	if length(p.vel) > max_speed && sign(p.vel.x) == sign(acceleration_v.x) {
+	if length(p.vel) > max_speed && sign(p.vel.x) != -sign(acceleration_v.x) {
 		p.vel.x = move_towards(p.vel.x, reduced_vel.x, math.abs(reduction_v.x))
 	} else if acceleration_v.x != 0 {
 		p.vel.x = move_towards(p.vel.x, target_vel.x, math.abs(acceleration_v.x))
@@ -2649,7 +2650,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 		p.vel.x = move_towards(p.vel.x, 0, math.abs(friction_v.x))
 	}
 
-	if length(p.vel) > max_speed && sign(p.vel.y) == sign(acceleration_v.y) {
+	if length(p.vel) > max_speed && sign(p.vel.y) != -sign(acceleration_v.y) {
 		p.vel.y = move_towards(p.vel.y, reduced_vel.y, math.abs(reduction_v.y))
 	} else if acceleration_v.y != 0 {
 		p.vel.y = move_towards(p.vel.y, target_vel.y, math.abs(acceleration_v.y))

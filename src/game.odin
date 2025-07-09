@@ -29,7 +29,7 @@ PLAYER_SPEED_REDUCTION :: 400
 ENEMY_PATHFINDING_TIME :: 0.2
 FIRE_DASH_RADIUS :: 8
 FIRE_DASH_FIRE_DURATION :: 1
-FIRE_DASH_COOLDOWN :: 0.4
+FIRE_DASH_COOLDOWN :: 0.6
 FIRE_DASH_DISTANCE :: 50.0
 FIRE_DASH_DURATION :: 0.2
 FIRE_DASH_SPEED :: 240
@@ -51,7 +51,7 @@ PLAYER_SHAPE :: Rectangle{-3, -5.5, 6, 11}
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.12
-ATTACK_INTERVAL :: 0.04
+ATTACK_INTERVAL :: 0.06
 ATTACK_ANIM_TIME :: 0.2
 SWORD_DAMAGE :: 20
 SWORD_KNOCKBACK :: 80
@@ -132,7 +132,7 @@ STICK_HITBOX_POINTS := []Vec2 {
 	{STICK_HITBOX_OFFSET, 10},
 }
 
-ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{6, -10}, {16, -8}, {20, 0}, {16, 8}, {6, 10}}
+ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{4, -8}, {14, -7}, {18, 0}, {14, 7}, {4, 8}}
 
 sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160
@@ -368,7 +368,7 @@ update :: proc() {
 					}
 					if editor_state.mode == .None {
 						save_level()
-						reload_game_data()
+						// reload_game_data()
 						reload_level(&main_world)
 					}
 				}

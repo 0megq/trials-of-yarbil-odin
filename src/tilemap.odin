@@ -28,8 +28,7 @@ TileData :: union #no_nil {
 	DirtData,
 }
 
-EmptyData :: struct {
-}
+EmptyData :: struct {}
 
 GrassData :: struct {
 	on_fire:       bool,
@@ -38,14 +37,11 @@ GrassData :: struct {
 	burnt:         bool,
 }
 
-DirtData :: struct {
-}
+DirtData :: struct {}
 
-StoneData :: struct {
-}
+StoneData :: struct {}
 
-WaterData :: struct {
-}
+WaterData :: struct {}
 
 update_tilemap :: proc(world: ^World, do_fire_damage := true) {
 	tilemap := &world.tilemap
@@ -291,9 +287,11 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 					sprite.tex_region.y = 1
 				}
 				coord_bytes := transmute([8]u8)[2]i32{x, y}
-				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3) + 1
+				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3)
 			case DirtData:
-				sprite.tex_region.y = 1
+				sprite.tex_region.y = 4
+				coord_bytes := transmute([8]u8)[2]i32{x, y}
+				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3)
 			case WaterData:
 				sprite.tex_region.x = 2
 			case StoneData:

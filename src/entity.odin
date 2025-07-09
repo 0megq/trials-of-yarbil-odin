@@ -320,8 +320,8 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	enemy.start_flinch_time = 0.2
 	enemy.lunge_speed = 200
 	enemy.lunge_time = 0.15
-	enemy.attack_out_time = 0.2
-	enemy.attack_recovery_time = 0.5
+	enemy.attack_out_time = 0.1
+	enemy.attack_recovery_time = 0.6
 	enemy.draw_proc = draw_melee_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
@@ -330,9 +330,9 @@ setup_ranged_enemy :: proc(enemy: ^Enemy) {
 	enemy.tex = .enemy_ranged
 	enemy.flee_range = 40
 	enemy.hearing_range = 160
-	enemy.vision_range = 120
-	enemy.vision_fov = 120
-	enemy.max_speed = 60
+	enemy.vision_range = 140
+	enemy.vision_fov = 180
+	enemy.max_speed = 40
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.6
 	enemy.start_flinch_time = 0.2
@@ -460,15 +460,15 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	// 	rl.YELLOW,
 	// )
 
-	// attack_area_color := rl.Color{255, 255, 255, 120}
-	// if e.attack_out {
-	// 	attack_area_color = rl.Color{255, 0, 0, 120}
-	// }
-	// // Draw weapons and attack vfx
-	// if e.state != .Dying {
-	// 	// Draw hitbox
-	// 	when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
-	// }
+	attack_area_color := rl.Color{255, 255, 255, 120}
+	if e.attack_out {
+		attack_area_color = rl.Color{255, 0, 0, 120}
+	}
+	// Draw weapons and attack vfx
+	if e.state != .Dying {
+		// Draw hitbox
+		when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
+	}
 
 	rl.EndShaderMode()
 
