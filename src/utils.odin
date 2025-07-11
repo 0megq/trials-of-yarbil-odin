@@ -2,6 +2,7 @@ package game
 
 import "core:fmt"
 import "core:math"
+import rl "vendor:raylib"
 
 @(private = "file")
 fmt_i := fmt._arg_number
@@ -22,6 +23,11 @@ move_towards :: proc(current: f32, target: f32, delta: f32) -> f32 {
 	} else {
 		return max(new, target)
 	}
+}
+
+draw_vector :: proc(v: Vec2, pos: Vec2, col: Color) {
+	rl.DrawLineV(pos, pos + v, col)
+	rl.DrawCircleV(pos + v, 2, col)
 }
 
 ease_out_back :: proc(alpha: f32, multiplier: f32 = 1.0) -> f32 {

@@ -395,7 +395,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
 
 	// DEBUG: Draw collision shape
-	// draw_shape(e.shape, e.pos, rl.GREEN)
+	// when ODIN_DEBUG do draw_shape(e.shape, e.pos, rl.GREEN)
 	// draw vision and post range
 	when ODIN_DEBUG do if in_editor {
 		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
@@ -520,7 +520,8 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
 
 	// DEBUG: Draw collision shape
-	// draw_shape(e.shape, e.pos, rl.GREEN)
+	// when ODIN_DEBUG do draw_shape(e.shape, e.pos, rl.GREEN)
+	// when ODIN_DEBUG do if e.vel != 0 do draw_vector(e.vel, e.pos, rl.ORANGE)
 	when ODIN_DEBUG do if in_editor {
 		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
 		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
