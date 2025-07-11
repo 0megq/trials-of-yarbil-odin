@@ -1982,7 +1982,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 		separation_distance :: 20
 		vision_angle :: math.PI
 		target_weight :: 1
-		separation_weight :: 30
+		separation_weight :: 10
 		separation_force_dir: Vec2
 		for other in main_world.enemies {
 			if other.id == e.id do continue
