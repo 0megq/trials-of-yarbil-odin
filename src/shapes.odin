@@ -363,10 +363,35 @@ resolve_collision_shapes :: proc(
 			rect_b := b
 			rect_b.x += b_pos.x
 			rect_b.y += b_pos.y
-			return resolve_collision_polygons(rect_to_polygon(rect_a), rect_to_polygon(rect_b))
+			return resolve_collision_rectangles(rect_a, rect_b)
 		}
 	}
 	return false, {}, {}
+}
+
+resolve_collision_rectangles :: proc(
+	a: Rectangle,
+	b: Rectangle,
+) -> (
+	collide: bool,
+	normal: Vec2,
+	depth: f32,
+) {
+	a_center := Vec2{a.x + a.width / 2, a.y + a.height / 2}
+	b_center := Vec2{b.x + b.width / 2, b.y + b.height / 2}
+	dx := b_center.x - a_center.x
+	px := (b.width + a.width) / 2 - math.abs(dx)
+	dy := b_center.y - a_center.y
+	py := (b.height + a.height) / 2 - math.abs(dy)
+	if px <= 0 || py <= 0 {
+		return false, Vec2{}, 0
+	}
+	// Find the axis of least penetration
+	if px < py {
+		return true, Vec2{math.sign(dx), 0}, px
+	} else {
+		return true, Vec2{0, math.sign(dy)}, py
+	}
 }
 
 // normal points from a to b

@@ -1,10 +1,13 @@
 package game
 
 
+import "base:runtime"
 import "core:crypto"
 import "core:fmt"
 import "core:math"
 import "core:mem"
+import spall "core:prof/spall"
+import "core:sync"
 import "sound"
 // import "core:slice"
 // import mu "vendor:microui"
@@ -202,9 +205,29 @@ game_should_close := false
 call_after_draw_queue: [100]proc()
 call_after_draw_length := 0
 
+// profiling
+spall_ctx: spall.Context
+@(thread_local)
+spall_buffer: spall.Buffer
+
 main :: proc() {
 	// Init RNG
 	context.random_generator = crypto.random_generator()
+
+	// Setup Spall
+	when ODIN_DEBUG {
+		spall_ctx = spall.context_create("trace.spall")
+		defer spall.context_destroy(&spall_ctx)
+
+		buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+		defer delete(buffer_backing)
+
+		spall_buffer = spall.buffer_create(buffer_backing, u32(sync.current_thread_id()))
+		defer spall.buffer_destroy(&spall_ctx, &spall_buffer)
+
+		// Profile main or any function you want
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+	}
 
 	// Setup Tracking Allocator
 	when false && ODIN_DEBUG {
@@ -487,6 +510,7 @@ update :: proc() {
 }
 
 draw_frame :: proc() {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "draw frame")
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.DARKGRAY)
 
@@ -724,6 +748,8 @@ draw_frame :: proc() {
 		letterbox_size.y / 2,
 		rl.BLACK,
 	)
+
+	// rl.DrawFPS(10, 10)
 
 	rl.EndDrawing()
 }
