@@ -77,12 +77,12 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 		}
 		if rl.IsKeyPressed(.LEFT) {
 			for &wall in level.walls {
-				wall.pos.y -= TILE_SIZE
+				wall.pos.x -= TILE_SIZE
 			}
 			for &wall in level.half_walls {
-				wall.pos.y -= TILE_SIZE
+				wall.pos.x -= TILE_SIZE
 			}
-			level.portal_pos.y -= TILE_SIZE
+			level.portal_pos.x -= TILE_SIZE
 			for col, x in level_tilemap {
 				// Last column
 				if x == len(level_tilemap) - 1 {
@@ -97,12 +97,12 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 		}
 		if rl.IsKeyPressed(.RIGHT) {
 			for &wall in level.walls {
-				wall.pos.y += TILE_SIZE
+				wall.pos.x += TILE_SIZE
 			}
 			for &wall in level.half_walls {
-				wall.pos.y += TILE_SIZE
+				wall.pos.x += TILE_SIZE
 			}
-			level.portal_pos.y += TILE_SIZE
+			level.portal_pos.x += TILE_SIZE
 			#reverse for col, x in level_tilemap {
 				// Last column
 				if x == 0 {
