@@ -250,6 +250,7 @@ main :: proc() {
 	{
 		rl.SetConfigFlags({.WINDOW_RESIZABLE})
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
+		rl.ToggleBorderlessWindowed()
 		rl.SetExitKey(.KEY_NULL)
 
 		// Set window values
@@ -345,6 +346,10 @@ update :: proc() {
 	delta = min(rl.GetFrameTime(), max_delta)
 	mouse_window_pos = rl.GetMousePosition()
 	mouse_window_delta = rl.GetMouseDelta()
+
+	if rl.IsKeyPressed(.F11) {
+		rl.ToggleBorderlessWindowed()
+	}
 
 	if rl.IsWindowResized() {
 		handle_window_resize()
