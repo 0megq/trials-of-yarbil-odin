@@ -2518,6 +2518,8 @@ damage_enemy :: proc(world: ^World, enemy_idx: int, amount: f32, should_flinch :
 		return true
 	} else if should_flinch {
 		enemy.flash_opacity = 1
+		enemy.last_hit_time = f32(rl.GetTime())
+		enemy.last_hit_amount = amount
 		if !enemy.super_armor {
 			change_enemy_state(&world.enemies[enemy_idx], .Flinching, world^)
 		}

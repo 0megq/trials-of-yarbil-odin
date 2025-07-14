@@ -117,6 +117,8 @@ Enemy3 :: struct {
 	weapon_side:                   int, // top is 1, bottom is -1
 	attack_poly:                   Polygon,
 	super_armor:                   bool,
+	last_hit_time:                 f32,
+	last_hit_amount:               f32,
 	using const_data:              ConstEnemyData,
 }
 
@@ -425,16 +427,6 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	// Look arrow
 	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
 
-	// Draw sprites
-	rl.BeginShaderMode(shader)
-	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
-	if e.state == .Charging && (e.current_charge_time < 0.05) {
-		col_override = {0, 1, 1, 1}
-	}
-	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
-	draw_sprite(sprite, e.pos)
-
-
 	// Draw health bar
 	if e.state != .Dying {
 		health_bar_length: f32 = 20
@@ -447,8 +439,27 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 		health_bar_filled_rec := health_bar_base_rec
 		health_bar_filled_rec.width *= e.health / e.max_health
 		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+		time_since_last_hit := f32(rl.GetTime()) - e.last_hit_time
+		if time_since_last_hit < 0.5 {
+			damage_rec := health_bar_filled_rec
+			damage_rec.x += damage_rec.width
+			damage_rec.width = health_bar_length * e.last_hit_amount / e.max_health
+			if time_since_last_hit > 0.2 {
+				damage_rec.width = math.remap(time_since_last_hit, 0.2, 0.5, damage_rec.width, 0)
+			}
+			rl.DrawRectangleRec(damage_rec, rl.YELLOW)
+		}
 	}
 
+	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
+	draw_sprite(sprite, e.pos)
 
 	// DEBUG: Draw ID
 	// rl.DrawTextEx(
@@ -469,7 +480,6 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 		// Draw hitbox
 		when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
 	}
-
 	rl.EndShaderMode()
 
 	// Display state
@@ -550,16 +560,6 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 	// Look arrow
 	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
 
-	// Draw sprites
-	rl.BeginShaderMode(shader)
-	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
-	if e.state == .Charging && (e.current_charge_time < 0.05) {
-		col_override = {0, 1, 1, 1}
-	}
-	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
-	draw_sprite(sprite, e.pos)
-
-
 	// Draw health bar
 	if e.state != .Dying {
 		health_bar_length: f32 = 20
@@ -572,7 +572,26 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 		health_bar_filled_rec := health_bar_base_rec
 		health_bar_filled_rec.width *= e.health / e.max_health
 		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+		time_since_last_hit := f32(rl.GetTime()) - e.last_hit_time
+		if time_since_last_hit < 0.5 {
+			damage_rec := health_bar_filled_rec
+			damage_rec.x += damage_rec.width
+			damage_rec.width = health_bar_length * e.last_hit_amount / e.max_health
+			if time_since_last_hit > 0.2 {
+				damage_rec.width = math.remap(time_since_last_hit, 0.2, 0.5, damage_rec.width, 0)
+			}
+			rl.DrawRectangleRec(damage_rec, rl.YELLOW)
+		}
 	}
+
+	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
+	draw_sprite(sprite, e.pos)
 
 	// DEBUG: Draw ID
 	// rl.DrawTextEx(
