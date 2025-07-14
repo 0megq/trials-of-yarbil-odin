@@ -2635,7 +2635,7 @@ player_move :: proc(p: ^Player, delta: f32) {
 		max_speed = PLAYER_MAX_SPEED / 2
 	}
 
-	input := get_directional_input()
+	input := normalize(get_directional_input())
 	acceleration_v := normalize(input) * PLAYER_BASE_ACC * delta
 	target_vel := normalize(input) * max_speed
 
@@ -2647,6 +2647,9 @@ player_move :: proc(p: ^Player, delta: f32) {
 	if length(p.vel) > max_speed && sign(p.vel.x) != -sign(acceleration_v.x) {
 		p.vel.x = move_towards(p.vel.x, reduced_vel.x, math.abs(reduction_v.x))
 	} else if acceleration_v.x != 0 {
+		if math.sign(p.vel.x) == -math.sign(p.vel.x) {
+			acceleration_v.x *= 2
+		}
 		p.vel.x = move_towards(p.vel.x, target_vel.x, math.abs(acceleration_v.x))
 	} else {
 		p.vel.x = move_towards(p.vel.x, 0, math.abs(friction_v.x))
@@ -2655,6 +2658,9 @@ player_move :: proc(p: ^Player, delta: f32) {
 	if length(p.vel) > max_speed && sign(p.vel.y) != -sign(acceleration_v.y) {
 		p.vel.y = move_towards(p.vel.y, reduced_vel.y, math.abs(reduction_v.y))
 	} else if acceleration_v.y != 0 {
+		if math.sign(p.vel.y) == -math.sign(p.vel.y) {
+			acceleration_v.y *= 2
+		}
 		p.vel.y = move_towards(p.vel.y, target_vel.y, math.abs(acceleration_v.y))
 	} else {
 		p.vel.y = move_towards(p.vel.y, 0, math.abs(friction_v.y))
