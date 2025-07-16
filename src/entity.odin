@@ -318,7 +318,7 @@ setup_melee_enemy :: proc(enemy: ^Enemy) {
 	enemy.vision_fov = 180
 	enemy.max_speed = 60
 	enemy.attack_charge_range = 40
-	enemy.start_charge_time = 0.2
+	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
 	enemy.lunge_speed = 200
 	enemy.lunge_time = 0.15
