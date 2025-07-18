@@ -20,6 +20,7 @@ TextureId :: enum {
 	exploding_barrel,
 	tileset = 300, // 300-399 is environment
 	win_circle,
+	full_wall,
 	title_screen = 400, // 400-499 is UI
 	title_screen2,
 	hit_vfx = 500, // 500-599 is Vfx and others

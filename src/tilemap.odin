@@ -13,12 +13,20 @@ TILEMAP_SIZE :: 200
 
 // Tilemaps are indexed with x, then y. Column major
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
-WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]bool
+WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]WallType
+
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
 DIRT_COLOR :: Color{100, 50, 0, 255}
 WATER_COLOR :: Color{0, 0, 255, 255}
+
+WallType :: enum {
+	Empty,
+	Obstructed,
+	Wall,
+	HalfWall,
+}
 
 TileData :: union #no_nil {
 	EmptyData,
@@ -97,7 +105,7 @@ is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
 }
 
 is_tile_walkable :: proc(tm: Tilemap, wall_tm: WallTilemap, pos: Vec2i) -> bool {
-	if wall_tm[pos.x][pos.y] {
+	if wall_tm[pos.x][pos.y] != nil {
 		return false
 	}
 	#partial switch d in tm[pos.x][pos.y] {

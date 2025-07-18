@@ -343,21 +343,42 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	}
 }
 
-place_walls_and_calculate_graph :: proc(world: ^World) {
+place_walls_and_calculate_graph :: proc(world: ^World, reset := false) {
 	// Place wall tiles based on wall geometry
-	world.wall_tilemap = false
+	if reset do for x in 0 ..< len(world.wall_tilemap) {
+		for y in 0 ..< len(world.wall_tilemap[0]) {
+			world.wall_tilemap[x][y] = .Empty
+		}
+	}
+
+	// Place obstructed tiles
 	for wall in level.walls {
 		tiles := get_tiles_in_shape(wall.shape, wall.pos, 0.1)
 		for tile in tiles {
-			world.wall_tilemap[tile.x][tile.y] = true
+			world.wall_tilemap[tile.x][tile.y] = .Obstructed
 		}
 	}
 	for half_wall in level.half_walls {
 		tiles := get_tiles_in_shape(half_wall.shape, half_wall.pos, 0.1)
 		for tile in tiles {
-			world.wall_tilemap[tile.x][tile.y] = true
+			world.wall_tilemap[tile.x][tile.y] = .Obstructed
 		}
 	}
+
+	// Place actual walls
+	for wall in level.walls {
+		tiles := get_tiles_in_shape(wall.shape, wall.pos, -0.1)
+		for tile in tiles {
+			world.wall_tilemap[tile.x][tile.y] = .Wall
+		}
+	}
+	for half_wall in level.half_walls {
+		tiles := get_tiles_in_shape(half_wall.shape, half_wall.pos, -0.1)
+		for tile in tiles {
+			world.wall_tilemap[tile.x][tile.y] = .HalfWall
+		}
+	}
+
 	// calculate graph
 	calculate_graph_from_tiles(&world.nav_graph, level_tilemap, world.wall_tilemap)
 }

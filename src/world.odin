@@ -821,6 +821,40 @@ draw_world :: proc(world: World) {
 			draw_shape(wall.shape, wall.pos, {153, 157, 167, 255})
 		}
 
+		for x in 0 ..< len(world.wall_tilemap) {
+			for tile, y in world.wall_tilemap[x] {
+				if tile == .Obstructed || tile == .Empty do continue
+				x := i32(x)
+				y := i32(y)
+				sprite := Sprite {
+					tex_id     = .full_wall,
+					tex_region = Rectangle{0, 0, 8, 24},
+					tex_origin = {0, 16},
+					tint       = rl.WHITE,
+					scale      = 1,
+				}
+				tiles := get_neighboring_tiles({x, y})
+				vert_nei := 0
+				horiz_nei := 0
+				for neighbor in tiles {
+					nei_type := world.wall_tilemap[neighbor.x][neighbor.y]
+					if nei_type == .Wall || nei_type == .HalfWall {
+						horiz_nei += int(neighbor.x != x)
+						vert_nei += int(neighbor.y != y)
+					}
+				}
+				if vert_nei != horiz_nei {
+					if horiz_nei == 2 {
+						sprite.tex_region.x = 8
+					} else if vert_nei == 2 {
+						sprite.tex_region.x = 16
+					}
+				}
+				if tile == .HalfWall do sprite.tex_region.x += 24
+				draw_sprite(sprite, tilemap_to_world({x, y}))
+			}
+		}
+
 		// Draw in world level prompts
 		if level.has_tutorial {
 			for &prompt in tutorial.prompts {
