@@ -588,7 +588,7 @@ world_update :: proc() {
 	}
 
 	#reverse for &arrow, i in main_world.arrows {
-		zentity_move(&arrow, 300, 6, delta)
+		zentity_move(&arrow, 300, 80, delta)
 
 		arrow.attack.pos = arrow.pos
 		arrow.attack.direction = normalize(arrow.vel)
@@ -842,6 +842,11 @@ draw_world :: proc(world: World) {
 						horiz_nei += int(neighbor.x != x)
 						vert_nei += int(neighbor.y != y)
 					}
+					if tile == .Wall && nei_type == .HalfWall {
+						vert_nei = 0
+						horiz_nei = 0
+						break
+					}
 				}
 				if vert_nei != horiz_nei {
 					if horiz_nei == 2 {
@@ -892,7 +897,6 @@ draw_world :: proc(world: World) {
 					}
 				}
 			}
-
 		}
 
 		// :draw enemy
@@ -933,15 +937,18 @@ draw_world :: proc(world: World) {
 
 		for &entity in world.bombs {
 			entity.sprite.scale = entity.z + 1
-			draw_sprite(entity.sprite, entity.pos)
+			draw_sprite(entity.sprite, entity.pos + {0, entity.z})
 		}
 
-		for &entity in world.arrows {
-			entity.sprite.scale = entity.z + 1
-			draw_sprite(entity.sprite, entity.pos)
+		for entity in world.arrows {
+			rl.DrawCircleV(entity.pos, 5, {0, 0, 0, 40})
+			sprite := entity.sprite
+			sprite.scale = 1 / (1 - entity.z * 0.03)
+			draw_sprite(sprite, entity.pos - {0, entity.z})
 			// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
 		}
 
+		// Death screen
 		if world.player.dying {
 			overlay: Color
 			if world.player.death_animation_timer > 0.8 {
@@ -958,136 +965,8 @@ draw_world :: proc(world: World) {
 		}
 
 		// :draw player
-		{
-			player := world.player
+		draw_player(world.player)
 
-			// DEBUG: Collision shape
-			// draw_shape(player.shape, player.pos, rl.RED)
-
-			sprite := PLAYER_SPRITE
-
-			if player.flip_sprite {
-				sprite.scale.x = -1
-			}
-
-			// Player Sprite
-			rl.BeginShaderMode(shader)
-
-			col_override: [4]f32 = {1, 1, 1, math.round(player.flash_opacity)}
-			if player.dash_dur_timer > 0.05 {
-				col_override = {0, 1, 0, 1}
-			} else if player.dash_dur_timer > 0 {
-				col_override = {0, 1, 1, 1}
-			}
-			rl.SetShaderValueV(
-				shader,
-				rl.GetShaderLocation(shader, "col_override"),
-				&col_override,
-				.VEC4,
-				1,
-			)
-			draw_sprite(sprite, player.pos)
-			// Draw Item
-			if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
-				draw_item(player.items[player.selected_item_idx].id, player.pos)
-			}
-
-			// Draw Weapon
-
-			// Animate pos and sprite rotation
-			pos_rotation: f32
-			sprite_rotation: f32
-			if player.attack_anim_timer > 0 {
-				alpha: f32 = math.remap(player.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
-				pos_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_pos_max_rotation *
-					f32(player.weapon_side)
-				sprite_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_sprite_max_rotation *
-					f32(player.weapon_side)
-			} else {
-				pos_rotation = sword_pos_max_rotation * f32(player.weapon_side)
-				sprite_rotation = sword_sprite_max_rotation * f32(player.weapon_side)
-			}
-
-			if !player.holding_item && player.weapons[player.selected_weapon_idx].id != .Empty {
-				draw_weapon(
-					player.weapons[player.selected_weapon_idx].id,
-					player.pos,
-					false,
-					pos_rotation,
-					sprite_rotation,
-				)
-			}
-
-			/* Health Bar */
-			{
-				health_bar_length: f32 = 20
-				health_bar_height: f32 = 5
-				health_bar_base_rec := get_centered_rect(
-					{player.pos.x, player.pos.y - 20},
-					{health_bar_length, health_bar_height},
-				)
-				rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
-				health_bar_filled_rec := health_bar_base_rec
-				health_bar_filled_rec.width *= player.health / player.max_health
-				rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
-			}
-			/* End of Health Bar */
-
-			rl.EndShaderMode()
-
-			// Vfx slash
-			if player.attacking {
-				frame_count := int(get_frame_count(.hit_vfx).x)
-				frame_index := int(
-					math.floor(
-						math.remap(
-							ATTACK_DURATION - main_world.player.attack_dur_timer,
-							0,
-							ATTACK_DURATION,
-							0,
-							f32(frame_count),
-						),
-					),
-				)
-				if frame_index >= frame_count {
-					frame_index -= 1
-				}
-				tex := loaded_textures[.hit_vfx]
-				frame_size := tex.width / i32(frame_count)
-				vfx_sprite := Sprite {
-					tex_id     = .hit_vfx,
-					tex_region = {
-						f32(frame_index) * f32(frame_size),
-						0,
-						f32(frame_size),
-						f32(tex.height),
-					},
-					scale      = 1,
-					tex_origin = {0, f32(tex.height) / 2},
-					rotation   = player.attack_poly.rotation,
-					tint       = rl.WHITE,
-				}
-				draw_sprite(vfx_sprite, player.pos)
-			}
-
-			// when ODIN_DEBUG {
-			// 	if !player.holding_item &&
-			// 	   player.weapons[player.selected_weapon_idx].id >= .Sword {
-			// 		attack_hitbox_color := rl.Color{255, 255, 255, 120}
-			// 		if player.attacking {
-			// 			attack_hitbox_color = rl.Color{255, 0, 0, 120}
-			// 		}
-			// 		draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
-			// 	}
-			// }
-
-			// DEBUG: Player pickup range
-			// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
-		}
 	}
 }
 
@@ -1211,6 +1090,131 @@ draw_world_ui :: proc(world: World) {
 
 	// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
 }
+
+draw_player :: proc(player: Player) {
+	// DEBUG: Collision shape
+	// draw_shape(player.shape, player.pos, rl.RED)
+
+	sprite := PLAYER_SPRITE
+
+	if player.flip_sprite {
+		sprite.scale.x = -1
+	}
+
+	// Player Sprite
+	rl.BeginShaderMode(shader)
+
+	col_override: [4]f32 = {1, 1, 1, math.round(player.flash_opacity)}
+	if player.dash_dur_timer > 0.05 {
+		col_override = {0, 1, 0, 1}
+	} else if player.dash_dur_timer > 0 {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValueV(
+		shader,
+		rl.GetShaderLocation(shader, "col_override"),
+		&col_override,
+		.VEC4,
+		1,
+	)
+	draw_sprite(sprite, player.pos)
+	// Draw Item
+	if player.holding_item && player.items[player.selected_item_idx].id != .Empty {
+		draw_item(player.items[player.selected_item_idx].id, player.pos)
+	}
+
+	// Draw Weapon
+
+	// Animate pos and sprite rotation
+	pos_rotation: f32
+	sprite_rotation: f32
+	if player.attack_anim_timer > 0 {
+		alpha: f32 = math.remap(player.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
+		pos_rotation =
+			math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
+			sword_pos_max_rotation *
+			f32(player.weapon_side)
+		sprite_rotation =
+			math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
+			sword_sprite_max_rotation *
+			f32(player.weapon_side)
+	} else {
+		pos_rotation = sword_pos_max_rotation * f32(player.weapon_side)
+		sprite_rotation = sword_sprite_max_rotation * f32(player.weapon_side)
+	}
+
+	if !player.holding_item && player.weapons[player.selected_weapon_idx].id != .Empty {
+		draw_weapon(
+			player.weapons[player.selected_weapon_idx].id,
+			player.pos,
+			false,
+			pos_rotation,
+			sprite_rotation,
+		)
+	}
+
+	/* Health Bar */
+	{
+		health_bar_length: f32 = 20
+		health_bar_height: f32 = 5
+		health_bar_base_rec := get_centered_rect(
+			{player.pos.x, player.pos.y - 20},
+			{health_bar_length, health_bar_height},
+		)
+		rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+		health_bar_filled_rec := health_bar_base_rec
+		health_bar_filled_rec.width *= player.health / player.max_health
+		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+	}
+	/* End of Health Bar */
+
+	rl.EndShaderMode()
+
+	// Vfx slash
+	if player.attacking {
+		frame_count := int(get_frame_count(.hit_vfx).x)
+		frame_index := int(
+			math.floor(
+				math.remap(
+					ATTACK_DURATION - main_world.player.attack_dur_timer,
+					0,
+					ATTACK_DURATION,
+					0,
+					f32(frame_count),
+				),
+			),
+		)
+		if frame_index >= frame_count {
+			frame_index -= 1
+		}
+		tex := loaded_textures[.hit_vfx]
+		frame_size := tex.width / i32(frame_count)
+		vfx_sprite := Sprite {
+			tex_id     = .hit_vfx,
+			tex_region = {f32(frame_index) * f32(frame_size), 0, f32(frame_size), f32(tex.height)},
+			scale      = 1,
+			tex_origin = {0, f32(tex.height) / 2},
+			rotation   = player.attack_poly.rotation,
+			tint       = rl.WHITE,
+		}
+		draw_sprite(vfx_sprite, player.pos)
+	}
+
+	// when ODIN_DEBUG {
+	// 	if !player.holding_item &&
+	// 	   player.weapons[player.selected_weapon_idx].id >= .Sword {
+	// 		attack_hitbox_color := rl.Color{255, 255, 255, 120}
+	// 		if player.attacking {
+	// 			attack_hitbox_color = rl.Color{255, 0, 0, 120}
+	// 		}
+	// 		draw_shape(player.attack_poly, player.pos, attack_hitbox_color)
+	// 	}
+	// }
+
+	// DEBUG: Player pickup range
+	// draw_shape_lines(Circle{{}, player.pickup_range}, player.pos, rl.DARKBLUE)
+}
+
 
 // Update World Camera and get World mouse input
 update_world_camera_and_mouse_pos :: proc() {
@@ -1723,7 +1727,8 @@ zentity_move :: proc(e: ^ZEntity, friction: f32, gravity: f32, delta: f32) {
 			}
 		}
 
-		e.rot += e.rot_vel * delta
+		// e.rot += e.rot_vel * delta
+		e.rot = angle(e.vel + {0, -e.vel_z})
 		e.pos += e.vel * delta
 	}
 	// Update collision shape and sprite to match new rotation
@@ -2508,7 +2513,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 					shape = Circle{{}, 1},
 					vel = to_player * 170,
 					z = 0,
-					vel_z = 4,
+					vel_z = 50,
 					rot = angle(to_player),
 					sprite = arrow_sprite,
 					attack = Attack {

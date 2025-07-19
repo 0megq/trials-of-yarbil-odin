@@ -343,7 +343,7 @@ update_geometry_editor :: proc(world: ^World, e: ^EditorState) {
 	}
 }
 
-place_walls_and_calculate_graph :: proc(world: ^World, reset := false) {
+place_walls_and_calculate_graph :: proc(world: ^World, reset := true) {
 	// Place wall tiles based on wall geometry
 	if reset do for x in 0 ..< len(world.wall_tilemap) {
 		for y in 0 ..< len(world.wall_tilemap[0]) {
