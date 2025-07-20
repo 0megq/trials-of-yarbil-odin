@@ -5,7 +5,9 @@ import "core:fmt"
 import "core:math"
 import la "core:math/linalg"
 import "core:math/rand"
+import "core:prof/spall"
 import "core:slice"
+import "core:sort"
 import rl "vendor:raylib"
 
 // world data
@@ -726,6 +728,7 @@ world_update :: proc() {
 }
 
 draw_world :: proc(world: World) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "draw_world")
 	if editor_state.mode != .None {
 		draw_level(editor_state.show_tile_grid)
 	}
@@ -778,88 +781,6 @@ draw_world :: proc(world: World) {
 			)
 		}
 
-		// Draw items
-		for item in world.items {
-			tex_id := item_to_texture[item.data.id]
-			tex := loaded_textures[tex_id]
-			sprite: Sprite = {
-				tex_id,
-				{0, 0, f32(tex.width), f32(tex.height)},
-				{1, 1},
-				{f32(tex.width) / 2, f32(tex.height) / 2},
-				0,
-				rl.LIGHTGRAY, // Slight darker tint
-			}
-
-			draw_sprite(sprite, item.pos)
-
-			if check_collision_shapes(
-				Circle{{}, world.player.pickup_range},
-				world.player.pos,
-				item.shape,
-				item.pos,
-			) {
-				prompt: cstring = "Press E"
-				size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 4, 1)
-				rl.DrawTextEx(
-					rl.GetFontDefault(),
-					prompt,
-					item.pos - {size.x / 2, size.y + 2},
-					4,
-					1,
-					rl.WHITE,
-				)
-			}
-		}
-
-		// Draw walls and half walls
-		for wall in world.walls {
-			draw_shape(wall.shape, wall.pos, {88, 88, 102, 255})
-		}
-
-		for wall in world.half_walls {
-			draw_shape(wall.shape, wall.pos, {153, 157, 167, 255})
-		}
-
-		for x in 0 ..< len(world.wall_tilemap) {
-			for tile, y in world.wall_tilemap[x] {
-				if tile == .Obstructed || tile == .Empty do continue
-				x := i32(x)
-				y := i32(y)
-				sprite := Sprite {
-					tex_id     = .full_wall,
-					tex_region = Rectangle{0, 0, 8, 24},
-					tex_origin = {0, 16},
-					tint       = rl.WHITE,
-					scale      = 1,
-				}
-				tiles := get_neighboring_tiles({x, y})
-				vert_nei := 0
-				horiz_nei := 0
-				for neighbor in tiles {
-					nei_type := world.wall_tilemap[neighbor.x][neighbor.y]
-					if nei_type == .Wall || nei_type == .HalfWall {
-						horiz_nei += int(neighbor.x != x)
-						vert_nei += int(neighbor.y != y)
-					}
-					if tile == .Wall && nei_type == .HalfWall {
-						vert_nei = 0
-						horiz_nei = 0
-						break
-					}
-				}
-				if vert_nei != horiz_nei {
-					if horiz_nei == 2 {
-						sprite.tex_region.x = 8
-					} else if vert_nei == 2 {
-						sprite.tex_region.x = 16
-					}
-				}
-				if tile == .HalfWall do sprite.tex_region.x += 24
-				draw_sprite(sprite, tilemap_to_world({x, y}))
-			}
-		}
-
 		// Draw in world level prompts
 		if level.has_tutorial {
 			for &prompt in tutorial.prompts {
@@ -899,56 +820,184 @@ draw_world :: proc(world: World) {
 			}
 		}
 
-		// :draw enemy
-		for enemy in world.enemies {
-			enemy.draw_proc(enemy)
+		// Draw walls and half walls
+		for wall in world.walls {
+			draw_shape(wall.shape, wall.pos, {88, 88, 102, 255})
 		}
 
-		// when ODIN_DEBUG {
-		// 	for alert in world.alerts {
-		// 		rl.DrawCircleLinesV(alert.pos, alert.range, rl.RED)
-		// 	}
-		// }
+		for wall in world.half_walls {
+			draw_shape(wall.shape, wall.pos, {153, 157, 167, 255})
+		}
 
-		for barrel in world.exploding_barrels {
-			if barrel.queue_free {
-				continue
+		// Create array for y-sorting entities
+		ents_to_draw: [dynamic]EntityDrawData = make(
+			[dynamic]EntityDrawData,
+			context.temp_allocator,
+		)
+
+		// Collect all entities
+		{
+			spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "world entity draw collect entities")
+			// Add wall tiles to array
+			for x in 0 ..< len(world.wall_tilemap) {
+				for tile, y in world.wall_tilemap[x] {
+					if tile == .Obstructed || tile == .Empty do continue
+					x := i32(x)
+					y := i32(y)
+					sprite := Sprite {
+						tex_id     = .full_wall,
+						tex_region = Rectangle{0, 0, 8, 24},
+						tex_origin = {0, 16},
+						tint       = rl.WHITE,
+						scale      = 1,
+					}
+					tiles := get_neighboring_tiles({x, y})
+					vert_nei := 0
+					horiz_nei := 0
+					for neighbor in tiles {
+						nei_type := world.wall_tilemap[neighbor.x][neighbor.y]
+						if nei_type == .Wall || nei_type == .HalfWall {
+							horiz_nei += int(neighbor.x != x)
+							vert_nei += int(neighbor.y != y)
+						}
+						if tile == .Wall && nei_type == .HalfWall {
+							vert_nei = 0
+							horiz_nei = 0
+							break
+						}
+					}
+					if vert_nei != horiz_nei {
+						if horiz_nei == 2 {
+							sprite.tex_region.x = 8
+						} else if vert_nei == 2 {
+							sprite.tex_region.x = 16
+						}
+					}
+					if tile == .HalfWall do sprite.tex_region.x += 24
+					pos := tilemap_to_world({x, y})
+					append(&ents_to_draw, EntityDrawData{pos.y, WallTile{pos, sprite}})
+				}
 			}
-			rl.BeginShaderMode(shader)
 
-			col_override: [4]f32 = {1, 0.1, 0.1, 0}
-			// visually show damage with overlay and particles
-			col_override.a = 1 - barrel.health / barrel.max_health
-			// when about to explode, flash and big boom sfx
-			if barrel.exploding {
-				col_override = {1, 1, 1, 1}
+			// Add items to array
+			for item in world.items {
+				append(&ents_to_draw, EntityDrawData{item.pos.y, item})
 			}
 
-			rl.SetShaderValueV(
-				shader,
-				rl.GetShaderLocation(shader, "col_override"),
-				&col_override,
-				.VEC4,
-				1,
+			// :draw enemy
+			for enemy in world.enemies {
+				append(&ents_to_draw, EntityDrawData{enemy.pos.y, enemy})
+			}
+
+			for barrel in world.exploding_barrels {
+				append(&ents_to_draw, EntityDrawData{barrel.pos.y, barrel})
+			}
+
+			for &entity in world.bombs {
+				append(&ents_to_draw, EntityDrawData{entity.pos.y, entity})
+			}
+
+			for entity in world.arrows {
+
+				append(&ents_to_draw, EntityDrawData{entity.pos.y, entity})
+			}
+
+			append(&ents_to_draw, EntityDrawData{world.player.pos.y, world.player})
+		}
+
+		// Do the y-sort
+		{
+			spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "world entity draw sort")
+			// merge sort is slightly faster than the slice.stable_sort_by which uses an insertion sort
+			// if still too slow, we can always do an unstable quick sort
+			sort.merge_sort_proc(
+				ents_to_draw[:],
+				proc(a, b: EntityDrawData) -> int {
+					return int(a.y_sort_pos > b.y_sort_pos) // Larger y position should be later in the array
+				},
 			)
-			draw_sprite(BARREL_SPRITE, barrel.pos)
-			rl.EndShaderMode()
 		}
 
-		for &entity in world.bombs {
-			entity.sprite.scale = entity.z + 1
-			draw_sprite(entity.sprite, entity.pos + {0, entity.z})
+		// Draw all the entities now that they are sorted
+		{
+			spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "world actual entity draw")
+			for data in ents_to_draw {
+				switch e in data.actual_data {
+				case Player:
+					draw_player(e)
+				case Enemy:
+					e.draw_proc(e)
+				case Item:
+					tex_id := item_to_texture[e.data.id]
+					tex := loaded_textures[tex_id]
+					sprite: Sprite = {
+						tex_id,
+						{0, 0, f32(tex.width), f32(tex.height)},
+						{1, 1},
+						{f32(tex.width) / 2, f32(tex.height) / 2},
+						0,
+						rl.LIGHTGRAY, // Slight darker tint
+					}
+
+					draw_sprite(sprite, e.pos)
+
+					if check_collision_shapes(
+						Circle{{}, world.player.pickup_range},
+						world.player.pos,
+						e.shape,
+						e.pos,
+					) {
+						prompt: cstring = "Press E"
+						size := rl.MeasureTextEx(rl.GetFontDefault(), prompt, 4, 1)
+						rl.DrawTextEx(
+							rl.GetFontDefault(),
+							prompt,
+							e.pos - {size.x / 2, size.y + 2},
+							4,
+							1,
+							rl.WHITE,
+						)
+					}
+				case Arrow:
+					rl.DrawCircleV(e.pos, 5, {0, 0, 0, 40})
+					sprite := e.sprite
+					sprite.scale = 1 / (1 - e.z * 0.03)
+					// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
+					draw_sprite(sprite, e.pos - {0, e.z})
+				case Bomb:
+					sprite := e.sprite
+					sprite.scale = e.z + 1
+					draw_sprite(sprite, e.pos + {0, e.z})
+				case ExplodingBarrel:
+					if e.queue_free {
+						continue
+					}
+					rl.BeginShaderMode(shader)
+
+					col_override: [4]f32 = {1, 0.1, 0.1, 0}
+					// visually show damage with overlay and particles
+					col_override.a = 1 - e.health / e.max_health
+					// when about to explode, flash and big boom sfx
+					if e.exploding {
+						col_override = {1, 1, 1, 1}
+					}
+
+					rl.SetShaderValueV(
+						shader,
+						rl.GetShaderLocation(shader, "col_override"),
+						&col_override,
+						.VEC4,
+						1,
+					)
+					draw_sprite(BARREL_SPRITE, e.pos)
+					rl.EndShaderMode()
+				case WallTile:
+					draw_sprite(e.sprite, e.pos)
+				}
+			}
 		}
 
-		for entity in world.arrows {
-			rl.DrawCircleV(entity.pos, 5, {0, 0, 0, 40})
-			sprite := entity.sprite
-			sprite.scale = 1 / (1 - entity.z * 0.03)
-			draw_sprite(sprite, entity.pos - {0, entity.z})
-			// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
-		}
-
-		// Death screen
+		// Draw death screen over everything
 		if world.player.dying {
 			overlay: Color
 			if world.player.death_animation_timer > 0.8 {
@@ -962,11 +1011,8 @@ draw_world :: proc(world: World) {
 				}
 			}
 			rl.DrawRectangleV(window_to_world(0), {f32(GAME_SIZE.x), f32(GAME_SIZE.y)}, overlay)
+			draw_player(world.player)
 		}
-
-		// :draw player
-		draw_player(world.player)
-
 	}
 }
 

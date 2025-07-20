@@ -24,6 +24,25 @@ fmt_i := fmt._arg_number
 // }
 
 
+EntityDrawData :: struct {
+	y_sort_pos:  f32,
+	actual_data: union {
+		Player,
+		Enemy,
+		Item,
+		Arrow,
+		Bomb,
+		ExplodingBarrel,
+		WallTile,
+	},
+}
+
+WallTile :: struct {
+	pos:    Vec2,
+	sprite: Sprite,
+}
+
+
 EntityType :: enum {
 	Player,
 	Enemy,
