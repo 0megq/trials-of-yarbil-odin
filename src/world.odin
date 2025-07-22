@@ -501,6 +501,15 @@ world_update :: proc() {
 			if entity.explosion_timer < 0 {
 				barrel_explode(&entity)
 			}
+		} else if entity.health < entity.max_health {
+			// play a sound
+			if entity.explosion_timer > 0 {
+				entity.explosion_timer -= delta
+			} else {
+				entity.explosion_timer = entity.health / entity.max_health * 0.5
+				play_sound(.tick)
+			}
+			damage_exploding_barrel(&entity, 20 * delta)
 		}
 	}
 
@@ -559,7 +568,7 @@ world_update :: proc() {
 			should_explode = true
 		}
 		if should_explode {
-			play_sound(.Explosion)
+			play_sound(.small_explosion)
 			explosion_radius: f32 = 16
 			append(&main_world.fires, Fire{Circle{bomb.pos, explosion_radius}, 0.5})
 			// Potential memory leak with exclude_targets
@@ -1402,7 +1411,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool, world: Wo
 
 // :attack
 perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: int) {
-	EXPLOSION_DAMAGE_MULTIPLIER :: 10
+	EXPLOSION_DAMAGE_MULTIPLIER :: 2
 	// Perform attack
 	switch data in attack.data {
 	case SwordAttackData:
@@ -2799,6 +2808,8 @@ damage_exploding_barrel :: proc(barrel: ^ExplodingBarrel, amount: f32) {
 	if barrel.health <= 0 {
 		// KABOOM!!!
 		play_sound(.Explosion)
+		screen_shake_intensity = 2.0
+		screen_shake_time = 0.2
 		barrel.exploding = true
 		barrel.explosion_timer = 0.1
 	}

@@ -50,7 +50,7 @@ ENEMY_POST_RANGE :: 16
 ENEMY_SEARCH_TOLERANCE :: 16
 ENEMY_DEATH_ANIMATION_TIME :: 0.3
 INVESTIGATE_ALERT_INTENSITY :: 0.8
-PLAYER_SHAPE :: Rectangle{-3, -5.5, 6, 11}
+PLAYER_SHAPE :: Rectangle{-2, -5, 6, 6}
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.12
@@ -140,8 +140,8 @@ ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{4, -8}, {14, -7}, {18, 0}, {14, 7}, {4, 8}
 sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160
 
-PLAYER_SPRITE :: Sprite{.player, {0, 0, 12, 16}, {1, 1}, {6.5, 9}, 0, rl.WHITE}
-BARREL_SPRITE :: Sprite{.exploding_barrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
+PLAYER_SPRITE :: Sprite{.player, {0, 0, 12, 16}, {1, 1}, {5.5, 13}, 0, rl.WHITE}
+BARREL_SPRITE :: Sprite{.exploding_barrel, {0, 0, 12, 17}, {1, 1}, {6, 13}, 0, rl.WHITE}
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
@@ -371,6 +371,14 @@ update :: proc() {
 		}
 		if rl.IsKeyPressed(.RIGHT_BRACKET) {
 			debug_speed += 0.25
+		}
+	}
+
+	when ODIN_DEBUG {
+		if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.R) {
+			// reload assets
+			unload_textures()
+			load_textures()
 		}
 	}
 
