@@ -2534,6 +2534,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 			start_enemy_pathing(enemy, world, enemy.last_alert.pos)
 		}
 	case .Chasing:
+		if enemy.state != .Attacking do play_sound(.enemy_spot_player)
 		start_enemy_pathing(enemy, world, world.player.pos)
 	case .Charging:
 		if enemy.state != .Fleeing {
