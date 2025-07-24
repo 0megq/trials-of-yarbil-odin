@@ -498,7 +498,7 @@ draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
 	// Draw weapons and attack vfx
 	if e.state != .Dying {
 		// Draw hitbox
-		when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
+		// when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
 	}
 	rl.EndShaderMode()
 
