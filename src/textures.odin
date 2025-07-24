@@ -18,6 +18,7 @@ TextureId :: enum {
 	turret_head,
 	arrow,
 	exploding_barrel,
+	barrel_shadow,
 	tileset = 300, // 300-399 is environment
 	win_circle,
 	full_wall,

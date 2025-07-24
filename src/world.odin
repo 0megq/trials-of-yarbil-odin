@@ -981,16 +981,19 @@ draw_world :: proc(world: World) {
 					if e.queue_free {
 						continue
 					}
+
+					shadow_sprite := BARREL_SPRITE
+					shadow_sprite.tex_id = .barrel_shadow
+					draw_sprite(shadow_sprite, e.pos)
 					rl.BeginShaderMode(shader)
 
-					col_override: [4]f32 = {1, 0.1, 0.1, 0}
-					// visually show damage with overlay and particles
-					// col_override.a = 1 - e.health / e.max_health
+					col_override: [4]f32
 					// when about to explode, flash and big boom sfx
 					if e.exploding {
 						col_override = {1, 1, 1, 1}
 					} else if e.health < e.max_health && e.explosion_timer < 0.05 {
-						col_override = {1, 0.1, 0.1, 1}
+						// visually show damage with overlay
+						col_override = {1, 0.1, 0.1, 1 - e.health / e.max_health}
 					}
 
 					rl.SetShaderValueV(
