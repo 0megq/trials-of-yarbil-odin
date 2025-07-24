@@ -63,6 +63,9 @@ STICK_DAMAGE :: 10
 STICK_KNOCKBACK :: 70
 STICK_HITBOX_OFFSET :: 2
 
+MAX_VOLUME :: 1.5
+MIN_VOLUME :: 0
+
 DISCORD_LINK :: "https://discord.com/invite/RTe474TtHe"
 
 EditorMode :: enum {
@@ -78,6 +81,7 @@ Menu :: enum {
 	Pause,
 	Main,
 	Win,
+	Options,
 }
 
 MovementAbility :: enum {
@@ -162,14 +166,20 @@ game_data: GameData
 main_world: World
 main_menu: struct {
 	play_button:    Button,
+	options_button: Button,
 	quit_button:    Button,
 	discord_button: Button,
 }
 pause_menu: struct {
-	resume_button:               Button,
-	main_menu_button:            Button,
+	resume_button:    Button,
+	main_menu_button: Button,
+	options_button:   Button,
+	discord_button:   Button,
+}
+options_menu: struct {
+	volume_slider_rect:          Rectangle,
+	back_button:                 Button,
 	controls_button:             Button,
-	discord_button:              Button,
 	controls_panel_close_button: Button,
 	controls_panel_showing:      bool,
 }
@@ -290,6 +300,7 @@ main :: proc() {
 
 	setup_main_menu()
 	setup_pause_menu()
+	setup_options_menu()
 	setup_win_menu()
 
 	init_editor_state(&editor_state)
@@ -384,6 +395,7 @@ update :: proc() {
 
 	if menu_change_queued {
 		perform_menu_change()
+		menu_change_queued = false
 	}
 
 	#partial switch cur_menu {
@@ -455,38 +467,64 @@ update :: proc() {
 		}
 	case .Main:
 		update_button(&main_menu.play_button, mouse_ui_pos)
+		update_button(&main_menu.options_button, mouse_ui_pos)
 		update_button(&main_menu.quit_button, mouse_ui_pos)
 		update_button(&main_menu.discord_button, mouse_ui_pos)
 		if main_menu.play_button.status == .Released {
 			queue_menu_change(.World)
+		} else if main_menu.options_button.status == .Released {
+			queue_menu_change(.Options)
 		} else if main_menu.quit_button.status == .Released {
 			game_should_close = true
 		} else if main_menu.discord_button.status == .Released {
 			rl.OpenURL(DISCORD_LINK)
 		}
 	case .Pause:
-		if !pause_menu.controls_panel_showing {
-			update_button(&pause_menu.resume_button, mouse_ui_pos)
-			update_button(&pause_menu.controls_button, mouse_ui_pos)
-			update_button(&pause_menu.main_menu_button, mouse_ui_pos)
-			update_button(&pause_menu.discord_button, mouse_ui_pos)
-			if pause_menu.resume_button.status == .Released {
-				queue_menu_change(.World)
-			} else if pause_menu.controls_button.status == .Released {
-				pause_menu.controls_panel_showing = true
-			} else if pause_menu.main_menu_button.status == .Released {
-				queue_menu_change(.Main)
-			} else if pause_menu.discord_button.status == .Released {
-				rl.OpenURL(DISCORD_LINK)
+		update_button(&pause_menu.resume_button, mouse_ui_pos)
+		update_button(&pause_menu.options_button, mouse_ui_pos)
+		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
+		update_button(&pause_menu.discord_button, mouse_ui_pos)
+		if pause_menu.resume_button.status == .Released {
+			queue_menu_change(.World)
+		} else if pause_menu.options_button.status == .Released {
+			queue_menu_change(.Options)
+		} else if pause_menu.main_menu_button.status == .Released {
+			queue_menu_change(.Main)
+		} else if pause_menu.discord_button.status == .Released {
+			rl.OpenURL(DISCORD_LINK)
+		}
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.World)
+		}
+
+	case .Options:
+		if !options_menu.controls_panel_showing {
+			// volume slider
+			slider_rect := options_menu.volume_slider_rect
+			if rl.IsMouseButtonDown(.LEFT) &&
+			   check_collision_shape_point(slider_rect, {}, mouse_ui_pos) {
+				volume: f32 = math.remap(
+					mouse_ui_pos.x,
+					slider_rect.x,
+					slider_rect.x + slider_rect.width,
+					MIN_VOLUME,
+					MAX_VOLUME,
+				)
+				rl.SetMasterVolume(volume)
 			}
-			if rl.IsKeyPressed(.ESCAPE) {
-				queue_menu_change(.World)
+
+			update_button(&options_menu.back_button, mouse_ui_pos)
+			update_button(&options_menu.controls_button, mouse_ui_pos)
+			if options_menu.back_button.status == .Released || rl.IsKeyPressed(.ESCAPE) {
+				queue_menu_change(prev_menu)
+			} else if options_menu.controls_button.status == .Released {
+				options_menu.controls_panel_showing = true
 			}
 		} else {
-			update_button(&pause_menu.controls_panel_close_button, mouse_ui_pos)
-			if pause_menu.controls_panel_close_button.status == .Released ||
+			update_button(&options_menu.controls_panel_close_button, mouse_ui_pos)
+			if options_menu.controls_panel_close_button.status == .Released ||
 			   rl.IsKeyPressed(.ESCAPE) {
-				pause_menu.controls_panel_showing = false
+				options_menu.controls_panel_showing = false
 			}
 		}
 	case .Win:
@@ -589,6 +627,7 @@ draw_frame :: proc() {
 			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
 		}
 		draw_button(main_menu.play_button)
+		draw_button(main_menu.options_button)
 		draw_button(main_menu.quit_button)
 		draw_button(main_menu.discord_button)
 		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
@@ -596,7 +635,7 @@ draw_frame :: proc() {
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 		draw_button(pause_menu.resume_button)
-		draw_button(pause_menu.controls_button)
+		draw_button(pause_menu.options_button)
 		draw_button(pause_menu.main_menu_button)
 		draw_button(pause_menu.discord_button)
 
@@ -613,8 +652,37 @@ draw_frame :: proc() {
 			)
 			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
 		}
-		// Controls panel
-		if pause_menu.controls_panel_showing {
+
+		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
+	case .Options:
+		// Background color
+		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {10, 67, 71, 255})
+		draw_button(options_menu.back_button)
+		draw_button(options_menu.controls_button)
+		// draw volume slide
+		{
+			rl.DrawRectangleRec(options_menu.volume_slider_rect, rl.DARKGRAY)
+			master_volume := rl.GetMasterVolume()
+			percentage := math.remap(master_volume, MIN_VOLUME, MAX_VOLUME, 0, 1)
+			fill_rect := options_menu.volume_slider_rect
+			fill_rect.width *= percentage
+			rl.DrawRectangleRec(fill_rect, rl.BLUE)
+			if check_collision_shape_point(options_menu.volume_slider_rect, 0, mouse_ui_pos) {
+				rl.DrawRectangleRec(options_menu.volume_slider_rect, {255, 255, 255, 50})
+			}
+			draw_text(
+				get_center(options_menu.volume_slider_rect),
+				{0, 0},
+				"Volume",
+				rl.GetFontDefault(),
+				16,
+				2,
+				rl.WHITE,
+			)
+		}
+
+		// Contols panel
+		if options_menu.controls_panel_showing {
 			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 			rec := get_centered_rect(
 				{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2,
@@ -624,7 +692,7 @@ draw_frame :: proc() {
 			rl.DrawRectangleRec(rec, {103, 132, 201, 255})
 
 			// Panel Elements
-			draw_button(pause_menu.controls_panel_close_button)
+			draw_button(options_menu.controls_panel_close_button)
 
 			x := rec.x + rec.width * 0.5
 			cur_y: f32 = rec.y + 120
@@ -717,7 +785,6 @@ draw_frame :: proc() {
 				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
 			}
 		}
-		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
 	case .Win:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
@@ -787,6 +854,7 @@ perform_menu_change :: proc() {
 	case .Pause:
 	case .Main:
 	case .Win:
+	case .Options:
 	case .Nil:
 	}
 
@@ -796,6 +864,7 @@ perform_menu_change :: proc() {
 	case .Pause:
 	case .Main:
 	case .Win:
+	case .Options:
 	case .Nil:
 	}
 
