@@ -985,10 +985,12 @@ draw_world :: proc(world: World) {
 
 					col_override: [4]f32 = {1, 0.1, 0.1, 0}
 					// visually show damage with overlay and particles
-					col_override.a = 1 - e.health / e.max_health
+					// col_override.a = 1 - e.health / e.max_health
 					// when about to explode, flash and big boom sfx
 					if e.exploding {
 						col_override = {1, 1, 1, 1}
+					} else if e.health < e.max_health && e.explosion_timer < 0.05 {
+						col_override = {1, 0.1, 0.1, 1}
 					}
 
 					rl.SetShaderValueV(
@@ -1155,6 +1157,9 @@ draw_player :: proc(player: Player) {
 	if player.flip_sprite {
 		sprite.scale.x = -1
 	}
+
+	// shadow
+	rl.DrawCircleV(player.pos + {0, 2}, 5, {0, 0, 0, 40})
 
 	// Player Sprite
 	rl.BeginShaderMode(shader)
@@ -2496,7 +2501,6 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 	// Exit state code
 	switch enemy.state {
 	case .Idle:
-
 	case .Alerted:
 
 	case .Chasing:
