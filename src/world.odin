@@ -902,12 +902,11 @@ draw_world :: proc(world: World) {
 				append(&ents_to_draw, EntityDrawData{barrel.pos.y, barrel})
 			}
 
-			for &entity in world.bombs {
+			for entity in world.bombs {
 				append(&ents_to_draw, EntityDrawData{entity.pos.y, entity})
 			}
 
 			for entity in world.arrows {
-
 				append(&ents_to_draw, EntityDrawData{entity.pos.y, entity})
 			}
 
@@ -972,7 +971,7 @@ draw_world :: proc(world: World) {
 					sprite := e.sprite
 					sprite.scale = 1 / (1 - e.z * 0.03)
 					// draw_shape_lines(entity.shape, entity.pos, rl.WHITE)
-					draw_sprite(sprite, e.pos - {0, e.z})
+					draw_sprite(sprite, e.pos - {0, e.z * 0.5})
 				case Bomb:
 					sprite := e.sprite
 					sprite.scale = e.z + 1
