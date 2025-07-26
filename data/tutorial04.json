@@ -2,41 +2,56 @@
 	"prompts": [
 		{
 			"pos": [
-				932,
-				736
+				916.00000000,
+				719.00000000
 			],
-			"text": "After use, your dash must recharge"
+			"text": "Killing enemies will instantly",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
 		},
 		{
 			"pos": [
-				1000,
-				822
+				916.00000000,
+				727.00000000
 			],
-			"text": "Killing enemies will instantly"
+			"text": "recharge your dash.",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
 		},
 		{
 			"pos": [
-				1000,
-				830
-			],
-			"text": "recharge your dash."
-		},
-		{
-			"pos": [
-				0.5,
-				0.9
+				0.50000000,
+				0.89999998
 			],
 			"text": "Dash Meter",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
 			"on_screen": true
 		}
 	],
-	"actions": [],
+	"actions": [
+
+	],
 	"hide_item_hud": true,
 	"hide_weapon_hud": false,
 	"hide_dash_hud": false,
 	"disable_ability": false,
-	"hide_all_hud": false,
 	"hide_speedrun_timer": true,
+	"hide_all_hud": false,
 	"enable_enemy_dummies": false,
 	"disable_throwing": true,
 	"disable_switching": true,

@@ -1,12 +1,16 @@
 {
-	"prompts": [],
-	"actions": [],
+	"prompts": [
+
+	],
+	"actions": [
+
+	],
 	"hide_item_hud": true,
 	"hide_weapon_hud": false,
 	"hide_dash_hud": true,
 	"disable_ability": false,
-	"hide_all_hud": false,
 	"hide_speedrun_timer": true,
+	"hide_all_hud": false,
 	"enable_enemy_dummies": false,
 	"disable_throwing": true,
 	"disable_switching": true,
