@@ -381,7 +381,7 @@ save_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Saved")
 	if level.has_tutorial {
-		// _save_tutorial() 
+		_save_tutorial()
 	}
 }
 
