@@ -279,6 +279,7 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 		for y in start.y ..= end.y {
 			sprite := Sprite {
 				tex_id     = .tileset,
+				// Change this to just TILE_SIZE, TILE_SIZE to do transparent tiles
 				tex_region = {0, 0, TILE_SIZE + 1, TILE_SIZE + 1},
 				tex_origin = {},
 				scale      = 1,
