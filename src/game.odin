@@ -1,5 +1,7 @@
 package game
 
+import "core:encoding/json"
+import "core:os"
 
 import "base:runtime"
 import "core:crypto"
@@ -67,6 +69,11 @@ MAX_VOLUME :: 1.5
 MIN_VOLUME :: 0
 
 DISCORD_LINK :: "https://discord.com/invite/RTe474TtHe"
+
+Settings :: struct {
+	master_volume: f32,
+}
+settings: Settings
 
 EditorMode :: enum {
 	None,
@@ -282,6 +289,7 @@ main :: proc() {
 		load_textures()
 		// pixel_filter := rl.LoadShader(nil, "assets/pixel_filter.fs")
 		load_game_data()
+		load_settings()
 	}
 
 	// Allocate memory for the main world (Should only happen once)
@@ -314,7 +322,7 @@ main :: proc() {
 
 	queue_menu_change(.Main)
 
-	// Update Loop
+	// *** Update Loop ***
 	for !rl.WindowShouldClose() && !game_should_close {
 		sound.update({}, 1.0)
 		update()
@@ -325,6 +333,8 @@ main :: proc() {
 		save_level()
 	}
 	destruct_editor_state(&editor_state)
+
+	save_settings()
 
 	// Free level memory
 	unload_level()
@@ -1026,4 +1036,35 @@ get_right_text_pos :: proc(right: Vec2, text: cstring, font_size: f32, spacing: 
 get_left_text_pos :: proc(left: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
 	size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
 	return left - {0, size.y / 2}
+}
+
+load_settings :: proc() {
+	if bytes, ok := os.read_entire_file("data/settings.json", context.temp_allocator); ok {
+		if err := json.unmarshal(bytes, &settings); err == nil {
+			// Apply the settings data
+			rl.SetMasterVolume(settings.master_volume)
+		} else {
+			rl.TraceLog(.WARNING, "Failed to parse settings file, generating defaults")
+		}
+	} else {
+		rl.TraceLog(.WARNING, "No settings file found, generating defaults")
+	}
+}
+
+save_settings :: proc() {
+	// Wrangle all the settings data
+	settings.master_volume = rl.GetMasterVolume()
+
+	// Actually save the settings
+	if bytes, err := json.marshal(
+		settings,
+		allocator = context.temp_allocator,
+		opt = {pretty = true},
+	); err == nil {
+		if !os.write_entire_file("data/settings.json", bytes) {
+			rl.TraceLog(.WARNING, "Error writing settings data")
+		}
+	} else {
+		rl.TraceLog(.WARNING, "Error serializing settings data")
+	}
 }
