@@ -1011,6 +1011,7 @@ get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spaci
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
 }
 
+// A pivot of {-1, -1} means the top left will be put at pos
 draw_text :: proc(
 	pos: Vec2,
 	pivot: Vec2,

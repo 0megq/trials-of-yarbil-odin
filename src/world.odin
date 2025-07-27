@@ -1145,6 +1145,15 @@ draw_world_ui :: proc(world: World) {
 				}
 			}
 		}
+
+		// Display level number
+		draw_text(
+			{16, 16},
+			{-1, -1},
+			fmt.ctprint("Level ", game_data.cur_level_idx),
+			rl.GetFontDefault(),
+			color = {200, 200, 255, 255},
+		)
 	}
 
 	// rl.DrawText(fmt.ctprintf("FPS: %v", rl.GetFPS()), 600, 20, 16, rl.BLACK)
