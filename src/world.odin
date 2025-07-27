@@ -64,7 +64,7 @@ world_update :: proc() {
 	if all_enemies_dying(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
-		if game_data.cur_level_idx == 14 {
+		if game_data.cur_level_idx == 13 {
 			queue_menu_change(.Win)
 		} else {
 			// if not last level
@@ -1328,7 +1328,10 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool, world: Wo
 	case EntityCountCondition:
 		#partial switch c.type {
 		case .Enemy:
-			passed_condition = len(world.enemies) == c.count
+			enemies_alive := slice.count_proc(world.enemies[:], proc(e: Enemy) -> bool {
+				return e.state != .Dying
+			})
+			passed_condition = enemies_alive == c.count
 		case:
 		}
 

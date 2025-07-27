@@ -5,7 +5,7 @@
 				0.50000000,
 				0.10000000
 			],
-			"text": "Eliminate all enemies as FAST as possible!",
+			"text": "It's your turn now!",
 			"condition": {
 				"type": 1,
 				"count": 0
