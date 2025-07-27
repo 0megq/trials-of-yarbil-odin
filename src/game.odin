@@ -426,6 +426,10 @@ update :: proc() {
 					}
 					if editor_state.mode == .None {
 						save_level()
+						main_world.player.health = main_world.player.max_health
+						main_world.player.items = {}
+						main_world.player.item_count = 0
+						save_game_data()
 						// reload_game_data()
 						reload_level(&main_world)
 					}
