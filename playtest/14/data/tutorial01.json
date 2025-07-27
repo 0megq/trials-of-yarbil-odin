@@ -1,0 +1,45 @@
+{
+	"prompts": [
+		{
+			"pos": [
+				620.00000000,
+				702.00000000
+			],
+			"text": "W, A, S, and D to move",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
+		},
+		{
+			"pos": [
+				741.00000000,
+				606.00000000
+			],
+			"text": "Left click to attack",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
+		}
+	],
+	"actions": [
+
+	],
+	"hide_item_hud": true,
+	"hide_weapon_hud": false,
+	"hide_dash_hud": true,
+	"disable_ability": false,
+	"hide_speedrun_timer": true,
+	"hide_all_hud": false,
+	"enable_enemy_dummies": false,
+	"disable_throwing": true,
+	"disable_switching": true,
+	"disable_dropping": true
+}
