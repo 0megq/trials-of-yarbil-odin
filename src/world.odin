@@ -576,7 +576,7 @@ world_update :: proc() {
 				&main_world,
 				&{
 					targets = {.Player, .Enemy, .ExplodingBarrel, .Tile},
-					damage = 20,
+					damage = 30,
 					knockback = 20,
 					pos = bomb.pos,
 					shape = Circle{{}, explosion_radius},
@@ -1430,7 +1430,7 @@ check_condition :: proc(condition: ^Condition, invert_condition: bool, world: Wo
 
 // :attack
 perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: int) {
-	EXPLOSION_DAMAGE_MULTIPLIER :: 2
+	EXPLOSION_DAMAGE_MULTIPLIER :: 1.5
 	// Perform attack
 	switch data in attack.data {
 	case SwordAttackData:
@@ -1846,7 +1846,7 @@ use_bomb :: proc(world: ^World) {
 	append(
 		&world.bombs,
 		Bomb {
-			entity = new_entity(world.player.pos),
+			entity = new_entity(world.player.pos + to_mouse * 4),
 			shape = Rectangle{-1, 0, 3, 3},
 			vel = to_mouse * base_vel,
 			z = 0,
