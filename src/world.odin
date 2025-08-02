@@ -34,6 +34,7 @@ screen_shake_time: f32 = 0
 screen_shake_intensity: f32 = 1
 
 world_update :: proc() {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "world update")
 	// Perform Queued World Actions (death and deletion). Remove things from the previous frame
 	if main_world.player.death_animation_timer > 0 {
 		main_world.player.death_animation_timer -= delta
@@ -250,202 +251,218 @@ world_update :: proc() {
 	}
 
 	// :enemy loop
-	enemy_loop: #reverse for &enemy, idx in main_world.enemies {
-		/* ---------------------------- Tutorial Dummies ---------------------------- */
-		if level.has_tutorial && tutorial.enable_enemy_dummies {
-			damage_enemy(&main_world, idx, 0)
-		}
+	{
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "enemy update")
+		enemy_loop: #reverse for &enemy, idx in main_world.enemies {
+			spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "single enemy")
+			/* ---------------------------- Tutorial Dummies ---------------------------- */
+			if level.has_tutorial && tutorial.enable_enemy_dummies {
+				damage_enemy(&main_world, idx, 0)
+			}
 
-		// Sprite flash
-		if enemy.flash_opacity > 0 {
-			enemy.flash_opacity -=
-				delta /
-				(enemy.flash_opacity *
-						enemy.flash_opacity *
-						enemy.flash_opacity *
-						enemy.flash_opacity)
-			enemy.flash_opacity = max(enemy.flash_opacity, 0)
-		}
+			// Sprite flash
+			if enemy.flash_opacity > 0 {
+				enemy.flash_opacity -=
+					delta /
+					(enemy.flash_opacity *
+							enemy.flash_opacity *
+							enemy.flash_opacity *
+							enemy.flash_opacity)
+				enemy.flash_opacity = max(enemy.flash_opacity, 0)
+			}
 
-		enemy.target = enemy.pos
-		/* --------------------------- Update Vision Cone --------------------------- */
-		{
-			for &p, i in enemy.vision_points {
-				dir := vector_from_angle(
-					f32(i) * enemy.vision_fov / f32(len(enemy.vision_points) - 1) +
-					enemy.look_angle -
-					enemy.vision_fov / 2,
-				)
-				if i == len(enemy.vision_points) - 1 {
-					p = enemy.pos
-					break
-				}
-				t := cast_ray_through_walls(main_world.walls[:], enemy.pos, dir)
-				if t < enemy.vision_range {
-					p = enemy.pos + t * dir
+			enemy.target = enemy.pos
+			/* --------------------------- Update Vision Cone --------------------------- */
+			{
+				spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "vision cone")
+				if enemy.update_vision_timer <= 0 {
+					enemy.update_vision_timer = 0.3
+					for &p, i in enemy.vision_points {
+						dir := vector_from_angle(
+							f32(i) * enemy.vision_fov / f32(len(enemy.vision_points) - 1) +
+							enemy.look_angle -
+							enemy.vision_fov / 2,
+						)
+						if i == len(enemy.vision_points) - 1 {
+							p = enemy.pos
+							break
+						}
+						t := cast_ray_through_walls(main_world.walls[:], enemy.pos, dir)
+						if t < enemy.vision_range {
+							p = enemy.pos + t * dir
+						} else {
+							p = enemy.pos + enemy.vision_range * dir
+						}
+					}
 				} else {
-					p = enemy.pos + enemy.vision_range * dir
+					enemy.update_vision_timer -= delta
 				}
 			}
-		}
 
-		/* -------------------------- Check For Player LOS -------------------------- */
-		{
-			enemy.can_see_player = check_collsion_circular_concave_circle(
-				enemy.vision_points[:],
-				enemy.pos,
-				{main_world.player.pos, 8},
-			)
-			if enemy.can_see_player {
-				enemy.last_seen_player_pos = main_world.player.pos
-				enemy.last_seen_player_vel = main_world.player.vel
+			/* -------------------------- Check For Player LOS -------------------------- */
+			{
+				enemy.can_see_player = check_collsion_circular_concave_circle(
+					enemy.vision_points[:],
+					enemy.pos,
+					{main_world.player.pos, 8},
+				)
+				if enemy.can_see_player {
+					enemy.last_seen_player_pos = main_world.player.pos
+					enemy.last_seen_player_vel = main_world.player.vel
+				}
 			}
-		}
 
-		/* ---------------------------- Player Flee Check --------------------------- */
-		{
-			enemy.player_in_flee_range = check_collision_shapes(
-				Circle{{}, enemy.flee_range},
-				enemy.pos,
-				main_world.player.shape,
-				main_world.player.pos,
-			)
-		}
+			/* ---------------------------- Player Flee Check --------------------------- */
+			{
+				enemy.player_in_flee_range = check_collision_shapes(
+					Circle{{}, enemy.flee_range},
+					enemy.pos,
+					main_world.player.shape,
+					main_world.player.pos,
+				)
+			}
 
-		/* ------------------------------ Check Alerts ------------------------------ */
-		if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
-		   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
-			enemy.alert_just_detected = false
-			detected_alert: Alert
-			detected_effective_intensity: f32 = 0
-			for alert in main_world.alerts {
-				effective_intensity := get_effective_intensity(alert)
-				// get effective range
-				effective_enemy_range :=
-					effective_intensity *
-					(enemy.vision_range if alert.is_visual else enemy.hearing_range)
+			/* ------------------------------ Check Alerts ------------------------------ */
+			if alert_states: bit_set[EnemyState] = {.Alerted, .Idle, .Searching};
+			   enemy.state in alert_states { 	// If enemy is in a state that can detect alerts
+				enemy.alert_just_detected = false
+				detected_alert: Alert
+				detected_effective_intensity: f32 = 0
+				for alert in main_world.alerts {
+					effective_intensity := get_effective_intensity(alert)
+					// get effective range
+					effective_enemy_range :=
+						effective_intensity *
+						(enemy.vision_range if alert.is_visual else enemy.hearing_range)
 
-				// check los if alert is visual
-				can_detect :=
-					!alert.is_visual ||
-					check_collsion_circular_concave_circle(
-						enemy.vision_points[:],
-						enemy.pos,
-						{alert.pos, 2},
-					) // 2 is an arbitrary radius. Should work here.
+					// check los if alert is visual
+					can_detect :=
+						!alert.is_visual ||
+						check_collsion_circular_concave_circle(
+							enemy.vision_points[:],
+							enemy.pos,
+							{alert.pos, 2},
+						) // 2 is an arbitrary radius. Should work here.
 
-				detected :=
-					can_detect &&
-					distance_squared(enemy.pos, alert.pos) <
-						square(min(effective_enemy_range, alert.range)) &&
-					alert.time_emitted > enemy.last_alert.time_emitted
+					detected :=
+						can_detect &&
+						distance_squared(enemy.pos, alert.pos) <
+							square(min(effective_enemy_range, alert.range)) &&
+						alert.time_emitted > enemy.last_alert.time_emitted
 
-				if detected {
-					if effective_intensity > detected_effective_intensity ||
-					   (effective_intensity == detected_effective_intensity &&
-							   distance_squared(enemy.pos, alert.pos) <
-								   distance_squared(enemy.pos, detected_alert.pos)) {
-						detected_alert = alert
-						detected_effective_intensity = effective_intensity
+					if detected {
+						if effective_intensity > detected_effective_intensity ||
+						   (effective_intensity == detected_effective_intensity &&
+								   distance_squared(enemy.pos, alert.pos) <
+									   distance_squared(enemy.pos, detected_alert.pos)) {
+							detected_alert = alert
+							detected_effective_intensity = effective_intensity
+						}
 					}
 				}
-			}
-			// Check if alert is relevant
-			if detected_effective_intensity > 0 &&
-			   (detected_effective_intensity > get_effective_intensity(enemy.last_alert) ||
-					   enemy.state != .Alerted) {
-				enemy.alert_just_detected = true
-				enemy.last_alert_intensity_detected = detected_effective_intensity
-				enemy.last_alert = detected_alert
-			}
-		}
-
-		/* ------------------------------ Update State ------------------------------ */
-		{
-			fully_dead := update_enemy_state(&enemy, delta)
-			animate_enemy(&enemy)
-			if fully_dead {
-				delete(enemy.current_path)
-				delete(enemy.attack.exclude_targets)
-				unordered_remove(&main_world.enemies, idx)
-				_on_enemy_fully_dead()
-
-				continue enemy_loop
-			}
-		}
-
-		/* -------------------------- Movement and Collsion ------------------------- */
-		enemy_move(&enemy, delta)
-
-		// Enemy collisions
-		for &other in main_world.enemies {
-			if enemy.id == other.id do continue
-			_, normal, depth := resolve_collision_shapes(
-				Circle{{}, 7},
-				enemy.pos,
-				Circle{{}, 7},
-				other.pos,
-			)
-			if depth > 0 {
-				other_vel_along_normal := proj(other.vel, normal)
-				enemy_vel_along_normal := proj(enemy.vel, normal)
-				other.vel += (enemy_vel_along_normal - other_vel_along_normal) / 2
-				enemy.vel += (other_vel_along_normal - enemy_vel_along_normal) / 2
-				other.pos += normal * depth / 2
-				enemy.pos -= normal * depth / 2
+				// Check if alert is relevant
+				if detected_effective_intensity > 0 &&
+				   (detected_effective_intensity > get_effective_intensity(enemy.last_alert) ||
+						   enemy.state != .Alerted) {
+					enemy.alert_just_detected = true
+					enemy.last_alert_intensity_detected = detected_effective_intensity
+					enemy.last_alert = detected_alert
+				}
 			}
 
-		}
+			/* ------------------------------ Update State ------------------------------ */
+			{
+				spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update state")
+				fully_dead := update_enemy_state(&enemy, delta)
+				animate_enemy(&enemy)
+				if fully_dead {
+					spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "removal and cleanup")
+					delete(enemy.current_path)
+					delete(enemy.attack.exclude_targets)
+					unordered_remove(&main_world.enemies, idx)
+					_on_enemy_fully_dead()
 
-		for &barrel in main_world.exploding_barrels {
-			_, normal, depth := resolve_collision_shapes(
-				Circle{{}, 7},
-				enemy.pos,
-				barrel.shape,
-				barrel.pos,
-			)
-			if depth > 0 {
-				slowdown: f32 = 0.3
-				barrel_vel_along_normal := proj(barrel.vel, normal)
-				enemy_vel_along_normal := proj(enemy.vel, normal)
-				barrel.vel += (enemy_vel_along_normal - barrel_vel_along_normal) * (1 - slowdown)
-				enemy.vel += (barrel_vel_along_normal - enemy_vel_along_normal) * slowdown
-				barrel.pos += normal * depth / 2
-				enemy.pos -= normal * depth / 2
+					continue enemy_loop
+				}
 			}
 
-		}
+			/* -------------------------- Movement and Collsion ------------------------- */
+			enemy_move(&enemy, delta)
 
-		for wall in main_world.walls {
-			_, normal, depth := resolve_collision_shapes(
-				enemy.shape,
-				enemy.pos,
-				wall.shape,
-				wall.pos,
-			)
-			if depth > 0 {
-				enemy.pos -= normal * depth
-				enemy.vel = slide(enemy.vel, normal)
+			// Enemy collisions
+			for &other in main_world.enemies {
+				if enemy.id == other.id do continue
+				_, normal, depth := resolve_collision_shapes(
+					Circle{{}, 7},
+					enemy.pos,
+					Circle{{}, 7},
+					other.pos,
+				)
+				if depth > 0 {
+					other_vel_along_normal := proj(other.vel, normal)
+					enemy_vel_along_normal := proj(enemy.vel, normal)
+					other.vel += (enemy_vel_along_normal - other_vel_along_normal) / 2
+					enemy.vel += (other_vel_along_normal - enemy_vel_along_normal) / 2
+					other.pos += normal * depth / 2
+					enemy.pos -= normal * depth / 2
+				}
+
 			}
-		}
-		for wall in main_world.half_walls {
-			_, normal, depth := resolve_collision_shapes(
-				enemy.shape,
-				enemy.pos,
-				wall.shape,
-				wall.pos,
-			)
-			if depth > 0 {
-				enemy.pos -= normal * depth
-				enemy.vel = slide(enemy.vel, normal)
+
+			for &barrel in main_world.exploding_barrels {
+				_, normal, depth := resolve_collision_shapes(
+					Circle{{}, 7},
+					enemy.pos,
+					barrel.shape,
+					barrel.pos,
+				)
+				if depth > 0 {
+					slowdown: f32 = 0.3
+					barrel_vel_along_normal := proj(barrel.vel, normal)
+					enemy_vel_along_normal := proj(enemy.vel, normal)
+					barrel.vel +=
+						(enemy_vel_along_normal - barrel_vel_along_normal) * (1 - slowdown)
+					enemy.vel += (barrel_vel_along_normal - enemy_vel_along_normal) * slowdown
+					barrel.pos += normal * depth / 2
+					enemy.pos -= normal * depth / 2
+				}
+
+			}
+
+			for wall in main_world.walls {
+				_, normal, depth := resolve_collision_shapes(
+					enemy.shape,
+					enemy.pos,
+					wall.shape,
+					wall.pos,
+				)
+				if depth > 0 {
+					enemy.pos -= normal * depth
+					enemy.vel = slide(enemy.vel, normal)
+				}
+			}
+			for wall in main_world.half_walls {
+				_, normal, depth := resolve_collision_shapes(
+					enemy.shape,
+					enemy.pos,
+					wall.shape,
+					wall.pos,
+				)
+				if depth > 0 {
+					enemy.pos -= normal * depth
+					enemy.vel = slide(enemy.vel, normal)
+				}
 			}
 		}
 	}
 
 	/* ------------------------------ Update Alerts ----------------------------- */
-	#reverse for &alert, i in main_world.alerts {
-		if get_time_left(alert) <= 0 || get_effective_intensity(alert) <= 0 {
-			unordered_remove(&main_world.alerts, i)
+	{
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update alerts")
+		#reverse for &alert, i in main_world.alerts {
+			if get_time_left(alert) <= 0 || get_effective_intensity(alert) <= 0 {
+				unordered_remove(&main_world.alerts, i)
+			}
 		}
 	}
 
@@ -1573,6 +1590,7 @@ perform_attack :: proc(using world: ^World, attack: ^Attack) -> (targets_hit: in
 					} else {
 						tile_should_spread := rand.choice([]bool{true, false})
 						tilemap[tile.x][tile.y] = GrassData{true, 1, tile_should_spread, false}
+						append(&tiles_on_fire, tile)
 					}
 				}
 			}
@@ -2165,6 +2183,7 @@ enemy_move :: proc(e: ^Enemy, delta: f32) {
 }
 
 animate_enemy :: proc(e: ^Enemy) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "animate enemy")
 	frame_duration :: 0.1
 	switch e.state {
 	case .Idle:
@@ -2206,9 +2225,11 @@ animate_enemy :: proc(e: ^Enemy) {
 
 // Returns true if enemy is fully dead (at the end of death state)
 update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update enemy state")
 	// enemy.can_see_player = false // temp: prevent enemy from seeing player: stop combat
 	switch enemy.state {
 	case .Idle:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "idle")
 		if distance_squared(enemy.pos, enemy.post_pos) > square(f32(ENEMY_POST_RANGE)) {
 			// use pathfinding to return to post
 			update_enemy_pathing(enemy, delta, enemy.post_pos, main_world)
@@ -2250,6 +2271,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Alerted, main_world)
 		}
 	case .Alerted:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "alerted")
 		enemy.alert_timer -= delta
 
 		// look at or investigate distraction
@@ -2277,6 +2299,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Idle, main_world)
 		}
 	case .Chasing:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "chasing")
 		// Look at player
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
@@ -2298,6 +2321,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Charging, main_world)
 		}
 	case .Charging:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "charging")
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 		// Charging countdown and attack
 		enemy.current_charge_time -= delta
@@ -2308,6 +2332,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Attacking, main_world)
 		}
 	case .Attacking:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "attacking")
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
 
 		switch enemy.variant {
@@ -2384,6 +2409,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 		case .Turret:
 		}
 	case .Fleeing:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "fleeing")
 		// Run directly away from player
 		enemy.target = enemy.pos + (enemy.pos - main_world.player.pos)
 		lerp_look_angle(enemy, angle(main_world.player.pos - enemy.pos), delta)
@@ -2402,6 +2428,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			}
 		}
 	case .Searching:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "searching")
 		switch enemy.sub_state {
 		case 0:
 			// 1 go to last seen player pos
@@ -2478,6 +2505,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			change_enemy_state(enemy, .Idle, main_world)
 		}
 	case .Flinching:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "flinching")
 		enemy.current_flinch_time -= delta
 		if enemy.current_flinch_time <= 0 {
 			// Need to take a proper look at this
@@ -2501,6 +2529,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 			}
 		}
 	case .Dying:
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "dying")
 		// Wait still stopped then animate
 		// if length(enemy.vel) < 1 {
 		enemy.death_timer += delta
@@ -2511,6 +2540,7 @@ update_enemy_state :: proc(enemy: ^Enemy, delta: f32) -> bool {
 }
 
 change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "change enemy state")
 	enemy.sub_state = 0
 	// Exit state code
 	switch enemy.state {
@@ -2611,7 +2641,7 @@ change_enemy_state :: proc(enemy: ^Enemy, state: EnemyState, world: World) {
 		// Start death animation
 		enemy.death_timer = 0
 	}
-	fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
+	// fmt.printfln("Enemy: %v, from %v to %v", enemy.id[0], enemy.state, state)
 
 	enemy.state = state
 }
@@ -2694,6 +2724,7 @@ lerp_look_angle :: proc(enemy: ^Enemy, target_angle: f32, delta: f32) {
 }
 
 start_enemy_pathing :: proc(enemy: ^Enemy, world: World, dest: Vec2) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "start pathfinding")
 	delete(enemy.current_path)
 	enemy.current_path = find_path_tiles(
 		enemy.pos,

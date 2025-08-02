@@ -10,7 +10,6 @@ import "core:math"
 import "core:mem"
 import spall "core:prof/spall"
 import "core:sync"
-import "sound"
 // import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
@@ -265,7 +264,7 @@ main :: proc() {
 
 	// Setup Window
 	{
-		rl.SetConfigFlags({.WINDOW_RESIZABLE})
+		rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 		rl.ToggleBorderlessWindowed()
 		rl.SetExitKey(.KEY_NULL)
@@ -278,7 +277,6 @@ main :: proc() {
 	defer rl.UnloadImage(icon)
 	rl.SetWindowIcon(icon)
 
-	sound.init()
 	init_audio_and_load_sounds()
 	defer close_audio_and_unload_sounds()
 
@@ -324,7 +322,7 @@ main :: proc() {
 
 	// *** Update Loop ***
 	for !rl.WindowShouldClose() && !game_should_close {
-		sound.update({}, 1.0)
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update")
 		update()
 	}
 
@@ -374,6 +372,12 @@ update :: proc() {
 
 	if rl.IsWindowResized() {
 		handle_window_resize()
+	}
+
+	// Update Music
+	{
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update music")
+		update_music()
 	}
 
 	// Update UI Camera and get UI mouse input
@@ -823,6 +827,7 @@ draw_frame :: proc() {
 	}
 	rl.EndMode2D()
 
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "draw frame finish")
 	// draw letterbox borders
 	scaled_window_size := f2i(i2f(UI_SIZE) * window_over_ui)
 	letterbox_size := window_size - scaled_window_size
@@ -843,7 +848,7 @@ draw_frame :: proc() {
 		rl.BLACK,
 	)
 
-	// rl.DrawFPS(10, 10)
+	rl.DrawFPS(10, 10)
 
 	rl.EndDrawing()
 }
@@ -865,6 +870,7 @@ perform_menu_change :: proc() {
 	// Exit
 	switch cur_menu {
 	case .World:
+		rl.PauseMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:
@@ -875,6 +881,7 @@ perform_menu_change :: proc() {
 	// Entry
 	switch new_menu {
 	case .World:
+		rl.ResumeMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:

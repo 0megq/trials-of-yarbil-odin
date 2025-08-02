@@ -1,10 +1,11 @@
 package game
 
 
-// import "core:fmt"
+import "core:fmt"
 import "core:hash"
 import "core:math"
 import "core:math/rand"
+import "core:prof/spall"
 import "core:reflect"
 import rl "vendor:raylib"
 
@@ -15,6 +16,7 @@ TILEMAP_SIZE :: 200
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
 WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]WallType
 
+tiles_on_fire: [dynamic]Vec2i
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
@@ -52,38 +54,47 @@ StoneData :: struct {}
 WaterData :: struct {}
 
 update_tilemap :: proc(world: ^World, do_fire_damage := true) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update tilemap")
 	tilemap := &world.tilemap
 	// Fire spread for grass tiles
-	for tile_pos in get_tiles_on_fire(tilemap^) {
+	// fmt.println(tiles_on_fire)
+	// fmt.println(get_tiles_on_fire(world.tilemap))
+	#reverse for tile_pos, i in tiles_on_fire {
 		// Update tiles
 		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
-		if !tile_data.burnt {
-			// Decrease spread timer
-			tile_data.spread_timer -= delta
-			if tile_data.spread_timer <= 0 {
-				// Spread once timer is done
-				if tile_data.should_spread {
-					for neighbor_pos in get_neighboring_tiles(tile_pos) {
-						if is_valid_tile_pos(neighbor_pos) {
-							#partial switch data in tilemap[neighbor_pos.x][neighbor_pos.y] {
-							case GrassData:
-								if data.on_fire || data.burnt {
-									continue
-								}
-								// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
-								set_tile(
-									tilemap,
-									neighbor_pos,
-									GrassData{true, 1, rand.choice([]bool{false, true}), false},
-								)
-							}
+		if tile_data.burnt || !tile_data.on_fire {
+			unordered_remove(&tiles_on_fire, i)
+			continue
+		}
 
+		// Decrease spread timer
+		tile_data.spread_timer -= delta
+		if tile_data.spread_timer <= 0 {
+			// Spread once timer is done
+			if tile_data.should_spread {
+				for neighbor_pos in get_neighboring_tiles(tile_pos) {
+					if is_valid_tile_pos(neighbor_pos) {
+						#partial switch data in tilemap[neighbor_pos.x][neighbor_pos.y] {
+						case GrassData:
+							if data.on_fire || data.burnt {
+								continue
+							}
+							// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
+							set_tile(
+								tilemap,
+								neighbor_pos,
+								GrassData{true, 1, rand.choice([]bool{false, true}), false},
+							)
+							append(&tiles_on_fire, neighbor_pos)
 						}
+
 					}
 				}
-				tile_data.on_fire = false
-				tile_data.burnt = true
 			}
+			tile_data.on_fire = false
+			tile_data.burnt = true
+			unordered_remove(&tiles_on_fire, i)
+			continue
 		}
 
 		// Deal damage
@@ -256,6 +267,7 @@ get_tiles_with_data :: proc(tm: Tilemap, data: TileData, exact_match_only := fal
 	return result[:]
 }
 
+// DO NOT USE, super slow
 get_tiles_on_fire :: proc(tm: Tilemap) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	for col, x in tm {

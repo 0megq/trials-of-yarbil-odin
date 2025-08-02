@@ -101,6 +101,7 @@ Enemy3 :: struct {
 	// Pereception Data
 	look_angle:                    f32, // direction they are looking (in degrees facing right going ccw)
 	vision_points:                 [50]Vec2,
+	update_vision_timer:           f32,
 	// Perception Results
 	can_see_player:                bool,
 	last_seen_player_pos:          Vec2,
@@ -706,6 +707,7 @@ draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
 }
 
 setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant) {
+	enemy.update_vision_timer = rand.float32_range(0, 0.3)
 	enemy.post_pos = enemy.pos
 	enemy.shape = get_centered_rect({}, {16, 16})
 	enemy.weapon_side = 1
