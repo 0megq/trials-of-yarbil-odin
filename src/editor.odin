@@ -235,6 +235,10 @@ draw_level :: proc(show_tile_grid := false) {
 		enemy.draw_proc(enemy, true)
 	}
 
+	for e in level.bounce_pads {
+		e.draw_proc(e)
+	}
+
 	for barrel in level.exploding_barrels {
 		draw_sprite(BARREL_SPRITE, barrel.pos)
 	}

@@ -34,6 +34,7 @@ EntityDrawData :: struct {
 		Bomb,
 		ExplodingBarrel,
 		WallTile,
+		BouncePad,
 	},
 }
 
@@ -65,6 +66,12 @@ PhysicsEntity :: struct {
 	// Acts as a static physics body
 	using entity: Entity,
 	shape:        Shape,
+}
+
+BouncePad :: struct {
+	using physics_entity: PhysicsEntity,
+	bounce_speed:         f32,
+	draw_proc:            proc(e: BouncePad) `json:"-"`,
 }
 
 MovingEntity :: struct {
@@ -272,6 +279,7 @@ LevelEntityType :: enum {
 	Enemy,
 	ExplodingBarrel,
 	Item,
+	BouncePad,
 }
 
 Alert :: struct {
@@ -720,6 +728,13 @@ setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant) {
 		setup_ranged_enemy(enemy)
 	case .Turret:
 		setup_turret_enemy(enemy)
+	}
+}
+
+setup_bounce_pad :: proc(e: ^BouncePad) {
+	e.shape = Rectangle{-4, -4, 8, 12}
+	e.draw_proc = proc(e: BouncePad) {
+		draw_shape(e.shape, e.pos, rl.PURPLE)
 	}
 }
 
