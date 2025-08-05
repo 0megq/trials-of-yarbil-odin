@@ -61,8 +61,8 @@ update_tilemap :: proc(world: ^World, do_fire_damage := true) {
 	// fmt.println(get_tiles_on_fire(world.tilemap))
 	#reverse for tile_pos, i in tiles_on_fire {
 		// Update tiles
-		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
-		if tile_data.burnt || !tile_data.on_fire {
+		tile_data, ok := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
+		if !ok || tile_data.burnt || !tile_data.on_fire {
 			unordered_remove(&tiles_on_fire, i)
 			continue
 		}
@@ -405,6 +405,7 @@ tilemap_to_world_centered :: proc(pos: Vec2i) -> Vec2 {
 }
 
 load_tilemap :: proc(tm: ^Tilemap, filename: cstring) {
+	clear(&tiles_on_fire)
 	img := rl.LoadImage(filename)
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {

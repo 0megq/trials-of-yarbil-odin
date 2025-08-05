@@ -264,7 +264,7 @@ main :: proc() {
 
 	// Setup Window
 	{
-		rl.SetConfigFlags({.WINDOW_RESIZABLE, .VSYNC_HINT})
+		rl.SetConfigFlags({.WINDOW_RESIZABLE})
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
 		rl.ToggleBorderlessWindowed()
 		rl.SetExitKey(.KEY_NULL)

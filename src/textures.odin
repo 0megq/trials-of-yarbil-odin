@@ -25,6 +25,7 @@ TextureId :: enum {
 	title_screen = 400, // 400-499 is UI
 	title_screen2,
 	hit_vfx = 500, // 500-599 is Vfx and others
+	explosion,
 }
 
 loaded_textures: #sparse[TextureId]rl.Texture2D
@@ -64,6 +65,8 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 		return {7, 8}
 	case .bow:
 		return {4, 1}
+	case .explosion:
+		return {7, 1}
 	}
 	return 1
 }
