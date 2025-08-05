@@ -183,9 +183,9 @@ EnemyData2 :: struct {
 }
 
 // Used for serialization and level editor
-LEVEL_VERSION :: 5
-Level :: Level5
-Level5 :: struct {
+LEVEL_VERSION :: 4
+Level :: Level4
+Level4 :: struct {
 	version:               int,
 	// start player pos
 	player_pos:            Vec2,
@@ -198,8 +198,6 @@ Level5 :: struct {
 	items:                 [dynamic]Item,
 	// barrels
 	exploding_barrels:     [dynamic]ExplodingBarrel,
-	// pads
-	bounce_pads:           [dynamic]BouncePad,
 	// walls
 	walls:                 [dynamic]PhysicsEntity,
 	// half walls
@@ -253,11 +251,6 @@ load_level :: proc(world: ^World) {
 				still_err = json.unmarshal(bytes, &start_data)
 				if still_err != nil do break
 				data = convert_level4_to_current(start_data)
-			case 5:
-				start_data: Level5
-				still_err = json.unmarshal(bytes, &start_data)
-				if still_err != nil do break
-				data = convert_level5_to_current(start_data)
 			}
 		}
 
@@ -269,7 +262,6 @@ load_level :: proc(world: ^World) {
 			level.enemy_data = make([dynamic]EnemyData)
 			level.items = make([dynamic]Item)
 			level.exploding_barrels = make([dynamic]ExplodingBarrel)
-			level.bounce_pads = make([dynamic]BouncePad)
 			// setup level geometry
 			level.walls = make([dynamic]Wall)
 			level.half_walls = make([dynamic]HalfWall)
@@ -282,7 +274,6 @@ load_level :: proc(world: ^World) {
 		level.enemy_data = make([dynamic]EnemyData)
 		level.items = make([dynamic]Item)
 		level.exploding_barrels = make([dynamic]ExplodingBarrel)
-		level.bounce_pads = make([dynamic]BouncePad)
 		// setup level geometry
 		level.walls = make([dynamic]Wall)
 		level.half_walls = make([dynamic]HalfWall)
@@ -304,10 +295,6 @@ load_level :: proc(world: ^World) {
 
 	for &item in level.items {
 		setup_item(&item)
-	}
-
-	for &pad in level.bounce_pads {
-		setup_bounce_pad(&pad)
 	}
 
 	world.player.pos = level.player_pos
@@ -348,7 +335,6 @@ load_level :: proc(world: ^World) {
 		}
 	}
 	world.exploding_barrels = slice.clone_to_dynamic(level.exploding_barrels[:])
-	world.bounce_pads = slice.clone_to_dynamic(level.bounce_pads[:])
 
 	world.walls = slice.clone_to_dynamic(level.walls[:])
 	world.half_walls = slice.clone_to_dynamic(level.half_walls[:])
@@ -423,8 +409,6 @@ unload_level :: proc() {
 	main_world.disabled_items = nil
 	delete(main_world.exploding_barrels)
 	main_world.exploding_barrels = nil
-	delete(main_world.bounce_pads)
-	main_world.bounce_pads = nil
 	delete(main_world.walls)
 	main_world.walls = nil
 	delete(main_world.half_walls)
@@ -439,7 +423,6 @@ unload_level :: proc() {
 	level.enemies = nil
 	level.items = nil
 	level.exploding_barrels = nil
-	level.bounce_pads = nil
 	level.walls = nil
 	level.half_walls = nil
 
@@ -453,7 +436,6 @@ free_level_memory :: proc(level: Level) {
 	assert(level.enemy_data == nil, "Expected level.enemy_data to be nil.")
 	delete(level.items)
 	delete(level.exploding_barrels)
-	delete(level.bounce_pads)
 	delete(level.walls)
 	delete(level.half_walls)
 }

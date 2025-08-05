@@ -18,7 +18,6 @@ World :: struct {
 	items:             [dynamic]Item,
 	disabled_items:    [dynamic]Item,
 	exploding_barrels: [dynamic]ExplodingBarrel,
-	bounce_pads:       [dynamic]BouncePad,
 	tilemap:           Tilemap,
 	wall_tilemap:      WallTilemap,
 	nav_graph:         NavGraph,
@@ -916,10 +915,6 @@ draw_world :: proc(world: World) {
 				append(&ents_to_draw, EntityDrawData{enemy.pos.y, enemy})
 			}
 
-			for en in world.bounce_pads {
-				append(&ents_to_draw, EntityDrawData{en.pos.y, en})
-			}
-
 			for barrel in world.exploding_barrels {
 				append(&ents_to_draw, EntityDrawData{barrel.pos.y, barrel})
 			}
@@ -953,8 +948,6 @@ draw_world :: proc(world: World) {
 			spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "world actual entity draw")
 			for data in ents_to_draw {
 				switch e in data.actual_data {
-				case BouncePad:
-					e.draw_proc(e)
 				case Player:
 					draw_player(e)
 				case Enemy:

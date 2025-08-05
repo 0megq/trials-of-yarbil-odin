@@ -24,9 +24,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			for &item in level.items {
 				item.pos.y -= TILE_SIZE
 			}
-			for &en in level.bounce_pads {
-				en.pos.y -= TILE_SIZE
-			}
 		}
 		if rl.IsKeyPressed(.DOWN) {
 			level.player_pos.y += TILE_SIZE
@@ -38,9 +35,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 			for &item in level.items {
 				item.pos.y += TILE_SIZE
-			}
-			for &en in level.bounce_pads {
-				en.pos.y += TILE_SIZE
 			}
 		}
 		if rl.IsKeyPressed(.LEFT) {
@@ -54,9 +48,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			for &item in level.items {
 				item.pos.x -= TILE_SIZE
 			}
-			for &en in level.bounce_pads {
-				en.pos.x -= TILE_SIZE
-			}
 		}
 		if rl.IsKeyPressed(.RIGHT) {
 			level.player_pos.x += TILE_SIZE
@@ -68,9 +59,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			}
 			for &item in level.items {
 				item.pos.x += TILE_SIZE
-			}
-			for &en in level.bounce_pads {
-				en.pos.x += TILE_SIZE
 			}
 		}
 		return // Skip reset of update function
@@ -110,14 +98,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 				break outer
 			}
 		}
-		for &pad in level.bounce_pads {
-			if check_collision_shape_point(pad.shape, pad.pos, mouse_world_pos) {
-				e.selected_phys_entity = &pad.physics_entity
-				e.selected_entity = .BouncePad
-				e.entity_mouse_rel_pos = pad.pos - mouse_world_pos
-				break outer
-			}
-		}
 		e.selected_phys_entity = nil
 		e.selected_entity = .Nil
 	}
@@ -148,8 +128,7 @@ update_entity_editor :: proc(e: ^EditorState) {
 
 	// delete entity
 	if e.selected_phys_entity != nil && rl.IsKeyPressed(.DELETE) {
-		switch e.selected_entity {
-		case .Nil:
+		#partial switch e.selected_entity {
 		case .Enemy:
 			for enemy, i in level.enemies {
 				if enemy.id == e.selected_phys_entity.id {
@@ -168,13 +147,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			for item, i in level.items {
 				if item.id == e.selected_phys_entity.id {
 					unordered_remove(&level.items, i)
-					break
-				}
-			}
-		case .BouncePad:
-			for pad, i in level.bounce_pads {
-				if pad.id == e.selected_phys_entity.id {
-					unordered_remove(&level.bounce_pads, i)
 					break
 				}
 			}
@@ -224,12 +196,6 @@ update_entity_editor :: proc(e: ^EditorState) {
 			setup_enemy(&turret, .Turret)
 
 			append(&level.enemies, turret)
-		} else if rl.IsKeyPressed(.SIX) {
-			pad: BouncePad
-			pad.entity = new_entity(mouse_world_pos)
-			setup_bounce_pad(&pad)
-
-			append(&level.bounce_pads, pad)
 		}
 	}
 

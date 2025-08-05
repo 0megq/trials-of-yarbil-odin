@@ -98,31 +98,6 @@ Enemy1 :: struct {
 	distraction_time_emitted: f32,
 }
 
-Level4 :: struct {
-	version:               int,
-	// start player pos
-	player_pos:            Vec2,
-	// portal pos
-	portal_pos:            Vec2,
-	// enemies
-	enemies:               [dynamic]Enemy3, // This field is used when level editing
-	enemy_data:            [dynamic]EnemyData2, // Used for serialization
-	// items
-	items:                 [dynamic]Item,
-	// barrels
-	exploding_barrels:     [dynamic]ExplodingBarrel,
-	// walls
-	walls:                 [dynamic]PhysicsEntity,
-	// half walls
-	half_walls:            [dynamic]HalfWall,
-	// camera bounding box
-	bounds:                Rectangle,
-	// tutorial
-	has_tutorial:          bool,
-	// if game should be saved after completing the level
-	save_after_completion: bool,
-}
-
 Level3 :: struct {
 	// start player pos
 	player_pos:            Vec2,
@@ -197,36 +172,7 @@ convert_level3_to_current :: proc(input: Level3) -> Level {
 }
 
 convert_level4_to_current :: proc(input: Level4) -> Level {
-	return convert_level5_to_current(convert_level4_to_level5(input, true))
-}
-
-convert_level5_to_current :: proc(input: Level5) -> Level {
 	return input
-}
-
-convert_level4_to_level5 :: proc(
-	input: Level4,
-	clear_memory: bool,
-	allocator := context.allocator,
-) -> (
-	result: Level5,
-) {
-	result.version = 5
-	result.player_pos = input.player_pos
-	result.portal_pos = input.portal_pos
-	result.enemies = input.enemies
-	result.enemy_data = input.enemy_data
-	result.items = input.items
-	result.exploding_barrels = input.exploding_barrels
-	result.walls = input.walls
-	result.half_walls = input.half_walls
-	result.bounds = input.bounds
-	result.has_tutorial = input.has_tutorial
-	result.save_after_completion = input.save_after_completion
-
-	result.bounce_pads = make([dynamic]BouncePad, allocator)
-
-	return
 }
 
 convert_level2_level3 :: proc(
