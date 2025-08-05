@@ -66,7 +66,7 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 	case .bow:
 		return {4, 1}
 	case .explosion:
-		return {7, 1}
+		return {9, 1}
 	}
 	return 1
 }

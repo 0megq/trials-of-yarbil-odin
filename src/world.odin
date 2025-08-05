@@ -776,18 +776,20 @@ draw_world :: proc(world: World) {
 		draw_tilemap(world.tilemap)
 
 		for fire in world.fires {
-			rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
 			if fire.radius == 61 {
 				frame_size := i2f(get_frame_size(.explosion))
 				explosion_sprite := Sprite {
 					tex_id     = .explosion,
 					tex_origin = frame_size / 2,
-					tex_region = get_current_frame_region(fire.time_left, 0.5, 0, .explosion),
+					tex_region = get_current_frame_region(fire.time_left, 0.8, 0, .explosion),
 					scale      = 1,
 					tint       = rl.WHITE,
 					rotation   = 0,
 				}
 				draw_sprite(explosion_sprite, fire.pos)
+			} else {
+
+				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
 			}
 		}
 
@@ -2885,7 +2887,7 @@ damage_exploding_barrel :: proc(barrel: ^ExplodingBarrel, amount: f32) {
 
 barrel_explode :: proc(barrel: ^ExplodingBarrel) {
 	// Visual
-	fire := Fire{Circle{barrel.pos, 61}, 0.5}
+	fire := Fire{Circle{barrel.pos, 61}, 0.8}
 	barrel.queue_free = true
 
 	append(&main_world.fires, fire)
