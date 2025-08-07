@@ -786,7 +786,10 @@ draw_world :: proc(world: World) {
 					tint       = rl.WHITE,
 					rotation   = 0,
 				}
-				draw_sprite(explosion_sprite, fire.pos)
+				draw_sprite(
+					explosion_sprite,
+					fire.pos + vector_from_angle(rand.float32_range(0, 360)),
+				)
 			} else {
 
 				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
@@ -794,20 +797,16 @@ draw_world :: proc(world: World) {
 		}
 
 		// Draw portal
-		light_blue :: Color{42, 110, 224, 255}
-		portal_color := light_blue if all_enemies_dying(world) else Color{33, 14, 95, 255}
-		rl.DrawCircleV(level.portal_pos, PORTAL_RADIUS, portal_color)
-
-		// Draw arrow to portal if level finished and player is at least 64 units away
-		if all_enemies_dying(world) && !player_at_portal {
-			angle_to_portal := angle(level.portal_pos - world.player.pos)
-			arrow_polygon := Polygon {
-				world.player.pos,
-				{{14, -3}, {24, 0}, {14, 3}},
-				angle_to_portal,
-			}
-			draw_polygon(arrow_polygon, light_blue)
+		frame_size := i2f(get_frame_size(.portal))
+		portal_sprite := Sprite {
+			tex_id     = .portal,
+			tex_origin = frame_size / 2,
+			tex_region = get_frame_region({i32(all_enemies_dying(world)), 0}, .portal),
+			rotation   = 0,
+			scale      = 1,
+			tint       = rl.WHITE,
 		}
+		draw_sprite(portal_sprite, level.portal_pos)
 
 		// Draw portal prompts
 		if player_at_portal {
@@ -1045,6 +1044,18 @@ draw_world :: proc(world: World) {
 					draw_sprite(e.sprite, e.pos)
 				}
 			}
+		}
+
+		// Draw arrow to portal if level finished and player is at least 64 units away
+		arrow_color :: Color{79, 143, 186, 255}
+		if all_enemies_dying(world) && !player_at_portal {
+			angle_to_portal := angle(level.portal_pos - world.player.pos)
+			arrow_polygon := Polygon {
+				world.player.pos,
+				{{14, -3}, {24, 0}, {14, 3}},
+				angle_to_portal,
+			}
+			draw_polygon(arrow_polygon, arrow_color)
 		}
 
 		// Draw death screen over everything

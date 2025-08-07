@@ -20,7 +20,7 @@ TextureId :: enum {
 	exploding_barrel,
 	barrel_shadow,
 	tileset = 300, // 300-399 is environment
-	win_circle,
+	portal,
 	full_wall,
 	title_screen = 400, // 400-499 is UI
 	title_screen2,
@@ -67,6 +67,8 @@ get_frame_count :: proc(tex: TextureId) -> Vec2i {
 		return {4, 1}
 	case .explosion:
 		return {9, 1}
+	case .portal:
+		return {2, 1}
 	}
 	return 1
 }
