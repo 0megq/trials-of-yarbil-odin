@@ -848,7 +848,7 @@ draw_frame :: proc() {
 		rl.BLACK,
 	)
 
-	rl.DrawFPS(10, 10)
+	// rl.DrawFPS(10, 10)
 
 	rl.EndDrawing()
 }
