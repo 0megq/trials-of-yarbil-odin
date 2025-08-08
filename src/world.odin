@@ -970,6 +970,7 @@ draw_world :: proc(world: World) {
 				case Player:
 					draw_player(e)
 				case Enemy:
+					rl.DrawCircleV(e.pos + {0, 7}, 4, {0, 0, 0, 40})
 					e.draw_proc(e)
 				case Item:
 					tex_id := item_to_texture[e.data.id]
