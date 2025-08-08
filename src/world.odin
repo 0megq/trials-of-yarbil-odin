@@ -593,7 +593,7 @@ world_update :: proc() {
 		if should_explode {
 			play_sound(.small_explosion)
 			explosion_radius: f32 = 16
-			append(&main_world.fires, Fire{Circle{bomb.pos, explosion_radius}, 0.5})
+			append(&main_world.fires, Fire{Circle{bomb.pos, explosion_radius}, 0.4})
 			// Potential memory leak with exclude_targets
 			perform_attack(
 				&main_world,
@@ -776,24 +776,28 @@ draw_world :: proc(world: World) {
 		draw_tilemap(world.tilemap)
 
 		for fire in world.fires {
+			tex: TextureId = .small_explosion
+			time: f32 = 0.4
 			if fire.radius == 61 {
-				frame_size := i2f(get_frame_size(.explosion))
-				explosion_sprite := Sprite {
-					tex_id     = .explosion,
-					tex_origin = frame_size / 2,
-					tex_region = get_current_frame_region(fire.time_left, 0.8, 0, .explosion),
-					scale      = 1,
-					tint       = rl.WHITE,
-					rotation   = 0,
-				}
-				draw_sprite(
-					explosion_sprite,
-					fire.pos + vector_from_angle(rand.float32_range(0, 360)),
-				)
-			} else {
-
-				rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
+				tex = .explosion
+				time = 0.8
 			}
+			frame_size := i2f(get_frame_size(tex))
+			explosion_sprite := Sprite {
+				tex_id     = tex,
+				tex_origin = frame_size / 2,
+				tex_region = get_current_frame_region(
+					math.clamp(fire.time_left, 0, time),
+					time,
+					0,
+					tex,
+				),
+				scale      = 1,
+				tint       = rl.WHITE,
+				rotation   = 0,
+			}
+			draw_sprite(explosion_sprite, fire.pos + vector_from_angle(rand.float32_range(0, 360)))
+			// rl.DrawCircleV(fire.pos, fire.radius, rl.ORANGE)
 		}
 
 		// Draw portal
