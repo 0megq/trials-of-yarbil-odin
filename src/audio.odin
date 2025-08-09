@@ -41,10 +41,10 @@ init_audio_and_load_sounds :: proc() {
 }
 
 load_and_play_music :: proc() {
-	loaded_music = rl.LoadMusicStream("res/sound/botw.mp3")
+	loaded_music = rl.LoadMusicStream("res/sound/birds.mp3")
 	loaded_music.looping = true
 	rl.PlayMusicStream(loaded_music)
-	rl.PauseMusicStream(loaded_music)
+	rl.SetMusicVolume(loaded_music, 1)
 }
 
 update_music :: proc() {
@@ -66,6 +66,7 @@ load_sounds :: proc() {
 	for &pool, id in sound_pool {
 		for &alias in pool {
 			alias = rl.LoadSoundAlias(loaded_sounds[id])
+			// rl.SetSoundVolume(alias, 0.5)
 		}
 	}
 }

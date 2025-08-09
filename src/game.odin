@@ -870,7 +870,7 @@ perform_menu_change :: proc() {
 	// Exit
 	switch cur_menu {
 	case .World:
-		rl.PauseMusicStream(loaded_music)
+	// rl.PauseMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:
@@ -881,7 +881,7 @@ perform_menu_change :: proc() {
 	// Entry
 	switch new_menu {
 	case .World:
-		rl.ResumeMusicStream(loaded_music)
+	// rl.ResumeMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:
