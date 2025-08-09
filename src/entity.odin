@@ -724,7 +724,7 @@ setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant) {
 }
 
 setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {
-	barrel.shape = Circle{{}, 6}
+	barrel.shape = get_centered_rect(0, 10)
 	max_health_setter(&barrel.health, &barrel.max_health, 50)
 }
 
