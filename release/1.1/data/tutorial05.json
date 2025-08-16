@@ -1,0 +1,45 @@
+{
+	"prompts": [
+		{
+			"pos": [
+				612.00000000,
+				732.00000000
+			],
+			"text": "^^^",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
+		},
+		{
+			"pos": [
+				610.00000000,
+				740.00000000
+			],
+			"text": "Projectiles can pass over half-walls",
+			"condition": null,
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": false
+		}
+	],
+	"actions": [
+
+	],
+	"hide_item_hud": false,
+	"hide_weapon_hud": false,
+	"hide_dash_hud": false,
+	"disable_ability": false,
+	"hide_speedrun_timer": true,
+	"hide_all_hud": false,
+	"enable_enemy_dummies": false,
+	"disable_throwing": true,
+	"disable_switching": true,
+	"disable_dropping": true
+}
