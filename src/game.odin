@@ -55,7 +55,7 @@ PLAYER_SHAPE :: Rectangle{-2, -5, 6, 6}
 
 // weapon/attack related constants
 ATTACK_DURATION :: 0.12
-ATTACK_INTERVAL :: 0.06
+ATTACK_INTERVAL :: 0.07
 ATTACK_ANIM_TIME :: 0.2
 SWORD_DAMAGE :: 20
 SWORD_KNOCKBACK :: 80

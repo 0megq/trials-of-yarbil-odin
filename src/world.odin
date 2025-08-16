@@ -71,7 +71,7 @@ world_update :: proc() {
 	if all_enemies_dying(main_world) &&
 	   is_control_pressed(controls.use_portal) &&
 	   player_at_portal {
-		if game_data.cur_level_idx == 13 {
+		if game_data.cur_level_idx == 14 {
 			queue_menu_change(.Win)
 		} else {
 			// if not last level

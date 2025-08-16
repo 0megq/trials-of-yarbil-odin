@@ -1773,5 +1773,5 @@
 		"height": 0.00000000
 	},
 	"has_tutorial": false,
-	"save_after_completion": false
+	"save_after_completion": true
 }
