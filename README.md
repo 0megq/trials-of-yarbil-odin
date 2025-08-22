@@ -1,8 +1,13 @@
-Trials of Yarbil is a top-down action hack and slash being developed, without a game engine, in Odin with the Raylib library for release on [Steam](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/) in 2025.
+Trials of Yarbil is a top-down action hack and slash being developed, without a game engine, in Odin with the Raylib library that is NOW out on [Steam](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/)
 
-Using Odin dev-2024-07.
+# Development
+1. Install the [Odin language](https://odin-lang.org/docs/install/), using version dev-2025-05.
+2. Clone this repository
+3. Edit the src files as you wish
+4. If you're using VS Code, you should just be able to compile and run using the launch.json configs
+5. Otherwise, run `odin run ./src/ -debug -out:build/build.exe` for a debug build and `odin run ./src/ -out:build/yarbil.exe -subsystem:windows` for a release build
 
-# Some Cool Code I've Written
+# Some Cool Code I've Written Throughout the Project
 
 ## Pathfinding Code
 
