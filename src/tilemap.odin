@@ -1,9 +1,11 @@
 package game
 
 
-// import "core:fmt"
+import "core:fmt"
+import "core:hash"
 import "core:math"
 import "core:math/rand"
+import "core:prof/spall"
 import "core:reflect"
 import rl "vendor:raylib"
 
@@ -12,12 +14,21 @@ TILEMAP_SIZE :: 200
 
 // Tilemaps are indexed with x, then y. Column major
 Tilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]TileData
-WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]bool
+WallTilemap :: [TILEMAP_SIZE][TILEMAP_SIZE]WallType
+
+tiles_on_fire: [dynamic]Vec2i
 
 GRASS_COLOR :: Color{0, 255, 0, 255}
 STONE_COLOR :: Color{100, 100, 100, 255}
 DIRT_COLOR :: Color{100, 50, 0, 255}
 WATER_COLOR :: Color{0, 0, 255, 255}
+
+WallType :: enum {
+	Empty,
+	Obstructed,
+	Wall,
+	HalfWall,
+}
 
 TileData :: union #no_nil {
 	EmptyData,
@@ -27,8 +38,7 @@ TileData :: union #no_nil {
 	DirtData,
 }
 
-EmptyData :: struct {
-}
+EmptyData :: struct {}
 
 GrassData :: struct {
 	on_fire:       bool,
@@ -37,59 +47,67 @@ GrassData :: struct {
 	burnt:         bool,
 }
 
-DirtData :: struct {
-}
+DirtData :: struct {}
 
-StoneData :: struct {
-}
+StoneData :: struct {}
 
-WaterData :: struct {
-}
+WaterData :: struct {}
 
-update_tilemap :: proc(world: ^World) {
+update_tilemap :: proc(world: ^World, do_fire_damage := true) {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update tilemap")
 	tilemap := &world.tilemap
 	// Fire spread for grass tiles
-	for tile_pos in get_tiles_on_fire(tilemap^) {
+	// fmt.println(tiles_on_fire)
+	// fmt.println(get_tiles_on_fire(world.tilemap))
+	#reverse for tile_pos, i in tiles_on_fire {
 		// Update tiles
-		tile_data := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
-		if !tile_data.burnt {
-			// Decrease spread timer
-			tile_data.spread_timer -= delta
-			if tile_data.spread_timer <= 0 {
-				// Spread once timer is done
-				if tile_data.should_spread {
-					for neighbor_pos in get_neighboring_tiles(tile_pos) {
-						if is_valid_tile_pos(neighbor_pos) {
-							#partial switch data in tilemap[neighbor_pos.x][neighbor_pos.y] {
-							case GrassData:
-								if data.on_fire || data.burnt {
-									continue
-								}
-								// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
-								set_tile(
-									tilemap,
-									neighbor_pos,
-									GrassData{true, 1, rand.choice([]bool{false, true}), false},
-								)
-							}
+		tile_data, ok := &tilemap[tile_pos.x][tile_pos.y].(GrassData)
+		if !ok || tile_data.burnt || !tile_data.on_fire {
+			unordered_remove(&tiles_on_fire, i)
+			continue
+		}
 
+		// Decrease spread timer
+		tile_data.spread_timer -= delta
+		if tile_data.spread_timer <= 0 {
+			// Spread once timer is done
+			if tile_data.should_spread {
+				for neighbor_pos in get_neighboring_tiles(tile_pos) {
+					if is_valid_tile_pos(neighbor_pos) {
+						#partial switch data in tilemap[neighbor_pos.x][neighbor_pos.y] {
+						case GrassData:
+							if data.on_fire || data.burnt {
+								continue
+							}
+							// Start the firespread for the other tiles as well (set on_fire, spreading, and spread_timer)
+							set_tile(
+								tilemap,
+								neighbor_pos,
+								GrassData{true, 1, rand.choice([]bool{false, true}), false},
+							)
+							append(&tiles_on_fire, neighbor_pos)
 						}
+
 					}
 				}
-				tile_data.on_fire = false
-				tile_data.burnt = true
 			}
+			tile_data.on_fire = false
+			tile_data.burnt = true
+			unordered_remove(&tiles_on_fire, i)
+			continue
 		}
 
 		// Deal damage
-		fire_attack := Attack {
-			shape   = Rectangle{0, 0, TILE_SIZE, TILE_SIZE},
-			data    = FireAttackData{},
-			pos     = Vec2{f32(tile_pos.x), f32(tile_pos.y)} * TILE_SIZE,
-			damage  = FIRE_TILE_DAMAGE * delta,
-			targets = {.ExplodingBarrel, .Player, .Enemy},
+		if do_fire_damage {
+			fire_attack := Attack {
+				shape   = Rectangle{0, 0, TILE_SIZE, TILE_SIZE},
+				data    = FireAttackData{},
+				pos     = Vec2{f32(tile_pos.x), f32(tile_pos.y)} * TILE_SIZE,
+				damage  = FIRE_TILE_DAMAGE * delta,
+				targets = {.ExplodingBarrel, .Player, .Enemy},
+			}
+			perform_attack(world, &fire_attack)
 		}
-		perform_attack(world, &fire_attack)
 	}
 }
 
@@ -98,7 +116,7 @@ is_valid_tile_pos :: proc(pos: Vec2i) -> bool {
 }
 
 is_tile_walkable :: proc(tm: Tilemap, wall_tm: WallTilemap, pos: Vec2i) -> bool {
-	if wall_tm[pos.x][pos.y] {
+	if wall_tm[pos.x][pos.y] != nil {
 		return false
 	}
 	#partial switch d in tm[pos.x][pos.y] {
@@ -249,6 +267,7 @@ get_tiles_with_data :: proc(tm: Tilemap, data: TileData, exact_match_only := fal
 	return result[:]
 }
 
+// DO NOT USE, super slow
 get_tiles_on_fire :: proc(tm: Tilemap) -> []Vec2i {
 	result := make([dynamic]Vec2i, context.temp_allocator)
 	for col, x in tm {
@@ -271,7 +290,8 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 	for x in start.x ..= end.x {
 		for y in start.y ..= end.y {
 			sprite := Sprite {
-				tex_id     = .Tilemap,
+				tex_id     = .tileset,
+				// Change this to just TILE_SIZE, TILE_SIZE to do transparent tiles
 				tex_region = {0, 0, TILE_SIZE + 1, TILE_SIZE + 1},
 				tex_origin = {},
 				scale      = 1,
@@ -280,15 +300,19 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 
 			switch data in tm[x][y] {
 			case GrassData:
-				sprite.tex_region.x = 1
-				sprite.tex_region.y = 1
 				if data.on_fire {
-					sprite.tex_region.x = 2
+					sprite.tex_region.y = 2
 				} else if data.burnt {
-					sprite.tex_region.x = 3
+					sprite.tex_region.y = 3
+				} else {
+					sprite.tex_region.y = 1
 				}
+				coord_bytes := transmute([8]u8)[2]i32{x, y}
+				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3)
 			case DirtData:
-				sprite.tex_region.y = 1
+				sprite.tex_region.y = 4
+				coord_bytes := transmute([8]u8)[2]i32{x, y}
+				sprite.tex_region.x = f32(hash.fnv32a(coord_bytes[:]) % 3)
 			case WaterData:
 				sprite.tex_region.x = 2
 			case StoneData:
@@ -317,12 +341,10 @@ draw_tilemap :: proc(tm: Tilemap, show_grid := false) {
 	if show_grid {
 		for x in start.x ..= end.x {
 			for y in start.y ..= end.y {
-				rl.DrawRectangleLines(
-					i32(x) * TILE_SIZE,
-					i32(y) * TILE_SIZE,
-					TILE_SIZE,
-					TILE_SIZE,
-					{100, 100, 100, 100},
+				rl.DrawRectangleLinesEx(
+					{f32(x) * TILE_SIZE, f32(y) * TILE_SIZE, TILE_SIZE, TILE_SIZE},
+					1,
+					{50, 50, 50, 200},
 				)
 			}
 		}
@@ -383,6 +405,7 @@ tilemap_to_world_centered :: proc(pos: Vec2i) -> Vec2 {
 }
 
 load_tilemap :: proc(tm: ^Tilemap, filename: cstring) {
+	clear(&tiles_on_fire)
 	img := rl.LoadImage(filename)
 	defer rl.UnloadImage(img)
 	if rl.IsImageReady(img) {

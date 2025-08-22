@@ -1,0 +1,225 @@
+{
+	"version": 4,
+	"player_pos": [
+		629.00000000,
+		510.00000000
+	],
+	"portal_pos": [
+		783.00000000,
+		341.00000000
+	],
+	"enemies": [
+
+	],
+	"enemy_data": [
+
+	],
+	"items": [
+		{
+			"moving_entity": {
+				"physics_entity": {
+					"entity": {
+						"id": [
+							107,
+							143,
+							234,
+							6,
+							35,
+							89,
+							76,
+							1,
+							140,
+							91,
+							34,
+							49,
+							58,
+							211,
+							109,
+							229
+						],
+						"pos": [
+							713.71179199,
+							399.08395386
+						],
+						"queue_free": false,
+						"start_disabled": false
+					},
+					"shape": {
+						"pos": [
+							0.00000000,
+							0.00000000
+						],
+						"radius": 4.00000000
+					}
+				},
+				"vel": [
+					0.00000000,
+					0.00000000
+				]
+			},
+			"data": {
+				"id": 1,
+				"count": 1,
+				"max_count": 0
+			}
+		},
+		{
+			"moving_entity": {
+				"physics_entity": {
+					"entity": {
+						"id": [
+							213,
+							216,
+							2,
+							99,
+							226,
+							153,
+							72,
+							132,
+							133,
+							6,
+							23,
+							111,
+							239,
+							186,
+							196,
+							240
+						],
+						"pos": [
+							680.14245605,
+							438.75680542
+						],
+						"queue_free": false,
+						"start_disabled": false
+					},
+					"shape": {
+						"pos": [
+							0.00000000,
+							0.00000000
+						],
+						"radius": 4.00000000
+					}
+				},
+				"vel": [
+					0.00000000,
+					0.00000000
+				]
+			},
+			"data": {
+				"id": 1,
+				"count": 1,
+				"max_count": 0
+			}
+		}
+	],
+	"exploding_barrels": [
+		{
+			"moving_entity": {
+				"physics_entity": {
+					"entity": {
+						"id": [
+							100,
+							158,
+							52,
+							30,
+							81,
+							82,
+							73,
+							29,
+							179,
+							237,
+							210,
+							73,
+							91,
+							112,
+							49,
+							244
+						],
+						"pos": [
+							644.00000000,
+							417.00000000
+						],
+						"queue_free": false,
+						"start_disabled": false
+					},
+					"shape": {
+						"pos": [
+							0.00000000,
+							0.00000000
+						],
+						"radius": 6.00000000
+					}
+				},
+				"vel": [
+					0.00000000,
+					0.00000000
+				]
+			},
+			"health": 50.00000000,
+			"max_health": 50.00000000,
+			"exploding": false,
+			"explosion_timer": 0.00000000
+		},
+		{
+			"moving_entity": {
+				"physics_entity": {
+					"entity": {
+						"id": [
+							176,
+							24,
+							64,
+							164,
+							12,
+							36,
+							74,
+							253,
+							188,
+							125,
+							9,
+							72,
+							15,
+							8,
+							7,
+							71
+						],
+						"pos": [
+							721.84979248,
+							434.68780518
+						],
+						"queue_free": false,
+						"start_disabled": false
+					},
+					"shape": {
+						"pos": [
+							0.00000000,
+							0.00000000
+						],
+						"radius": 6.00000000
+					}
+				},
+				"vel": [
+					0.00000000,
+					0.00000000
+				]
+			},
+			"health": 50.00000000,
+			"max_health": 50.00000000,
+			"exploding": false,
+			"explosion_timer": 0.00000000
+		}
+	],
+	"walls": [
+
+	],
+	"half_walls": [
+
+	],
+	"bounds": {
+		"x": 0.00000000,
+		"y": 0.00000000,
+		"width": 0.00000000,
+		"height": 0.00000000
+	},
+	"has_tutorial": false,
+	"save_after_completion": false
+}

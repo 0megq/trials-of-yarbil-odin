@@ -3,7 +3,11 @@ package game
 import "core:encoding/uuid"
 import "core:fmt"
 import "core:math"
+import "core:math/rand"
 import rl "vendor:raylib"
+
+@(private = "file")
+fmt_i := fmt._arg_number
 
 // EntityType :: union {
 // 	Entity,
@@ -18,6 +22,25 @@ import rl "vendor:raylib"
 // 	Arrow,
 // 	Bomb,
 // }
+
+
+EntityDrawData :: struct {
+	y_sort_pos:  f32,
+	actual_data: union {
+		Player,
+		Enemy,
+		Item,
+		Arrow,
+		Bomb,
+		ExplodingBarrel,
+		WallTile,
+	},
+}
+
+WallTile :: struct {
+	pos:    Vec2,
+	sprite: Sprite,
+}
 
 
 EntityType :: enum {
@@ -61,6 +84,9 @@ ExplodingBarrel :: struct {
 	using moving_entity: MovingEntity,
 	health:              f32, // When health reaches 0
 	max_health:          f32,
+	// When the barrel is about to explode
+	exploding:           bool,
+	explosion_timer:     f32,
 	// Explosion radius and explosion power are the same for all barrels. those values are stored in constants
 }
 
@@ -70,12 +96,12 @@ Enemy3 :: struct {
 	post_pos:                      Vec2,
 	target:                        Vec2, // target position to use when moving enemy
 	variant:                       EnemyVariant,
-	// Pereception Stats
-	hearing_range:                 f32,
-	vision_range:                  f32,
+	tex:                           TextureId,
+	frame:                         Vec2i,
+	// Pereception Data
 	look_angle:                    f32, // direction they are looking (in degrees facing right going ccw)
-	vision_fov:                    f32, // wideness (in degrees)
 	vision_points:                 [50]Vec2,
+	update_vision_timer:           f32,
 	// Perception Results
 	can_see_player:                bool,
 	last_seen_player_pos:          Vec2,
@@ -85,28 +111,24 @@ Enemy3 :: struct {
 	last_alert_intensity_detected: f32,
 	last_alert:                    Alert,
 	// Combat
-	attack_charge_range:           f32, // Range for the enemy to start charging
-	start_charge_time:             f32,
 	current_charge_time:           f32,
-	charging:                      bool,
-	just_attacked:                 bool,
+	attack_out:                    bool,
+	attack:                        Attack,
+	attack_state_timer:            f32,
 	// Flinching
-	start_flinch_time:             f32,
 	current_flinch_time:           f32,
 	// Idle
 	idle_look_timer:               f32,
 	idle_look_angle:               f32,
-	// Searching
-	search_state:                  int,
 	// Health
 	health:                        f32,
-	max_health:                    f32,
 	// Pathfinding
 	current_path:                  []Vec2,
 	current_path_point:            int,
 	pathfinding_timer:             f32,
 	// State management
 	state:                         EnemyState,
+	sub_state:                     int,
 	alert_timer:                   f32,
 	search_timer:                  f32,
 	// Sprite flash
@@ -114,10 +136,28 @@ Enemy3 :: struct {
 	// Death
 	death_timer:                   f32,
 	weapon_side:                   int, // top is 1, bottom is -1
-	attack_anim_timer:             f32,
-	flee_range:                    f32,
 	attack_poly:                   Polygon,
-	draw_proc:                     proc(e: Enemy3, in_editor := false),
+	super_armor:                   bool,
+	last_hit_time:                 f32,
+	last_hit_amount:               f32,
+	using const_data:              ConstEnemyData,
+}
+
+ConstEnemyData :: struct {
+	hearing_range:        f32,
+	vision_range:         f32,
+	attack_charge_range:  f32, // Range for the enemy to start charging
+	flee_range:           f32,
+	vision_fov:           f32, // wideness (in degrees)
+	start_charge_time:    f32,
+	lunge_speed:          f32,
+	lunge_time:           f32,
+	attack_out_time:      f32,
+	attack_recovery_time: f32,
+	start_flinch_time:    f32,
+	max_health:           f32,
+	max_speed:            f32,
+	draw_proc:            proc(e: Enemy3, in_editor := false),
 }
 
 EnemyState :: enum {
@@ -180,11 +220,16 @@ Player :: struct {
 	attack_interval_timer: f32, // valid only while playing game
 	attack_poly:           Polygon, // valid only while playing game
 	surfing:               bool, // valid only while playing game
-	can_fire_dash:         bool, // valid only while playing game
-	fire_dash_timer:       f32, // valid only while playing game
-	fire_dash_ready_time:  f32,
+	can_dash:              bool, // valid only while playing game
+	dash_dur_timer:        f32,
+	dash_cooldown_timer:   f32, // valid only while playing game
+	dash_ready_time:       f32,
 	weapon_side:           int, // top is 1, bottom is -1
 	attack_anim_timer:     f32,
+	flip_sprite:           bool,
+	flash_opacity:         f32,
+	dying:                 bool,
+	death_animation_timer: f32,
 }
 
 ZEntity :: struct {
@@ -194,17 +239,6 @@ ZEntity :: struct {
 	rot:                 f32,
 	rot_vel:             f32,
 	sprite:              Sprite,
-}
-
-ProjectileWeapon :: struct {
-	using zentity: ZEntity,
-	data:          ItemData,
-	attack:        Attack,
-}
-
-Rock :: struct {
-	using zentity: ZEntity,
-	attack:        Attack,
 }
 
 Arrow :: struct {
@@ -278,11 +312,9 @@ AttackData :: union {
 	ArrowAttackData,
 }
 
-SwordAttackData :: struct {
-}
+SwordAttackData :: struct {}
 
-FireAttackData :: struct {
-}
+FireAttackData :: struct {}
 
 ExplosionAttackData :: struct {
 	burn_instantly: bool,
@@ -300,25 +332,34 @@ new_entity :: proc(pos: Vec2) -> Entity {
 setup_melee_enemy :: proc(enemy: ^Enemy) {
 	delete(enemy.attack_poly.points)
 	enemy.attack_poly = Polygon{{}, ENEMY_ATTACK_HITBOX_POINTS, 0}
+	enemy.tex = .enemy_basic
+	enemy.flee_range = 20
 	enemy.hearing_range = 160
-	enemy.vision_range = 80
-	enemy.vision_fov = 115
-	enemy.attack_charge_range = 12
+	enemy.vision_range = 100
+	enemy.vision_fov = 180
+	enemy.max_speed = 60
+	enemy.attack_charge_range = 40
 	enemy.start_charge_time = 0.3
 	enemy.start_flinch_time = 0.2
-	enemy.draw_proc = draw_enemy
+	enemy.lunge_speed = 200
+	enemy.lunge_time = 0.15
+	enemy.attack_out_time = 0.1
+	enemy.attack_recovery_time = 0.6
+	enemy.draw_proc = draw_melee_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
 setup_ranged_enemy :: proc(enemy: ^Enemy) {
-	enemy.flee_range = 60
+	enemy.tex = .enemy_ranged
+	enemy.flee_range = 40
 	enemy.hearing_range = 160
-	enemy.vision_range = 120
-	enemy.vision_fov = 115
+	enemy.vision_range = 140
+	enemy.vision_fov = 180
+	enemy.max_speed = 40
 	enemy.attack_charge_range = 120
-	enemy.start_charge_time = 0.5
-	enemy.start_flinch_time = 0.27
-	enemy.draw_proc = draw_enemy
+	enemy.start_charge_time = 0.6
+	enemy.start_flinch_time = 0.2
+	enemy.draw_proc = draw_ranged_enemy
 	max_health_setter(&enemy.health, &enemy.max_health, 80)
 }
 
@@ -326,6 +367,7 @@ setup_turret_enemy :: proc(enemy: ^Enemy) {
 	enemy.hearing_range = 160
 	enemy.vision_range = 120
 	enemy.vision_fov = 360
+	enemy.max_speed = 0
 	enemy.attack_charge_range = 120
 	enemy.start_charge_time = 0.5
 	enemy.start_flinch_time = 0.27
@@ -339,9 +381,9 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 		// rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
 	}
 
-	base_tex := loaded_textures[.TurretBase]
+	base_tex := loaded_textures[.turret_base]
 	base_sprite := Sprite {
-		tex_id     = .TurretBase,
+		tex_id     = .turret_base,
 		tex_origin = Vec2{f32(base_tex.width), f32(base_tex.height)} / 2,
 		tex_region = Rectangle{0, 0, f32(base_tex.width), f32(base_tex.height)},
 		rotation   = 0,
@@ -351,9 +393,9 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 
 	draw_sprite(base_sprite, e.pos)
 
-	head_tex := loaded_textures[.TurretHead]
+	head_tex := loaded_textures[.turret_head]
 	head_sprite := Sprite {
-		tex_id     = .TurretHead,
+		tex_id     = .turret_head,
 		tex_origin = Vec2{2.5, 2.5},
 		tex_region = Rectangle{0, 0, f32(head_tex.width), f32(head_tex.height)},
 		rotation   = e.look_angle,
@@ -364,72 +406,47 @@ draw_turret :: proc(e: Enemy, in_editor := false) {
 	draw_sprite(head_sprite, e.pos)
 }
 
-// Draw proc for ranged and melee enemies
-draw_enemy :: proc(e: Enemy, in_editor := false) {
+draw_melee_enemy :: proc(e: Enemy, in_editor := false) {
+	e := e
+	// shake when charging
+	shake_amount: f32
+	if e.state == .Charging {
+		shake_amount = 0.5
+	} else if e.state == .Flinching {
+		shake_amount = 0.5
+	}
+	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+
 	// DEBUG: Draw collision shape
-	// draw_shape(enemy.shape, e.pos, rl.GREEN)
-	if in_editor {
+	// when ODIN_DEBUG do draw_shape(e.shape, e.pos, rl.GREEN)
+	// draw vision and post range
+	when ODIN_DEBUG do if in_editor {
 		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
 		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
 	}
 
+	// when ODIN_DEBUG {
+	// 	rl.DrawCircleLinesV(e.pos, e.flee_range, rl.GREEN)
+	// }
+
 	// Setup sprites
-	sprite := ENEMY_BASIC_SPRITE
+	sprite: Sprite
+	sprite.scale = 1
+	sprite.tex_id = e.tex
+	sprite.tint = {255, 255, 255, 255}
+	sprite.tex_region = get_frame_region(e.frame, e.tex)
+	frame_size := get_frame_size(sprite.tex_id)
+	sprite.tex_origin = {f32(frame_size.x), f32(frame_size.y)} / 2
 
 	// Looking
 	flipped := false
-	sprite.rotation = e.look_angle
-	if sprite.rotation < -90 || sprite.rotation > 90 {
+	if e.look_angle < -90 || e.look_angle > 90 {
 		flipped = true
-		sprite.scale = {-1, 1}
-		sprite.rotation += 180
+		sprite.scale.x = -1
 	}
 
-	// Animate when death
-	if e.state == .Dying {
-		sprite.tex_id = .EnemyBasicDeath
-		frame_count := get_frames(.EnemyBasicDeath)
-		frame_index := int(
-			math.floor(
-				math.remap(e.death_timer, 0, ENEMY_DEATH_ANIMATION_TIME, 0, f32(frame_count)),
-			),
-		)
-		if frame_index >= frame_count {
-			frame_index -= 1
-		}
-		tex := loaded_textures[.EnemyBasicDeath]
-		frame_size := tex.width / i32(frame_count)
-		sprite.tex_region = {
-			f32(frame_index) * f32(frame_size),
-			0,
-			f32(frame_size),
-			f32(tex.height),
-		}
-	}
-
-	// Flash sprite
-	flash_sprite := sprite
-	flash_sprite.tint = {
-		255,
-		255,
-		255,
-		u8(math.clamp(math.remap(e.flash_opacity, 0, 1, 0, 255), 0, 255)),
-	}
-	flash_sprite.tex_id = .EnemyBasicFlash
-
-	// Switch to ranged version
-	if e.variant == .Ranged {
-		sprite.tex_id = .EnemyRanged
-		if e.state == .Dying {
-			sprite.tex_id = .EnemyRangedDeath
-		}
-		flash_sprite.tex_id = .EnemyRangedFlash
-	}
-
-	// Draw sprites
-	draw_sprite(sprite, e.pos)
-	draw_sprite(flash_sprite, e.pos)
-
+	// Look arrow
+	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
 
 	// Draw health bar
 	if e.state != .Dying {
@@ -443,7 +460,27 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 		health_bar_filled_rec := health_bar_base_rec
 		health_bar_filled_rec.width *= e.health / e.max_health
 		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+
+		time_since_last_hit := f32(rl.GetTime()) - e.last_hit_time
+		if time_since_last_hit < 0.5 {
+			damage_rec := health_bar_filled_rec
+			damage_rec.x += damage_rec.width
+			damage_rec.width = health_bar_length * e.last_hit_amount / e.max_health
+			if time_since_last_hit > 0.2 {
+				damage_rec.width = math.remap(time_since_last_hit, 0.2, 0.5, damage_rec.width, 0)
+			}
+			rl.DrawRectangleRec(damage_rec, rl.YELLOW)
+		}
 	}
+
+	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
+	draw_sprite(sprite, e.pos)
 
 	// DEBUG: Draw ID
 	// rl.DrawTextEx(
@@ -456,128 +493,29 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// )
 
 	attack_area_color := rl.Color{255, 255, 255, 120}
-	if e.just_attacked {
+	if e.attack_out {
 		attack_area_color = rl.Color{255, 0, 0, 120}
 	}
-	// Draw weapons
-	if e.state != .Dying  /*&& (e.charging || e.just_attacked)*/{
-		#partial switch e.variant {
-		case .Melee:
-			// position, rotate, and animate sprite based on look direction and attack animation
-			sprite_rotation: f32
-			pos_rotation: f32
-			if e.attack_anim_timer > 0 {
-				alpha: f32 = math.remap(e.attack_anim_timer, ATTACK_ANIM_TIME, 0, 0, 1)
-				pos_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_pos_max_rotation *
-					f32(e.weapon_side)
-				sprite_rotation =
-					math.remap(ease_out_back(alpha), 0, 1, -1, 1) *
-					sword_sprite_max_rotation *
-					f32(e.weapon_side)
-			} else {
-				pos_rotation = sword_pos_max_rotation * f32(e.weapon_side)
-				sprite_rotation = sword_sprite_max_rotation * f32(e.weapon_side)
-			}
-
-
-			tex_id := TextureId.Sword
-			tex := loaded_textures[tex_id]
-
-			sword_sprite: Sprite = {
-				tex_id     = tex_id,
-				tex_region = {0, 0, f32(tex.width), f32(tex.height)},
-				scale      = 1,
-				tex_origin = {0, 1},
-				rotation   = 0,
-				tint       = rl.WHITE,
-			}
-			sprite_pos := e.pos
-
-			// if flipped {
-			// 	sword_sprite.scale.x = -1
-			// 	sword_sprite.rotation += 180
-			// }
-
-			// position and rotation offset
-			sword_sprite.rotation = sprite_rotation
-
-			radius :: 5
-			offset: Vec2 : {2, 0}
-			sprite_pos += offset + radius * vector_from_angle(pos_rotation)
-
-			// Rotate sprite and rotate its position to face mouse
-			sword_sprite.rotation += e.look_angle
-			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
-			draw_sprite(sword_sprite, sprite_pos)
-		// draw_shape(data.attack_poly, e.pos, attack_area_color)
-		case .Ranged:
-			tex_id := TextureId.Bow
-			tex := loaded_textures[tex_id]
-			// Animate
-			anim_length := e.start_charge_time
-			anim_cur := math.clamp(e.current_charge_time, 0, anim_length)
-			if !e.charging {
-				anim_cur = anim_length
-			}
-
-			frame_count := get_frames(tex_id)
-			frame_index := int(
-				math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))),
-			)
-			if frame_index >= frame_count {
-				frame_index -= 1
-			}
-
-			frame_size := tex.width / i32(frame_count)
-
-			bow_sprite: Sprite = {
-				tex_id     = tex_id,
-				tex_region = {
-					f32(frame_index) * f32(frame_size),
-					0,
-					f32(frame_size),
-					f32(tex.height),
-				},
-				scale      = 1,
-				tex_origin = {7.5, 7.5},
-				rotation   = 0,
-				tint       = rl.WHITE,
-			}
-			sprite_pos := e.pos
-
-			if flipped {
-				bow_sprite.scale.x = -1
-				bow_sprite.rotation += 180
-			}
-
-			// rotation offset
-			// bow_sprite.rotation = 0
-
-			// position offset
-			offset: Vec2 : {5, 0}
-			sprite_pos += offset
-
-			// Rotate sprite and rotate its position to face mouse
-			bow_sprite.rotation += e.look_angle
-			sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
-			draw_sprite(bow_sprite, sprite_pos)
-		}
+	// Draw weapons and attack vfx
+	if e.state != .Dying {
+		// Draw hitbox
+		// when ODIN_DEBUG do draw_shape(e.attack_poly, e.pos, attack_area_color)
 	}
+	rl.EndShaderMode()
 
 	// Display state
-	when ODIN_DEBUG {
-		draw_text(
-			e.pos + {0, -8},
-			{0, 1},
-			fmt.ctprint(e.state),
-			rl.GetFontDefault(),
-			6,
-			1,
-			rl.WHITE,
-		)
-	}
+	// when ODIN_DEBUG {
+	// 	draw_text(
+	// 		e.pos + {0, -8},
+	// 		{0, 1},
+	// 		fmt.ctprint(e.state, e.sub_state),
+	// 		rl.GetFontDefault(),
+	// 		6,
+	// 		1,
+	// 		rl.WHITE,
+	// 	)
+	// }
+
 
 	// Draw vision area
 	// when ODIN_DEBUG {
@@ -599,10 +537,181 @@ draw_enemy :: proc(e: Enemy, in_editor := false) {
 	// }
 }
 
-setup_enemy :: proc(enemy: ^Enemy) {
+
+// Draw proc for ranged and melee enemies
+draw_ranged_enemy :: proc(e: Enemy, in_editor := false) {
+	e := e
+	// Shake when charging or flinching
+	shake_amount: f32
+	if e.state == .Charging {
+		shake_amount = 0.5
+	} else if e.state == .Flinching {
+		shake_amount = 0.5
+	}
+	e.pos += vector_from_angle(rand.float32() * 360) * shake_amount
+
+	// DEBUG: Draw collision shape
+	// when ODIN_DEBUG do draw_shape(e.shape, e.pos, rl.GREEN)
+	// when ODIN_DEBUG do if e.vel != 0 do draw_vector(e.vel, e.pos, rl.ORANGE)
+	when ODIN_DEBUG do if in_editor {
+		rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
+		rl.DrawCircleV(e.pos, ENEMY_POST_RANGE, {255, 0, 0, 100})
+	}
+
+	// when ODIN_DEBUG {
+	// 	rl.DrawCircleLinesV(e.pos, e.attack_charge_range, rl.GREEN)
+	// }
+
+	// Setup sprites
+	sprite: Sprite
+	sprite.scale = 1
+	sprite.tex_id = e.tex
+	sprite.tint = {255, 255, 255, 255}
+	sprite.tex_region = get_frame_region(e.frame, e.tex)
+	frame_size := get_frame_size(sprite.tex_id)
+	sprite.tex_origin = {f32(frame_size.x), f32(frame_size.y)} / 2
+
+	// Looking
+	flipped := false
+	if e.look_angle < -90 || e.look_angle > 90 {
+		flipped = true
+		sprite.scale.x = -1
+	}
+
+	// Look arrow
+	// draw_polygon({e.pos, {{5, -10}, {10, 0}, {5, 10}}, e.look_angle}, rl.WHITE)
+
+	// Draw health bar
+	if e.state != .Dying {
+		health_bar_length: f32 = 20
+		health_bar_height: f32 = 5
+		health_bar_base_rec := get_centered_rect(
+			{e.pos.x, e.pos.y - 20},
+			{health_bar_length, health_bar_height},
+		)
+		rl.DrawRectangleRec(health_bar_base_rec, rl.BLACK)
+		health_bar_filled_rec := health_bar_base_rec
+		health_bar_filled_rec.width *= e.health / e.max_health
+		rl.DrawRectangleRec(health_bar_filled_rec, rl.RED)
+		time_since_last_hit := f32(rl.GetTime()) - e.last_hit_time
+		if time_since_last_hit < 0.5 {
+			damage_rec := health_bar_filled_rec
+			damage_rec.x += damage_rec.width
+			damage_rec.width = health_bar_length * e.last_hit_amount / e.max_health
+			if time_since_last_hit > 0.2 {
+				damage_rec.width = math.remap(time_since_last_hit, 0.2, 0.5, damage_rec.width, 0)
+			}
+			rl.DrawRectangleRec(damage_rec, rl.YELLOW)
+		}
+	}
+
+	// Draw sprites
+	rl.BeginShaderMode(shader)
+	col_override: [4]f32 = {1, 1, 1, math.round(e.flash_opacity - 0.1)}
+	if e.state == .Charging && (e.current_charge_time < 0.05) {
+		col_override = {0, 1, 1, 1}
+	}
+	rl.SetShaderValue(shader, rl.GetShaderLocation(shader, "col_override"), &col_override, .VEC4)
+	draw_sprite(sprite, e.pos)
+
+	// DEBUG: Draw ID
+	// rl.DrawTextEx(
+	// 	rl.GetFontDefault(),
+	// 	fmt.ctprintf(uuid.to_string(enemy.id, context.temp_allocator)),
+	// 	e.pos + {0, -10},
+	// 	8,
+	// 	2,
+	// 	rl.YELLOW,
+	// )
+	// Draw weapons and attack vfx
+	if e.state != .Dying {
+		tex_id := TextureId.bow
+		tex := loaded_textures[tex_id]
+		// Animate
+		anim_length := e.start_charge_time
+		anim_cur := math.clamp(e.current_charge_time, 0, anim_length)
+		if e.state != .Charging {
+			anim_cur = anim_length
+		}
+
+		frame_count := int(get_frame_count(tex_id).x)
+		frame_index := int(math.floor(math.remap(anim_cur, anim_length, 0, 0, f32(frame_count))))
+		if frame_index >= frame_count {
+			frame_index -= 1
+		}
+
+		frame_size := tex.width / i32(frame_count)
+
+		bow_sprite: Sprite = {
+			tex_id     = tex_id,
+			tex_region = {f32(frame_index) * f32(frame_size), 0, f32(frame_size), f32(tex.height)},
+			scale      = 1,
+			tex_origin = {7.5, 7.5},
+			rotation   = 0,
+			tint       = rl.WHITE,
+		}
+		sprite_pos := e.pos
+
+		if flipped {
+			bow_sprite.scale.x = -1
+			bow_sprite.rotation += 180
+		}
+
+		// rotation offset
+		// bow_sprite.rotation = 0
+
+		// position offset
+		offset: Vec2 : {5, 0}
+		sprite_pos += offset
+
+		// Rotate sprite and rotate its position to face mouse
+		bow_sprite.rotation += e.look_angle
+		sprite_pos = rotate_about_origin(sprite_pos, e.pos, e.look_angle)
+		draw_sprite(bow_sprite, sprite_pos)
+	}
+
+	rl.EndShaderMode()
+
+	// Display state
+	// when ODIN_DEBUG {
+	// 	draw_text(
+	// 		e.pos + {0, -8},
+	// 		{0, 1},
+	// 		fmt.ctprint(e.state, e.sub_state),
+	// 		rl.GetFontDefault(),
+	// 		6,
+	// 		1,
+	// 		rl.WHITE,
+	// 	)
+	// }
+
+
+	// Draw vision area
+	// when ODIN_DEBUG {
+	// 	rl.DrawCircleLinesV(e.pos, e.vision_range, rl.YELLOW)
+	// 	for p, i in e.vision_points {
+	// 		rl.DrawLineV(
+	// 			p,
+	// 			e.vision_points[(i + 1) % len(e.vision_points)],
+	// 			rl.YELLOW,
+	// 		)
+	// 	}
+	// }
+
+	// DEBUG: e path
+	// if e.current_path != nil {
+	// 	for point in e.current_path {
+	// 		rl.DrawCircleV(point, 2, rl.RED)
+	// 	}
+	// }
+}
+
+setup_enemy :: proc(enemy: ^Enemy, variant: EnemyVariant) {
+	enemy.update_vision_timer = rand.float32_range(0, 0.3)
 	enemy.post_pos = enemy.pos
 	enemy.shape = get_centered_rect({}, {16, 16})
 	enemy.weapon_side = 1
+	enemy.variant = variant
 	change_enemy_state(enemy, .Idle, main_world)
 	switch enemy.variant {
 	case .Melee:
@@ -615,7 +724,7 @@ setup_enemy :: proc(enemy: ^Enemy) {
 }
 
 setup_exploding_barrel :: proc(barrel: ^ExplodingBarrel) {
-	barrel.shape = Circle{{}, 6}
+	barrel.shape = get_centered_rect(0, 10)
 	max_health_setter(&barrel.health, &barrel.max_health, 50)
 }
 
@@ -624,7 +733,7 @@ setup_item :: proc(item: ^Item) {
 }
 
 setup_player :: proc(player: ^Player) {
-	player.can_fire_dash = true
+	player.can_dash = true
 	player.weapon_side = 1
 	player.shape = PLAYER_SHAPE
 	player.pickup_range = 16

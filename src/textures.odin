@@ -1,75 +1,54 @@
 package game
 
+import "core:fmt"
 import rl "vendor:raylib"
 
 TextureId :: enum {
-	Empty = 0, // 1-99 is items
-	Bomb,
+	nil = 0, // 1-99 is items
+	bomb,
 	// Apple,
 	// Rock,
-	Sword = 100, // 100-199 is weapons
-	Bow,
+	sword = 100, // 100-199 is weapons
+	bow,
 	// Stick,
-	Player = 200, // 200-299 is entities
-	EnemyBasic,
-	EnemyRanged,
-	EnemyBasicFlash,
-	EnemyRangedFlash,
-	EnemyBasicDeath,
-	EnemyRangedDeath,
-	TurretBase,
-	TurretHead,
-	Arrow,
-	ExplodingBarrel,
-	Tilemap = 300, // 300-399 is environment
-	WinCircle,
-	TitleScreen = 400, // 400-499 is UI
-	TitleScreen2,
-	HitVfx = 500, // 500-599 is Vfx and others
+	player = 200, // 200-299 is entities
+	enemy_basic,
+	enemy_ranged,
+	turret_base,
+	turret_head,
+	arrow,
+	exploding_barrel,
+	barrel_shadow,
+	tileset = 300, // 300-399 is environment
+	portal,
+	full_wall,
+	title_screen = 400, // 400-499 is UI
+	title_screen2,
+	hit_vfx = 500, // 500-599 is Vfx and others
+	explosion,
+	small_explosion,
 }
 
 loaded_textures: #sparse[TextureId]rl.Texture2D
 
 // Indexed by ItemId
 item_to_texture: #sparse[ItemId]TextureId = {
-	.Empty = .Empty,
-	.Bomb  = .Bomb,
+	.Empty = .nil,
+	.Bomb  = .bomb,
 	// .Apple = .Apple,
 	// .Rock  = .Rock,
-	.Sword = .Sword,
+	.Sword = .sword,
 	// .Stick = .Stick,
 }
 
 load_textures :: proc() {
-	// img_dir :: "res/images/"
-	// for id in TextureId {
-	// 	loaded_textures[id] = rl.LoadTexture(fmt.ctprint(img_dir, id, ".png", sep = ""))
-	// }
-	loaded_textures = {
-		.Empty            = {},
-		.Bomb             = rl.LoadTexture("res/images/bomb.png"),
-		// .Apple           = rl.LoadTexture("res/images/apple.png"),
-		// .Rock            = rl.LoadTexture("res/images/rock.png"),
-		.Sword            = rl.LoadTexture("res/images/sword.png"),
-		.Bow              = rl.LoadTexture("res/images/bow.png"),
-		// .Stick           = rl.LoadTexture("res/images/stick.png"),
-		.Player           = rl.LoadTexture("res/images/samurai.png"),
-		.EnemyBasic       = rl.LoadTexture("res/images/enemy_basic.png"),
-		.EnemyRanged      = rl.LoadTexture("res/images/enemy_ranged.png"),
-		.EnemyBasicFlash  = rl.LoadTexture("res/images/enemy_basic_flash.png"),
-		.EnemyRangedFlash = rl.LoadTexture("res/images/enemy_ranged_flash.png"),
-		.EnemyBasicDeath  = rl.LoadTexture("res/images/enemy_basic_death.png"),
-		.EnemyRangedDeath = rl.LoadTexture("res/images/enemy_ranged_death.png"),
-		.TurretBase       = rl.LoadTexture("res/images/turret_base.png"),
-		.TurretHead       = rl.LoadTexture("res/images/turret_head.png"),
-		.Arrow            = rl.LoadTexture("res/images/arrow.png"),
-		.ExplodingBarrel  = rl.LoadTexture("res/images/exploding_barrel.png"),
-		.Tilemap          = rl.LoadTexture("res/images/tileset.png"),
-		.WinCircle        = rl.LoadTexture("res/images/win_circle.png"),
-		.TitleScreen      = rl.LoadTexture("res/images/title_screen.png"),
-		.TitleScreen2     = rl.LoadTexture("res/images/title_screen2.png"),
-		.HitVfx           = rl.LoadTexture("res/images/hitfx.png"),
+	img_dir :: "res/images/"
+
+	for id in TextureId {
+		if id == nil do continue
+		loaded_textures[id] = rl.LoadTexture(fmt.ctprint(img_dir, id, ".png", sep = ""))
 	}
+
 	// rl.SetTextureFilter(loaded_textures[.Player], .BILINEAR)
 }
 
@@ -79,14 +58,22 @@ unload_textures :: proc() {
 	}
 }
 
-get_frames :: proc(tex: TextureId) -> int {
+get_frame_count :: proc(tex: TextureId) -> Vec2i {
 	#partial switch tex {
-	case .HitVfx:
-		return 4
-	case .EnemyBasicDeath:
-		return 7
-	case .Bow:
-		return 4
+	case .hit_vfx:
+		return {4, 1}
+	case .enemy_basic:
+		return {7, 8}
+	case .enemy_ranged:
+		return {7, 8}
+	case .bow:
+		return {4, 1}
+	case .explosion:
+		return {9, 1}
+	case .small_explosion:
+		return {9, 1}
+	case .portal:
+		return {2, 1}
 	}
 	return 1
 }

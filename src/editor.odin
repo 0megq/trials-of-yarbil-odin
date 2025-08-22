@@ -1,5 +1,6 @@
 package game
 
+import "core:strings"
 import rl "vendor:raylib"
 
 EditorState :: struct {
@@ -59,6 +60,7 @@ editor_state: EditorState
 
 
 init_editor_state :: proc(e: ^EditorState) {
+	destruct_editor_state(e)
 	// Tutorial editor
 	e.selected_prompt = nil
 	e.selected_prompt_idx = -1
@@ -114,7 +116,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.entity_x_field = NumberField {
 			{20, 390, 200, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" E.X ",
 			false,
 			0,
@@ -125,7 +127,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.entity_y_field = NumberField {
 			{20, 450, 200, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" E.Y ",
 			false,
 			0,
@@ -136,7 +138,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.shape_x_field = NumberField {
 			{20, 150, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" S.X ",
 			false,
 			0,
@@ -147,7 +149,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.shape_y_field = NumberField {
 			{20, 210, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" S.Y ",
 			false,
 			0,
@@ -158,7 +160,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.radius_field = NumberField {
 			{20, 270, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" R ",
 			false,
 			0,
@@ -169,7 +171,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.width_field = NumberField {
 			{20, 270, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" W ",
 			false,
 			0,
@@ -180,7 +182,7 @@ init_editor_state :: proc(e: ^EditorState) {
 		e.height_field = NumberField {
 			{20, 330, 120, 40},
 			0,
-			"0",
+			strings.clone("0"),
 			" H ",
 			false,
 			0,
@@ -188,6 +190,16 @@ init_editor_state :: proc(e: ^EditorState) {
 			{150, 255, 150, 200},
 		}
 	}
+}
+
+destruct_editor_state :: proc(e: ^EditorState) {
+	delete(e.entity_x_field.current_string)
+	delete(e.entity_y_field.current_string)
+	delete(e.shape_x_field.current_string)
+	delete(e.shape_y_field.current_string)
+	delete(e.radius_field.current_string)
+	delete(e.width_field.current_string)
+	delete(e.height_field.current_string)
 }
 
 draw_level :: proc(show_tile_grid := false) {

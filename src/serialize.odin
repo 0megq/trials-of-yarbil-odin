@@ -15,8 +15,6 @@ TILEMAP_FILE_PREFIX :: "./data/tilemap"
 GAME_FILE_PREFIX :: "./data/game"
 TUTORIAL_FILE_PREFIX :: "./data/tutorial"
 
-PLAYER_SHAPE :: Rectangle{-6, -6, 12, 12}
-
 PlayerData :: struct {
 	// player health
 	health:              f32,
@@ -288,6 +286,8 @@ load_level :: proc(world: ^World) {
 	for data in level.enemy_data {
 		append(&level.enemies, get_enemy_from_data(data))
 	}
+	delete(level.enemy_data)
+	level.enemy_data = nil
 
 	for &barrel in level.exploding_barrels {
 		setup_exploding_barrel(&barrel)
@@ -359,10 +359,10 @@ save_level :: proc() {
 	// save tilemap, level geometry
 
 	data: Level = level
-	clear(&data.enemy_data)
 	for enemy in data.enemies {
 		append(&data.enemy_data, get_data_from_enemy(enemy))
 	}
+	defer delete(data.enemy_data)
 	data.enemies = nil
 
 	save_tilemap(
@@ -381,7 +381,7 @@ save_level :: proc() {
 
 	rl.TraceLog(.INFO, "Level Saved")
 	if level.has_tutorial {
-		// _save_tutorial() 
+		_save_tutorial()
 	}
 }
 
@@ -389,9 +389,12 @@ unload_level :: proc() {
 	if level.has_tutorial {
 		_unload_tutorial()
 	}
-	// delete world data. I can probably replace these with clear()
-	for enemy in main_world.enemies do if enemy.current_path != nil {
+	// delete world data
+	delete(main_world.player.cur_attack.exclude_targets)
+	main_world.player.cur_attack.exclude_targets = nil
+	for enemy in main_world.enemies {
 		delete(enemy.current_path)
+		delete(enemy.attack.exclude_targets)
 	}
 	delete(main_world.enemies)
 	main_world.enemies = nil
@@ -418,7 +421,6 @@ unload_level :: proc() {
 	// }
 	free_level_memory(level)
 	level.enemies = nil
-	level.enemy_data = nil
 	level.items = nil
 	level.exploding_barrels = nil
 	level.walls = nil
@@ -430,7 +432,8 @@ unload_level :: proc() {
 // WARNING: unsafe to use level struct after calling this function, all allocations will point to deallocated memory
 free_level_memory :: proc(level: Level) {
 	delete(level.enemies)
-	delete(level.enemy_data)
+	// delete(level.enemy_data)
+	assert(level.enemy_data == nil, "Expected level.enemy_data to be nil.")
 	delete(level.items)
 	delete(level.exploding_barrels)
 	delete(level.walls)
@@ -458,7 +461,9 @@ load_game_data :: proc(game_idx := 0) {
 	}
 
 	// Reset all player values
-	main_world.player = {}
+	main_world.player = {
+		entity = new_entity({}),
+	}
 	set_player_data(&main_world.player, game_data.player_data)
 
 	rl.TraceLog(.INFO, "GameData Loaded")
@@ -573,8 +578,7 @@ get_enemy_from_data :: proc(data: EnemyData) -> (e: Enemy) {
 	e.start_disabled = data.start_disabled
 	e.look_angle = data.look_angle
 	e.idle_look_angle = data.look_angle
-	e.variant = data.variant
-	setup_enemy(&e)
+	setup_enemy(&e, data.variant)
 	return
 }
 

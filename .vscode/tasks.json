@@ -6,7 +6,7 @@
 		{
 			"label": "Debug Build",
 			"type": "shell",
-			"command": "odin build ./src/ -debug -out:build/build.exe -vet -strict-style",
+			"command": "odin build ./src/ -debug -out:build/build.exe",
 			"group": "build"
 		},
 	]

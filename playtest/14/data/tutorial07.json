@@ -1,0 +1,51 @@
+{
+	"prompts": [
+		{
+			"pos": [
+				0.50000000,
+				0.10000000
+			],
+			"text": "It's your turn now!",
+			"condition": {
+				"type": 1,
+				"count": 0
+			},
+			"invert_condition": true,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": true
+		},
+		{
+			"pos": [
+				0.50000000,
+				0.10000000
+			],
+			"text": "Nice Job!",
+			"condition": {
+				"type": 1,
+				"count": 0
+			},
+			"invert_condition": false,
+			"condition2": null,
+			"invert_condition2": false,
+			"condition3": null,
+			"invert_condition3": false,
+			"on_screen": true
+		}
+	],
+	"actions": [
+
+	],
+	"hide_item_hud": false,
+	"hide_weapon_hud": false,
+	"hide_dash_hud": false,
+	"disable_ability": false,
+	"hide_speedrun_timer": false,
+	"hide_all_hud": false,
+	"enable_enemy_dummies": false,
+	"disable_throwing": true,
+	"disable_switching": true,
+	"disable_dropping": true
+}

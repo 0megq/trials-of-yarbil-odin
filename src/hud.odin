@@ -185,29 +185,32 @@ draw_hud :: proc(player: Player) {
 		center: Vec2 = {f32(UI_SIZE.x) / 2, f32(UI_SIZE.y) - 120}
 		// text_pos := get_centered_text_pos(center, "Ready", font_size, 2)
 		rect := get_centered_rect(center, {128, 20})
-		if player.can_fire_dash {
+		if player.can_dash {
 			rl.DrawRectangleRec(rect, rl.YELLOW)
 			// rl.DrawTextEx(rl.GetFontDefault(), "Ready", text_pos, 20, 2, rl.ORANGE)
 		} else {
 			rl.DrawRectangleRec(rect, rl.LIGHTGRAY)
 			rl.DrawRectangleV(
-				{rect.x + rect.width * (1 - player.fire_dash_timer / FIRE_DASH_COOLDOWN), rect.y},
-				{rect.width * player.fire_dash_timer / FIRE_DASH_COOLDOWN, rect.height},
+				{
+					rect.x + rect.width * (1 - player.dash_cooldown_timer / FIRE_DASH_COOLDOWN),
+					rect.y,
+				},
+				{rect.width * player.dash_cooldown_timer / FIRE_DASH_COOLDOWN, rect.height},
 				rl.GRAY,
 			)
 		}
 	}
 	// Display speedrun timer
-	if !(level.has_tutorial && tutorial.hide_speedrun_timer) {
-		font_size: f32 = 24
-		center: Vec2 = {f32(UI_SIZE.x) / 2, 40}
-		text := fmt.ctprintf(
-			"Time: %2d:%2d:%2d.%2d",
-			time.clock_from_seconds(u64(speedrun_timer)),
-			u64((speedrun_timer - f32(i32(speedrun_timer))) * 100),
-		)
-		pos := get_centered_text_pos(center, text, font_size, 2)
+	// if !(level.has_tutorial && tutorial.hide_speedrun_timer) {
+	// 	font_size: f32 = 24
+	// 	center: Vec2 = {f32(UI_SIZE.x) / 2, 40}
+	// 	text := fmt.ctprintf(
+	// 		"Time: %2d:%2d:%2d.%2d",
+	// 		time.clock_from_seconds(u64(speedrun_timer)),
+	// 		u64((speedrun_timer - f32(i32(speedrun_timer))) * 100),
+	// 	)
+	// 	pos := get_centered_text_pos(center, text, font_size, 2)
 
-		rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, 2, rl.WHITE)
-	}
+	// 	rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, 2, rl.WHITE)
+	// }
 }

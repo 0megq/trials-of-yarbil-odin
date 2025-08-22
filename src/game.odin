@@ -1,10 +1,15 @@
 package game
 
+import "core:encoding/json"
+import "core:os"
 
+import "base:runtime"
 import "core:crypto"
 import "core:fmt"
 import "core:math"
 import "core:mem"
+import spall "core:prof/spall"
+import "core:sync"
 // import "core:slice"
 // import mu "vendor:microui"
 import rl "vendor:raylib"
@@ -16,19 +21,23 @@ fmt_i := fmt._arg_number
 mem_i := mem._default_resize_bytes_align
 
 
-VERSION_NUMBER :: "v0.9"
+VERSION_NUMBER :: "v1.1"
 GAME_SIZE :: Vec2i{640, 360}
 UI_SIZE :: Vec2i{1440, 810}
 UI_OVER_GAME :: f32(UI_SIZE.y) / f32(GAME_SIZE.y)
 ASPECT_RATIO_X_Y: f32 : f32(GAME_SIZE.x) / f32(GAME_SIZE.y)
-PLAYER_BASE_MAX_SPEED :: 80
-PLAYER_BASE_ACCELERATION :: 1500
-PLAYER_BASE_FRICTION :: 750
-PLAYER_BASE_HARSH_FRICTION :: 2000
+PLAYER_BASE_ACC :: 4000
+PLAYER_MAX_SPEED :: 90
+FRICTION_MULT :: 1
+PLAYER_SPEED_REDUCTION :: 3000
 ENEMY_PATHFINDING_TIME :: 0.2
 FIRE_DASH_RADIUS :: 8
-FIRE_DASH_FIRE_DURATION :: 1
-FIRE_DASH_COOLDOWN :: 2
+FIRE_DASH_FIRE_DURATION :: 0.4
+FIRE_DASH_COOLDOWN :: 0.6
+FIRE_DASH_DISTANCE :: 50.0
+FIRE_DASH_DURATION :: 0.2
+FIRE_DASH_SPEED :: 240
+FIRE_DASH_END_SPEED :: 170
 FIRE_TILE_DAMAGE :: 1
 ITEM_HOLD_DIVISOR :: 1 // Max time
 WEAPON_CHARGE_DIVISOR :: 1 // Max time
@@ -41,19 +50,29 @@ SPEED_SECOND_THRESHOLD :: 0.5
 ENEMY_POST_RANGE :: 16
 ENEMY_SEARCH_TOLERANCE :: 16
 ENEMY_DEATH_ANIMATION_TIME :: 0.3
+INVESTIGATE_ALERT_INTENSITY :: 0.8
+PLAYER_SHAPE :: Rectangle{-2, -5, 6, 6}
 
 // weapon/attack related constants
-ATTACK_DURATION :: 0.15
-ATTACK_INTERVAL :: 0
+ATTACK_DURATION :: 0.12
+ATTACK_INTERVAL :: 0.07
 ATTACK_ANIM_TIME :: 0.2
-SWORD_DAMAGE :: 40
-SWORD_KNOCKBACK :: 100
+SWORD_DAMAGE :: 20
+SWORD_KNOCKBACK :: 80
 SWORD_HITBOX_OFFSET :: 4
 STICK_DAMAGE :: 10
 STICK_KNOCKBACK :: 70
 STICK_HITBOX_OFFSET :: 2
 
+MAX_VOLUME :: 1.5
+MIN_VOLUME :: 0
+
 DISCORD_LINK :: "https://discord.com/invite/RTe474TtHe"
+
+Settings :: struct {
+	master_volume: f32,
+}
+settings: Settings
 
 EditorMode :: enum {
 	None,
@@ -68,6 +87,7 @@ Menu :: enum {
 	Pause,
 	Main,
 	Win,
+	Options,
 }
 
 MovementAbility :: enum {
@@ -125,17 +145,18 @@ STICK_HITBOX_POINTS := []Vec2 {
 	{STICK_HITBOX_OFFSET, 10},
 }
 
-ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{10, -10}, {16, -8}, {20, 0}, {16, 8}, {10, 10}}
+ENEMY_ATTACK_HITBOX_POINTS := []Vec2{{4, -8}, {14, -7}, {18, 0}, {14, 7}, {4, 8}}
 
 sword_pos_max_rotation: f32 : 70
 sword_sprite_max_rotation: f32 : 160
 
-PLAYER_SPRITE :: Sprite{.Player, {0, 0, 12, 16}, {1, 1}, {5.5, 7.5}, 0, rl.WHITE}
-ENEMY_BASIC_SPRITE :: Sprite{.EnemyBasic, {0, 0, 32, 32}, {1, 1}, {16, 16}, 0, rl.WHITE}
-BARREL_SPRITE :: Sprite{.ExplodingBarrel, {0, 0, 12, 12}, {1, 1}, {6, 6}, 0, rl.WHITE}
+PLAYER_SPRITE :: Sprite{.player, {0, 0, 12, 16}, {1, 1}, {5.5, 13}, 0, rl.WHITE}
+BARREL_SPRITE :: Sprite{.exploding_barrel, {0, 0, 12, 17}, {1, 1}, {6, 13}, 0, rl.WHITE}
 
 player_at_portal: bool
 seconds_above_distraction_threshold: f32
+
+shader: rl.Shader
 
 // "Progress saved!" visuals
 completion_show_time: f32 = 0
@@ -151,14 +172,20 @@ game_data: GameData
 main_world: World
 main_menu: struct {
 	play_button:    Button,
+	options_button: Button,
 	quit_button:    Button,
 	discord_button: Button,
 }
 pause_menu: struct {
-	resume_button:               Button,
-	main_menu_button:            Button,
+	resume_button:    Button,
+	main_menu_button: Button,
+	options_button:   Button,
+	discord_button:   Button,
+}
+options_menu: struct {
+	volume_slider_rect:          Rectangle,
+	back_button:                 Button,
 	controls_button:             Button,
-	discord_button:              Button,
 	controls_panel_close_button: Button,
 	controls_panel_showing:      bool,
 }
@@ -194,12 +221,32 @@ game_should_close := false
 call_after_draw_queue: [100]proc()
 call_after_draw_length := 0
 
+// profiling
+spall_ctx: spall.Context
+@(thread_local)
+spall_buffer: spall.Buffer
+
 main :: proc() {
 	// Init RNG
 	context.random_generator = crypto.random_generator()
 
-	// Setup Tracking Allocator
+	// Setup Spall
 	when ODIN_DEBUG {
+		spall_ctx = spall.context_create("trace.spall")
+		defer spall.context_destroy(&spall_ctx)
+
+		buffer_backing := make([]u8, spall.BUFFER_DEFAULT_SIZE)
+		defer delete(buffer_backing)
+
+		spall_buffer = spall.buffer_create(buffer_backing, u32(sync.current_thread_id()))
+		defer spall.buffer_destroy(&spall_ctx, &spall_buffer)
+
+		// Profile main or any function you want
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, #procedure)
+	}
+
+	// Setup Tracking Allocator
+	when false && ODIN_DEBUG {
 		track: mem.Tracking_Allocator
 		mem.tracking_allocator_init(&track, context.allocator)
 		context.allocator = mem.tracking_allocator(&track)
@@ -217,10 +264,11 @@ main :: proc() {
 
 	// Setup Window
 	{
-		rl.SetConfigFlags({.VSYNC_HINT, .WINDOW_RESIZABLE})
-		rl.SetWindowMaxSize(1920, 1057)
+		rl.SetConfigFlags({.WINDOW_RESIZABLE})
 		rl.InitWindow(window_size.x, window_size.y, "Trials of Yarbil")
+		rl.ToggleBorderlessWindowed()
 		rl.SetExitKey(.KEY_NULL)
+
 		// Set window values
 		window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
 		window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
@@ -232,11 +280,14 @@ main :: proc() {
 	init_audio_and_load_sounds()
 	defer close_audio_and_unload_sounds()
 
+	shader = rl.LoadShader("", "res/shaders/color_override.fs")
+
 	// Load resources and data
 	{
 		load_textures()
 		// pixel_filter := rl.LoadShader(nil, "assets/pixel_filter.fs")
 		load_game_data()
+		load_settings()
 	}
 
 	// Allocate memory for the main world (Should only happen once)
@@ -255,6 +306,7 @@ main :: proc() {
 
 	setup_main_menu()
 	setup_pause_menu()
+	setup_options_menu()
 	setup_win_menu()
 
 	init_editor_state(&editor_state)
@@ -268,8 +320,9 @@ main :: proc() {
 
 	queue_menu_change(.Main)
 
-	// Update Loop
+	// *** Update Loop ***
 	for !rl.WindowShouldClose() && !game_should_close {
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update")
 		update()
 	}
 
@@ -277,6 +330,10 @@ main :: proc() {
 	if editor_state.mode != .None {
 		save_level()
 	}
+	destruct_editor_state(&editor_state)
+
+	save_settings()
+
 	// Free level memory
 	unload_level()
 
@@ -309,8 +366,18 @@ update :: proc() {
 	mouse_window_pos = rl.GetMousePosition()
 	mouse_window_delta = rl.GetMouseDelta()
 
+	if rl.IsKeyPressed(.F11) {
+		rl.ToggleBorderlessWindowed()
+	}
+
 	if rl.IsWindowResized() {
 		handle_window_resize()
+	}
+
+	// Update Music
+	{
+		spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "update music")
+		update_music()
 	}
 
 	// Update UI Camera and get UI mouse input
@@ -332,8 +399,17 @@ update :: proc() {
 		}
 	}
 
+	when ODIN_DEBUG {
+		if rl.IsKeyDown(.LEFT_CONTROL) && rl.IsKeyPressed(.R) {
+			// reload assets
+			unload_textures()
+			load_textures()
+		}
+	}
+
 	if menu_change_queued {
 		perform_menu_change()
+		menu_change_queued = false
 	}
 
 	#partial switch cur_menu {
@@ -354,7 +430,11 @@ update :: proc() {
 					}
 					if editor_state.mode == .None {
 						save_level()
-						reload_game_data()
+						main_world.player.health = main_world.player.max_health
+						main_world.player.items = {}
+						main_world.player.item_count = 0
+						save_game_data()
+						// reload_game_data()
 						reload_level(&main_world)
 					}
 				}
@@ -405,38 +485,64 @@ update :: proc() {
 		}
 	case .Main:
 		update_button(&main_menu.play_button, mouse_ui_pos)
+		update_button(&main_menu.options_button, mouse_ui_pos)
 		update_button(&main_menu.quit_button, mouse_ui_pos)
 		update_button(&main_menu.discord_button, mouse_ui_pos)
 		if main_menu.play_button.status == .Released {
 			queue_menu_change(.World)
+		} else if main_menu.options_button.status == .Released {
+			queue_menu_change(.Options)
 		} else if main_menu.quit_button.status == .Released {
 			game_should_close = true
 		} else if main_menu.discord_button.status == .Released {
 			rl.OpenURL(DISCORD_LINK)
 		}
 	case .Pause:
-		if !pause_menu.controls_panel_showing {
-			update_button(&pause_menu.resume_button, mouse_ui_pos)
-			update_button(&pause_menu.controls_button, mouse_ui_pos)
-			update_button(&pause_menu.main_menu_button, mouse_ui_pos)
-			update_button(&pause_menu.discord_button, mouse_ui_pos)
-			if pause_menu.resume_button.status == .Released {
-				queue_menu_change(.World)
-			} else if pause_menu.controls_button.status == .Released {
-				pause_menu.controls_panel_showing = true
-			} else if pause_menu.main_menu_button.status == .Released {
-				queue_menu_change(.Main)
-			} else if pause_menu.discord_button.status == .Released {
-				rl.OpenURL(DISCORD_LINK)
+		update_button(&pause_menu.resume_button, mouse_ui_pos)
+		update_button(&pause_menu.options_button, mouse_ui_pos)
+		update_button(&pause_menu.main_menu_button, mouse_ui_pos)
+		update_button(&pause_menu.discord_button, mouse_ui_pos)
+		if pause_menu.resume_button.status == .Released {
+			queue_menu_change(.World)
+		} else if pause_menu.options_button.status == .Released {
+			queue_menu_change(.Options)
+		} else if pause_menu.main_menu_button.status == .Released {
+			queue_menu_change(.Main)
+		} else if pause_menu.discord_button.status == .Released {
+			rl.OpenURL(DISCORD_LINK)
+		}
+		if rl.IsKeyPressed(.ESCAPE) {
+			queue_menu_change(.World)
+		}
+
+	case .Options:
+		if !options_menu.controls_panel_showing {
+			// volume slider
+			slider_rect := options_menu.volume_slider_rect
+			if rl.IsMouseButtonDown(.LEFT) &&
+			   check_collision_shape_point(slider_rect, {}, mouse_ui_pos) {
+				volume: f32 = math.remap(
+					mouse_ui_pos.x,
+					slider_rect.x,
+					slider_rect.x + slider_rect.width,
+					MIN_VOLUME,
+					MAX_VOLUME,
+				)
+				rl.SetMasterVolume(volume)
 			}
-			if rl.IsKeyPressed(.ESCAPE) {
-				queue_menu_change(.World)
+
+			update_button(&options_menu.back_button, mouse_ui_pos)
+			update_button(&options_menu.controls_button, mouse_ui_pos)
+			if options_menu.back_button.status == .Released || rl.IsKeyPressed(.ESCAPE) {
+				queue_menu_change(prev_menu)
+			} else if options_menu.controls_button.status == .Released {
+				options_menu.controls_panel_showing = true
 			}
 		} else {
-			update_button(&pause_menu.controls_panel_close_button, mouse_ui_pos)
-			if pause_menu.controls_panel_close_button.status == .Released ||
+			update_button(&options_menu.controls_panel_close_button, mouse_ui_pos)
+			if options_menu.controls_panel_close_button.status == .Released ||
 			   rl.IsKeyPressed(.ESCAPE) {
-				pause_menu.controls_panel_showing = false
+				options_menu.controls_panel_showing = false
 			}
 		}
 	case .Win:
@@ -473,6 +579,7 @@ update :: proc() {
 }
 
 draw_frame :: proc() {
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "draw frame")
 	rl.BeginDrawing()
 	rl.ClearBackground(rl.DARKGRAY)
 
@@ -498,7 +605,7 @@ draw_frame :: proc() {
 
 			// Warrior and enemies
 			img_scale_factor :: 4
-			img := loaded_textures[.TitleScreen]
+			img := loaded_textures[.title_screen]
 			center: Vec2 = {f32(UI_SIZE.x) * 0.2, f32(UI_SIZE.y) * 0.5}
 			rl.DrawTextureEx(
 				img,
@@ -511,7 +618,7 @@ draw_frame :: proc() {
 				rl.WHITE,
 			)
 
-			img = loaded_textures[.TitleScreen2]
+			img = loaded_textures[.title_screen2]
 			center = {f32(UI_SIZE.x) * 0.8, f32(UI_SIZE.y) * 0.6}
 			rl.DrawTextureEx(
 				img,
@@ -538,6 +645,7 @@ draw_frame :: proc() {
 			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
 		}
 		draw_button(main_menu.play_button)
+		draw_button(main_menu.options_button)
 		draw_button(main_menu.quit_button)
 		draw_button(main_menu.discord_button)
 		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
@@ -545,7 +653,7 @@ draw_frame :: proc() {
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 		draw_button(pause_menu.resume_button)
-		draw_button(pause_menu.controls_button)
+		draw_button(pause_menu.options_button)
 		draw_button(pause_menu.main_menu_button)
 		draw_button(pause_menu.discord_button)
 
@@ -562,8 +670,37 @@ draw_frame :: proc() {
 			)
 			rl.DrawTextEx(rl.GetFontDefault(), text, pos, font_size, spacing, rl.BLACK)
 		}
-		// Controls panel
-		if pause_menu.controls_panel_showing {
+
+		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
+	case .Options:
+		// Background color
+		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {10, 67, 71, 255})
+		draw_button(options_menu.back_button)
+		draw_button(options_menu.controls_button)
+		// draw volume slide
+		{
+			rl.DrawRectangleRec(options_menu.volume_slider_rect, rl.DARKGRAY)
+			master_volume := rl.GetMasterVolume()
+			percentage := math.remap(master_volume, MIN_VOLUME, MAX_VOLUME, 0, 1)
+			fill_rect := options_menu.volume_slider_rect
+			fill_rect.width *= percentage
+			rl.DrawRectangleRec(fill_rect, rl.BLUE)
+			if check_collision_shape_point(options_menu.volume_slider_rect, 0, mouse_ui_pos) {
+				rl.DrawRectangleRec(options_menu.volume_slider_rect, {255, 255, 255, 50})
+			}
+			draw_text(
+				get_center(options_menu.volume_slider_rect),
+				{0, 0},
+				"Volume",
+				rl.GetFontDefault(),
+				16,
+				2,
+				rl.WHITE,
+			)
+		}
+
+		// Contols panel
+		if options_menu.controls_panel_showing {
 			rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
 			rec := get_centered_rect(
 				{f32(UI_SIZE.x), f32(UI_SIZE.y)} / 2,
@@ -573,7 +710,7 @@ draw_frame :: proc() {
 			rl.DrawRectangleRec(rec, {103, 132, 201, 255})
 
 			// Panel Elements
-			draw_button(pause_menu.controls_panel_close_button)
+			draw_button(options_menu.controls_panel_close_button)
 
 			x := rec.x + rec.width * 0.5
 			cur_y: f32 = rec.y + 120
@@ -666,7 +803,6 @@ draw_frame :: proc() {
 				rl.DrawTextEx(rl.GetFontDefault(), control, right, font_size, spacing, rl.BLACK)
 			}
 		}
-		rl.DrawText(VERSION_NUMBER, 6, UI_SIZE.y - 6 - 24, 24, {16, 109, 71, 255})
 	case .Win:
 		draw_world_ui(main_world)
 		rl.DrawRectangle(0, 0, UI_SIZE.x, UI_SIZE.y, {0, 0, 0, 100})
@@ -691,6 +827,29 @@ draw_frame :: proc() {
 	}
 	rl.EndMode2D()
 
+	spall.SCOPED_EVENT(&spall_ctx, &spall_buffer, "draw frame finish")
+	// draw letterbox borders
+	scaled_window_size := f2i(i2f(UI_SIZE) * window_over_ui)
+	letterbox_size := window_size - scaled_window_size
+	rl.DrawRectangle(0, 0, letterbox_size.x / 2, window_size.y, rl.BLACK)
+	rl.DrawRectangle(
+		window_size.x - letterbox_size.x / 2,
+		0,
+		letterbox_size.x / 2,
+		window_size.y,
+		rl.BLACK,
+	)
+	rl.DrawRectangle(0, 0, window_size.x, letterbox_size.y / 2, rl.BLACK)
+	rl.DrawRectangle(
+		0,
+		window_size.y - letterbox_size.y / 2,
+		window_size.x,
+		letterbox_size.y / 2,
+		rl.BLACK,
+	)
+
+	// rl.DrawFPS(10, 10)
+
 	rl.EndDrawing()
 }
 
@@ -711,18 +870,22 @@ perform_menu_change :: proc() {
 	// Exit
 	switch cur_menu {
 	case .World:
+	// rl.PauseMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:
+	case .Options:
 	case .Nil:
 	}
 
 	// Entry
 	switch new_menu {
 	case .World:
+	// rl.ResumeMusicStream(loaded_music)
 	case .Pause:
 	case .Main:
 	case .Win:
+	case .Options:
 	case .Nil:
 	}
 
@@ -748,31 +911,13 @@ fit_world_camera_target_to_level_bounds :: proc(target: Vec2) -> Vec2 {
 }
 
 handle_window_resize :: proc() {
-	previous_window_size := window_size
 	window_size = {rl.GetScreenWidth(), rl.GetScreenHeight()}
-	size_delta := window_size - previous_window_size
-	// If one is negative pick the lower one
-	if size_delta.x < 0 || size_delta.y < 0 {
-		if size_delta.x < size_delta.y {
-			window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
-		} else {
-			window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
-		}
-	} else {
-		// If not negative pick the larger one
-		if size_delta.x < size_delta.y {
-			window_size.y = i32(f32(window_size.x) / ASPECT_RATIO_X_Y)
-		} else {
-			window_size.x = i32(f32(window_size.y) * ASPECT_RATIO_X_Y)
-		}
-	}
-	if window_size.y == 1057 {
-		window_size.x = 1920
-	}
-	rl.SetWindowSize(window_size.x, window_size.y)
 
-	window_over_game = f32(window_size.y) / f32(GAME_SIZE.y)
-	window_over_ui = f32(window_size.y) / f32(UI_SIZE.y)
+	window_over_game = min(
+		f32(window_size.x) / f32(GAME_SIZE.x),
+		f32(window_size.y) / f32(GAME_SIZE.y),
+	)
+	window_over_ui = min(f32(window_size.x) / f32(UI_SIZE.x), f32(window_size.y) / f32(UI_SIZE.y))
 }
 
 exp_decay_angle :: proc(a, b: f32, decay: f32, delta: f32) -> f32 {
@@ -819,7 +964,7 @@ world_to_ui :: proc(point: Vec2) -> Vec2 {
 	return window_to_ui(world_to_window(point))
 }
 
-// MARK: Input
+// MARK: Input (not normalized!)
 get_directional_input :: proc() -> Vec2 {
 	dir: Vec2
 	if rl.IsKeyDown(.UP) || rl.IsKeyDown(.W) {
@@ -873,6 +1018,7 @@ get_centered_text_pos :: proc(center: Vec2, text: cstring, font_size: f32, spaci
 	return center - rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing) / 2
 }
 
+// A pivot of {-1, -1} means the top left will be put at pos
 draw_text :: proc(
 	pos: Vec2,
 	pivot: Vec2,
@@ -902,4 +1048,35 @@ get_right_text_pos :: proc(right: Vec2, text: cstring, font_size: f32, spacing: 
 get_left_text_pos :: proc(left: Vec2, text: cstring, font_size: f32, spacing: f32) -> Vec2 {
 	size := rl.MeasureTextEx(rl.GetFontDefault(), text, font_size, spacing)
 	return left - {0, size.y / 2}
+}
+
+load_settings :: proc() {
+	if bytes, ok := os.read_entire_file("data/settings.json", context.temp_allocator); ok {
+		if err := json.unmarshal(bytes, &settings); err == nil {
+			// Apply the settings data
+			rl.SetMasterVolume(settings.master_volume)
+		} else {
+			rl.TraceLog(.WARNING, "Failed to parse settings file, generating defaults")
+		}
+	} else {
+		rl.TraceLog(.WARNING, "No settings file found, generating defaults")
+	}
+}
+
+save_settings :: proc() {
+	// Wrangle all the settings data
+	settings.master_volume = rl.GetMasterVolume()
+
+	// Actually save the settings
+	if bytes, err := json.marshal(
+		settings,
+		allocator = context.temp_allocator,
+		opt = {pretty = true},
+	); err == nil {
+		if !os.write_entire_file("data/settings.json", bytes) {
+			rl.TraceLog(.WARNING, "Error writing settings data")
+		}
+	} else {
+		rl.TraceLog(.WARNING, "Error serializing settings data")
+	}
 }
