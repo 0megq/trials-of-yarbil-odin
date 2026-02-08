@@ -1,3 +1,4 @@
+# [Steam Page](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/)
 Trials of Yarbil is a top-down action hack and slash being developed, without a game engine, in Odin with the Raylib library that is NOW out on [Steam](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/)
 
 # Development
