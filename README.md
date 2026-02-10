@@ -1,7 +1,7 @@
 # [Steam Page](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/)
-Trials of Yarbil is a top-down action game where you dash, slash, and explode through floors of goblins. It was developed, without a game engine, in Odin (a C-like language) with the Raylib library. It is now out on [Steam](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/)
+Trials of Yarbil is a top-down action game where you dash, slash, and explode through floors of goblins. It was developed, without a game engine, in Odin (a C-like language) with the Raylib library. It is now out on [Steam](https://store.steampowered.com/app/3320710/Trials_of_Yarbil/).
 
-# Youtube Devlogs
+# [Youtube Devlogs](https://www.youtube.com/watch?v=HNNescv4yIw)
 The devlogs created to track the progress of this project can be found [here](https://www.youtube.com/watch?v=HNNescv4yIw).
 
 # Development
